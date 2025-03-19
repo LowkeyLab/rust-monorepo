@@ -1,0 +1,8 @@
+[package]
+name = "task-cli"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+todo-list = { path = "../todo-list" }
+clap = { version = "4.5.32", features = ["derive"] }
