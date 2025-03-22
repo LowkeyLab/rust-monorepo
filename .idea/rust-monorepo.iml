@@ -4,6 +4,11 @@
     <content url="file://$MODULE_DIR$">
       <sourceFolder url="file://$MODULE_DIR$/todo-graph-server/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/todo-graph/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/task-cli/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/todo-list/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/todo-list/todo-list/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/grrs/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/grrs/tests" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />
