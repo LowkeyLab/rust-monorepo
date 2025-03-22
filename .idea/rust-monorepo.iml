@@ -8,6 +8,7 @@
       <sourceFolder url="file://$MODULE_DIR$/todo-list/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/todo-list/todo-list/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/grrs/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/grrs/tests" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />
