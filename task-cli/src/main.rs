@@ -14,6 +14,7 @@ struct Cli {
 enum Commands {
     Add { description: String },
     Update { id: u32, description: String },
+    Delete { id: u32 },
     List,
 }
 
@@ -48,7 +49,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     match args.command {
         Commands::Add { description } => {
             let mut file = open_file_and_truncate(path);
-            let id = tasks.add(description);
+            let id = tasks.add_task(description);
             tasks.save_as_json(&mut file);
             println!("Task added with ID {}", id);
         }
@@ -58,6 +59,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .update_task(id, description)
                 .expect("cannot update task");
             tasks.save_as_json(&mut file);
+        }
+        Commands::Delete { id } => {
+            tasks.delete_task(id);
+            let mut file = open_file_and_truncate(path);
+            tasks.save_as_json(&mut file);
+            println!("Task with ID {} deleted", id);
         }
         Commands::List => {
             println!("{}", tasks);
