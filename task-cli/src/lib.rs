@@ -13,17 +13,35 @@ enum Status {
     Todo,
 }
 
-struct TaskRepository {
+trait TaskRepository {
+    fn add(&mut self, task: Task);
+    fn save(&mut self) -> Result<(), Box<dyn std::error::Error>>;
+    fn find_by_id(&self, id: u32) -> Option<&Task>;
+}
+
+struct InMemoryTaskRepository {
+    to_be_saved: Vec<Task>,
     tasks: Vec<Task>,
 }
 
-impl TaskRepository {
+impl InMemoryTaskRepository {
     fn new() -> Self {
-        Self { tasks: vec![] }
+        Self {
+            tasks: Vec::new(),
+            to_be_saved: Vec::new(),
+        }
     }
+}
+
+impl TaskRepository for InMemoryTaskRepository {
     fn add(&mut self, task: Task) {
-        self.tasks.push(task);
+        self.to_be_saved.push(task);
     }
+    fn save(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        self.tasks.append(&mut self.to_be_saved);
+        Ok(())
+    }
+
     fn find_by_id(&self, id: u32) -> Option<&Task> {
         self.tasks.iter().find(|task| task.id == id)
     }
@@ -34,15 +52,16 @@ mod tests {
     use super::*;
     #[test]
     fn can_create_task_repository() {
-        let _ = TaskRepository::new();
+        let _ = InMemoryTaskRepository::new();
     }
 
     #[test]
     fn can_add_new_task() {
-        let mut repo = TaskRepository::new();
+        let mut repo = InMemoryTaskRepository::new();
         let task = Task::default();
 
         repo.add(task.clone());
+        repo.save().unwrap();
 
         assert_eq!(repo.tasks.len(), 1);
         assert_eq!(repo.find_by_id(task.id), Some(&task));
