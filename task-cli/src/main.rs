@@ -12,9 +12,20 @@ struct Cli {
 
 #[derive(Debug, Clone, Subcommand)]
 enum Commands {
-    Add { description: String },
-    Update { id: u32, description: String },
-    Delete { id: u32 },
+    Add {
+        description: String,
+    },
+    Update {
+        id: u32,
+        description: String,
+    },
+    #[command(name = "mark-in-progress")]
+    MarkInProgress {
+        id: u32,
+    },
+    Delete {
+        id: u32,
+    },
     List,
 }
 
@@ -59,6 +70,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .update_task(id, description)
                 .expect("cannot update task");
             tasks.save_as_json(&mut file);
+        }
+        Commands::MarkInProgress { id } => {
+            let mut file = open_file_and_truncate(path);
+            tasks
+                .mark_in_progress(id)
+                .expect("cannot mark task as in progress");
+            tasks.save_as_json(&mut file);
+            println!("Task with ID {} marked as in progress", id);
         }
         Commands::Delete { id } => {
             tasks.delete_task(id);
