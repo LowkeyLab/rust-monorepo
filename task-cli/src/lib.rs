@@ -110,37 +110,6 @@ mod tests {
         assert_eq!(repo.tasks.get(&2).unwrap().description, "Task 2");
         assert_eq!(repo.tasks.get(&3).unwrap().description, "Task 3");
     }
-
-    #[test]
-    fn test_add_overwrites_existing_task() {
-        // Note: This test may need to be completely reconsidered if the new
-        // implementation doesn't allow for overwriting by ID (since tasks are
-        // now created internally)
-
-        let mut repo = TaskRepository::new();
-
-        // Add initial task
-        repo.add("Initial task".to_string());
-        let initial_id = 1; // Assuming first task gets ID 1
-
-        // Verify initial task
-        assert_eq!(repo.tasks.len(), 1);
-        assert_eq!(
-            repo.tasks.get(&initial_id).unwrap().description,
-            "Initial task"
-        );
-
-        // Add another task (which should get a new ID, not overwrite)
-        repo.add("Second task".to_string());
-
-        // Verify there are now two tasks
-        assert_eq!(repo.tasks.len(), 2);
-        assert_eq!(
-            repo.tasks.get(&initial_id).unwrap().description,
-            "Initial task"
-        );
-        assert_eq!(repo.tasks.get(&2).unwrap().description, "Second task");
-    }
 }
 
 #[cfg(test)]
