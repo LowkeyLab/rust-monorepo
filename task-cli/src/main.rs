@@ -1,12 +1,20 @@
-use clap::Parser;
+use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
 struct Cli {
-    // The command to execute
-    command: String,
+    #[command(subcommand)]
+    command: Commands,
 }
+
+#[derive(Debug, Clone, Subcommand)]
+enum Commands {
+    Add,
+}
+
 fn main() {
     let args = Cli::parse();
 
-    println!("{:?}", args);
+    match args.command {
+        Commands::Add => println!("Add command"),
+    }
 }
