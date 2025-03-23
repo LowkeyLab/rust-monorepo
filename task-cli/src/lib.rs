@@ -38,7 +38,7 @@ impl TaskRepository {
     }
 
     pub fn new_from_json(json: &str) -> Self {
-        serde_json::from_str(json).unwrap()
+        serde_json::from_str(json).expect("cannot deserialize repository")
     }
 
     pub fn add(&mut self, description: String) -> u32 {
@@ -58,7 +58,7 @@ impl TaskRepository {
     }
 
     pub fn save_as_json(&self, writer: impl std::io::Write) {
-        serde_json::to_writer(writer, &self).unwrap();
+        serde_json::to_writer(writer, &self).expect("cannot serialize repository");
     }
 }
 
