@@ -13,6 +13,7 @@ struct Cli {
 #[derive(Debug, Clone, Subcommand)]
 enum Commands {
     Add { description: String },
+    List,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -41,6 +42,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let id = tasks.add(description);
             tasks.save_as_json(&mut file);
             println!("Task added with ID {}", id);
+        }
+        Commands::List => {
+            println!("{}", tasks);
         }
     };
 
