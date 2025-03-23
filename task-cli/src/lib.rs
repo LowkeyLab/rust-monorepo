@@ -41,12 +41,6 @@ pub struct TaskRepository {
     next_id: u32,
 }
 
-impl Default for TaskRepository {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl TaskRepository {
     pub fn new() -> Self {
         Self {
@@ -57,6 +51,21 @@ impl TaskRepository {
 
     pub fn new_from_json(json: &str) -> Self {
         serde_json::from_str(json).expect("cannot deserialize repository")
+    }
+
+    pub fn get_task(&self, id: u32) -> Option<&Task> {
+        self.tasks.get(&id)
+    }
+
+    pub fn update_task(&mut self, id: u32, description: String) -> Result<(), String> {
+        match self.tasks.get_mut(&id) {
+            Some(task) => {
+                task.description = description;
+                task.updated_at = chrono::Utc::now();
+                Ok(())
+            }
+            None => Err(format!("Task with ID {} not found", id)),
+        }
     }
 
     pub fn add(&mut self, description: String) -> u32 {
@@ -294,5 +303,133 @@ mod next_id_tests {
             id, 4,
             "New task should get ID 4, not reuse the removed ID 2"
         );
+    }
+}
+#[cfg(test)]
+mod update_task_tests {
+    use super::*;
+
+    #[test]
+    fn test_update_nonexistent_task_returns_error() {
+        let mut repo = TaskRepository::new();
+        let result = repo.update_task(1, "Updated task".to_string());
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Task with ID 1 not found");
+    }
+
+    #[test]
+    fn test_update_task_description_success() {
+        let mut repo = TaskRepository::new();
+        let id = repo.add("Original task".to_string());
+
+        let result = repo.update_task(id, "Updated description".to_string());
+        assert!(result.is_ok());
+
+        let updated_task = repo.get_task(id).unwrap();
+        assert_eq!(updated_task.description, "Updated description");
+    }
+
+    #[test]
+    fn test_update_task_preserves_status() {
+        let mut repo = TaskRepository::new();
+        let id = repo.add("Original task".to_string());
+
+        // Assuming tasks start with Status::Todo
+        // First update the status to something else if your code supports it
+        // For example: repo.set_status(id, Status::InProgress);
+
+        // Now update the description
+        let result = repo.update_task(id, "Updated description".to_string());
+        assert!(result.is_ok());
+
+        // Check that status is preserved
+        let updated_task = repo.get_task(id).unwrap();
+        assert_eq!(updated_task.status, Status::Todo); // Or whatever the status was before
+    }
+
+    #[test]
+    fn test_update_task_updates_timestamp() {
+        let mut repo = TaskRepository::new();
+        let id = repo.add("Task for timestamp check".to_string());
+
+        let original_task = repo.get_task(id).unwrap().clone();
+
+        // Wait a small amount of time to ensure timestamps differ
+        std::thread::sleep(std::time::Duration::from_millis(5));
+
+        let result = repo.update_task(id, "Updated for timestamp".to_string());
+        assert!(result.is_ok());
+
+        let updated_task = repo.get_task(id).unwrap();
+        assert!(updated_task.updated_at > original_task.updated_at);
+    }
+
+    #[test]
+    fn test_update_multiple_tasks() {
+        let mut repo = TaskRepository::new();
+        let id1 = repo.add("First task".to_string());
+        let id2 = repo.add("Second task".to_string());
+
+        // Update first task
+        let result1 = repo.update_task(id1, "Updated first".to_string());
+        assert!(result1.is_ok());
+
+        // Update second task
+        let result2 = repo.update_task(id2, "Updated second".to_string());
+        assert!(result2.is_ok());
+
+        // Check both updates worked correctly
+        let task1 = repo.get_task(id1).unwrap();
+        assert_eq!(task1.description, "Updated first");
+
+        let task2 = repo.get_task(id2).unwrap();
+        assert_eq!(task2.description, "Updated second");
+    }
+
+    #[test]
+    fn test_update_task_with_same_description() {
+        let mut repo = TaskRepository::new();
+        let id = repo.add("Original description".to_string());
+
+        let original_task = repo.get_task(id).unwrap().clone();
+
+        // Wait a small amount of time to ensure timestamps differ
+        std::thread::sleep(std::time::Duration::from_millis(5));
+
+        // Update with the same description
+        let result = repo.update_task(id, "Original description".to_string());
+        assert!(result.is_ok());
+
+        let updated_task = repo.get_task(id).unwrap();
+        assert_eq!(updated_task.description, original_task.description);
+        // Even with the same content, updated_at should be refreshed
+        assert!(updated_task.updated_at > original_task.updated_at);
+    }
+
+    #[test]
+    fn test_update_task_empty_description() {
+        let mut repo = TaskRepository::new();
+        let id = repo.add("Initial description".to_string());
+
+        let result = repo.update_task(id, "".to_string());
+        assert!(result.is_ok());
+
+        let updated_task = repo.get_task(id).unwrap();
+        assert_eq!(updated_task.description, "");
+    }
+
+    #[test]
+    fn test_update_task_with_long_description() {
+        let mut repo = TaskRepository::new();
+        let id = repo.add("Short description".to_string());
+
+        // Create a very long description
+        let long_description = "a".repeat(1000);
+
+        let result = repo.update_task(id, long_description.clone());
+        assert!(result.is_ok());
+
+        let updated_task = repo.get_task(id).unwrap();
+        assert_eq!(updated_task.description, long_description);
     }
 }

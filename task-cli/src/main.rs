@@ -13,6 +13,7 @@ struct Cli {
 #[derive(Debug, Clone, Subcommand)]
 enum Commands {
     Add { description: String },
+    Update { id: u32, description: String },
     List,
 }
 
@@ -24,15 +25,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let path = Path::new(TASK_FILE);
 
     let mut tasks = if !path.exists() {
-        TaskRepository::default()
+        TaskRepository::new()
     } else {
         let contents = fs::read_to_string(path).expect("cannot read file that currently exists");
-        TaskRepository::new_from_json(&contents)
+        if contents.is_empty() {
+            TaskRepository::new()
+        } else {
+            TaskRepository::new_from_json(&contents)
+        }
     };
 
     let mut file = OpenOptions::new()
         .write(true)
-        .truncate(true)
+        .truncate(false)
         .create(true)
         .open(TASK_FILE)
         .expect("cannot open file");
@@ -42,6 +47,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let id = tasks.add(description);
             tasks.save_as_json(&mut file);
             println!("Task added with ID {}", id);
+        }
+        Commands::Update { id, description } => {
+            tasks
+                .update_task(id, description)
+                .expect("cannot update task");
+            tasks.save_as_json(&mut file);
         }
         Commands::List => {
             println!("{}", tasks);
