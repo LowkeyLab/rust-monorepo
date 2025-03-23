@@ -1,6 +1,7 @@
 use crate::Status::Todo;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize, Clone)]
 pub struct Task {
@@ -11,10 +12,27 @@ pub struct Task {
     updated_at: chrono::DateTime<chrono::Utc>,
 }
 
+impl Display for Task {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}: {} [Status: {}]",
+            self.id, self.description, self.status
+        )
+    }
+}
+
 #[derive(Debug, Default, Eq, PartialEq, Serialize, Deserialize, Clone)]
 pub enum Status {
     #[default]
     Todo,
+}
+impl Display for Status {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Todo => write!(f, "To Do"),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -59,6 +77,28 @@ impl TaskRepository {
 
     pub fn save_as_json(&self, writer: impl std::io::Write) {
         serde_json::to_writer(writer, &self).expect("cannot serialize repository");
+    }
+}
+
+impl Display for TaskRepository {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Task Repository ({} tasks):", self.tasks.len())?;
+
+        if self.tasks.is_empty() {
+            writeln!(f, "  No tasks found.")?;
+        } else {
+            // Get a sorted list of task IDs for consistent output
+            let mut task_ids: Vec<&u32> = self.tasks.keys().collect();
+            task_ids.sort();
+
+            // Format each task
+            for id in task_ids {
+                let task = &self.tasks[id];
+                writeln!(f, "  {}", task)?;
+            }
+        }
+
+        Ok(())
     }
 }
 
