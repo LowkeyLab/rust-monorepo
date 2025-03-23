@@ -27,12 +27,14 @@ pub enum Status {
     #[default]
     Todo,
     InProgress,
+    Done,
 }
 impl Display for Status {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Todo => write!(f, "To Do"),
             InProgress => write!(f, "In Progress"),
+            Status::Done => write!(f, "Done"),
         }
     }
 }
@@ -101,6 +103,15 @@ impl TaskRepository {
             return Err(format!("Task with ID {} not found", id));
         };
         task.status = InProgress;
+        task.updated_at = chrono::Utc::now();
+        Ok(())
+    }
+
+    pub fn mark_done(&mut self, id: u32) -> Result<(), String> {
+        let Some(task) = self.tasks.get_mut(&id) else {
+            return Err(format!("Task with ID {} not found", id));
+        };
+        task.status = Status::Done;
         task.updated_at = chrono::Utc::now();
         Ok(())
     }
@@ -716,5 +727,190 @@ mod mark_in_progress_tests {
         assert!(result.is_err());
         let error = result.unwrap_err();
         assert!(error.contains(&id.to_string()));
+    }
+}
+
+#[cfg(test)]
+mod mark_done_tests {
+    use super::*;
+
+    #[test]
+    fn test_mark_task_as_done_success() {
+        // Arrange
+        let mut repo = TaskRepository::new();
+        let id = repo.add_task("Task to complete".to_string());
+
+        // Act
+        let result = repo.mark_done(id);
+
+        // Assert
+        assert!(result.is_ok());
+        assert_eq!(repo.get_task(id).unwrap().status, Status::Done);
+    }
+
+    #[test]
+    fn test_mark_nonexistent_task_as_done_returns_error() {
+        // Arrange
+        let mut repo = TaskRepository::new();
+        let nonexistent_id = 999;
+
+        // Act
+        let result = repo.mark_done(nonexistent_id);
+
+        // Assert
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(error.contains(&nonexistent_id.to_string()));
+    }
+
+    #[test]
+    fn test_mark_in_progress_task_as_done() {
+        // Arrange
+        let mut repo = TaskRepository::new();
+        let id = repo.add_task("Task in progress".to_string());
+        repo.mark_in_progress(id).unwrap();
+
+        // Act
+        let result = repo.mark_done(id);
+
+        // Assert
+        assert!(result.is_ok());
+        assert_eq!(repo.get_task(id).unwrap().status, Status::Done);
+    }
+
+    #[test]
+    fn test_mark_already_done_task() {
+        // Arrange
+        let mut repo = TaskRepository::new();
+        let id = repo.add_task("Completed task".to_string());
+        repo.mark_done(id).unwrap(); // First mark as done
+
+        // Act
+        let result = repo.mark_done(id); // Mark as done again
+
+        // Assert
+        assert!(result.is_ok());
+        assert_eq!(repo.get_task(id).unwrap().status, Status::Done);
+    }
+
+    #[test]
+    fn test_mark_done_updates_timestamp() {
+        // Arrange
+        let mut repo = TaskRepository::new();
+        let id = repo.add_task("Task to update".to_string());
+        let before = repo.get_task(id).unwrap().updated_at;
+
+        // Add a small delay to ensure timestamp changes
+        std::thread::sleep(std::time::Duration::from_millis(5));
+
+        // Act
+        repo.mark_done(id).unwrap();
+
+        // Assert
+        let after = repo.get_task(id).unwrap().updated_at;
+        assert!(
+            after > before,
+            "The updated_at timestamp should increase after marking as done"
+        );
+    }
+
+    #[test]
+    fn test_mark_done_preserves_description() {
+        // Arrange
+        let mut repo = TaskRepository::new();
+        let description = "Task with description".to_string();
+        let id = repo.add_task(description.clone());
+
+        // Act
+        repo.mark_done(id).unwrap();
+
+        // Assert
+        assert_eq!(repo.get_task(id).unwrap().description, description);
+    }
+
+    #[test]
+    fn test_mark_done_preserves_id() {
+        // Arrange
+        let mut repo = TaskRepository::new();
+        let id = repo.add_task("Task with ID".to_string());
+
+        // Act
+        repo.mark_done(id).unwrap();
+
+        // Assert
+        assert_eq!(repo.get_task(id).unwrap().id, id);
+    }
+
+    #[test]
+    fn test_mark_done_preserves_created_at() {
+        // Arrange
+        let mut repo = TaskRepository::new();
+        let id = repo.add_task("Task with creation time".to_string());
+        let created_at = repo.get_task(id).unwrap().created_at;
+
+        // Act
+        repo.mark_done(id).unwrap();
+
+        // Assert
+        assert_eq!(repo.get_task(id).unwrap().created_at, created_at);
+    }
+
+    #[test]
+    fn test_mark_multiple_tasks_done() {
+        // Arrange
+        let mut repo = TaskRepository::new();
+        let id1 = repo.add_task("First task".to_string());
+        let id2 = repo.add_task("Second task".to_string());
+        let id3 = repo.add_task("Third task".to_string());
+        repo.mark_in_progress(id2).unwrap(); // Make the second task in progress first
+
+        // Act
+        let result1 = repo.mark_done(id1);
+        let result2 = repo.mark_done(id2);
+        let result3 = repo.mark_done(id3);
+
+        // Assert
+        assert!(result1.is_ok());
+        assert!(result2.is_ok());
+        assert!(result3.is_ok());
+        assert_eq!(repo.get_task(id1).unwrap().status, Status::Done);
+        assert_eq!(repo.get_task(id2).unwrap().status, Status::Done);
+        assert_eq!(repo.get_task(id3).unwrap().status, Status::Done);
+    }
+
+    #[test]
+    fn test_mark_deleted_task_as_done() {
+        // Arrange
+        let mut repo = TaskRepository::new();
+        let id = repo.add_task("Task to delete".to_string());
+        repo.delete_task(id);
+
+        // Act
+        let result = repo.mark_done(id);
+
+        // Assert
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(error.contains(&id.to_string()));
+    }
+
+    #[test]
+    fn test_transition_through_all_states() {
+        // Arrange
+        let mut repo = TaskRepository::new();
+        let id = repo.add_task("Task to transition".to_string());
+
+        // Assert initial state
+        assert_eq!(repo.get_task(id).unwrap().status, Status::Todo);
+
+        // Act & Assert
+        let result1 = repo.mark_in_progress(id);
+        assert!(result1.is_ok());
+        assert_eq!(repo.get_task(id).unwrap().status, Status::InProgress);
+
+        // Act & Assert: InProgress -> Done
+        let result2 = repo.mark_done(id);
+        assert!(result2.is_ok());
+        assert_eq!(repo.get_task(id).unwrap().status, Status::Done);
     }
 }

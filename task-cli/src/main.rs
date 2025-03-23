@@ -23,6 +23,10 @@ enum Commands {
     MarkInProgress {
         id: u32,
     },
+    #[command(name = "mark-done")]
+    MarkDone {
+        id: u32,
+    },
     Delete {
         id: u32,
     },
@@ -78,6 +82,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .expect("cannot mark task as in progress");
             tasks.save_as_json(&mut file);
             println!("Task with ID {} marked as in progress", id);
+        }
+        Commands::MarkDone { id } => {
+            let mut file = open_file_and_truncate(path);
+            tasks.mark_done(id).expect("cannot mark task as done");
+            tasks.save_as_json(&mut file);
+            println!("Task with ID {} marked as done", id);
         }
         Commands::Delete { id } => {
             tasks.delete_task(id);
