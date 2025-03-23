@@ -41,6 +41,12 @@ pub struct TaskRepository {
     next_id: u32,
 }
 
+impl Default for TaskRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TaskRepository {
     pub fn new() -> Self {
         Self {
@@ -68,7 +74,11 @@ impl TaskRepository {
         }
     }
 
-    pub fn add(&mut self, description: String) -> u32 {
+    pub fn delete_task(&mut self, id: u32) {
+        self.tasks.remove(&id);
+    }
+
+    pub fn add_task(&mut self, description: String) -> u32 {
         let curr_id = self.next_id;
         self.tasks.insert(
             curr_id,
@@ -121,7 +131,7 @@ mod tests {
         let mut repo = TaskRepository::new();
 
         // Add a task using the new method signature
-        repo.add("Test task".to_string());
+        repo.add_task("Test task".to_string());
 
         // Verify the task was added correctly
         assert_eq!(repo.tasks.len(), 1);
@@ -144,9 +154,9 @@ mod tests {
         let mut repo = TaskRepository::new();
 
         // Add multiple tasks with the new method signature
-        repo.add("Task 1".to_string());
-        repo.add("Task 2".to_string());
-        repo.add("Task 3".to_string());
+        repo.add_task("Task 1".to_string());
+        repo.add_task("Task 2".to_string());
+        repo.add_task("Task 3".to_string());
 
         // Verify all tasks were added
         assert_eq!(repo.tasks.len(), 3);
@@ -179,7 +189,7 @@ mod next_id_tests {
         let mut repo = TaskRepository::new();
 
         // Add a task and capture the returned ID
-        let id = repo.add("Test task".to_string());
+        let id = repo.add_task("Test task".to_string());
 
         // Verify the ID matches what we'd expect
         assert_eq!(id, 1, "First task should have ID 1");
@@ -193,9 +203,9 @@ mod next_id_tests {
         let mut repo = TaskRepository::new();
 
         // Add several tasks
-        let id1 = repo.add("Task 1".to_string());
-        let id2 = repo.add("Task 2".to_string());
-        let id3 = repo.add("Task 3".to_string());
+        let id1 = repo.add_task("Task 1".to_string());
+        let id2 = repo.add_task("Task 2".to_string());
+        let id3 = repo.add_task("Task 3".to_string());
 
         // Verify IDs and next_id value
         assert_eq!(id1, 1, "First task should have ID 1");
@@ -208,8 +218,8 @@ mod next_id_tests {
     fn test_next_id_preserved_when_loading_from_json() {
         // Create a repository with some tasks and a specific next_id
         let mut original_repo = TaskRepository::new();
-        original_repo.add("Task 1".to_string());
-        original_repo.add("Task 2".to_string());
+        original_repo.add_task("Task 1".to_string());
+        original_repo.add_task("Task 2".to_string());
 
         // At this point, next_id should be 3
         assert_eq!(original_repo.next_id, 3);
@@ -237,7 +247,7 @@ mod next_id_tests {
         repo.next_id = 42;
 
         // Add a task
-        let id = repo.add("Task with custom ID".to_string());
+        let id = repo.add_task("Task with custom ID".to_string());
 
         // Verify the task got the expected ID and next_id was incremented
         assert_eq!(
@@ -284,9 +294,9 @@ mod next_id_tests {
         let mut repo = TaskRepository::new();
 
         // Add tasks
-        repo.add("Task 1".to_string());
-        repo.add("Task 2".to_string());
-        repo.add("Task 3".to_string());
+        repo.add_task("Task 1".to_string());
+        repo.add_task("Task 2".to_string());
+        repo.add_task("Task 3".to_string());
 
         // Remove a task (assuming a remove method exists or simulating removal)
         repo.tasks.remove(&2);
@@ -298,7 +308,7 @@ mod next_id_tests {
         );
 
         // Add another task and check its ID
-        let id = repo.add("Task 4".to_string());
+        let id = repo.add_task("Task 4".to_string());
         assert_eq!(
             id, 4,
             "New task should get ID 4, not reuse the removed ID 2"
@@ -320,7 +330,7 @@ mod update_task_tests {
     #[test]
     fn test_update_task_description_success() {
         let mut repo = TaskRepository::new();
-        let id = repo.add("Original task".to_string());
+        let id = repo.add_task("Original task".to_string());
 
         let result = repo.update_task(id, "Updated description".to_string());
         assert!(result.is_ok());
@@ -332,7 +342,7 @@ mod update_task_tests {
     #[test]
     fn test_update_task_preserves_status() {
         let mut repo = TaskRepository::new();
-        let id = repo.add("Original task".to_string());
+        let id = repo.add_task("Original task".to_string());
 
         // Assuming tasks start with Status::Todo
         // First update the status to something else if your code supports it
@@ -350,7 +360,7 @@ mod update_task_tests {
     #[test]
     fn test_update_task_updates_timestamp() {
         let mut repo = TaskRepository::new();
-        let id = repo.add("Task for timestamp check".to_string());
+        let id = repo.add_task("Task for timestamp check".to_string());
 
         let original_task = repo.get_task(id).unwrap().clone();
 
@@ -367,8 +377,8 @@ mod update_task_tests {
     #[test]
     fn test_update_multiple_tasks() {
         let mut repo = TaskRepository::new();
-        let id1 = repo.add("First task".to_string());
-        let id2 = repo.add("Second task".to_string());
+        let id1 = repo.add_task("First task".to_string());
+        let id2 = repo.add_task("Second task".to_string());
 
         // Update first task
         let result1 = repo.update_task(id1, "Updated first".to_string());
@@ -389,7 +399,7 @@ mod update_task_tests {
     #[test]
     fn test_update_task_with_same_description() {
         let mut repo = TaskRepository::new();
-        let id = repo.add("Original description".to_string());
+        let id = repo.add_task("Original description".to_string());
 
         let original_task = repo.get_task(id).unwrap().clone();
 
@@ -409,7 +419,7 @@ mod update_task_tests {
     #[test]
     fn test_update_task_empty_description() {
         let mut repo = TaskRepository::new();
-        let id = repo.add("Initial description".to_string());
+        let id = repo.add_task("Initial description".to_string());
 
         let result = repo.update_task(id, "".to_string());
         assert!(result.is_ok());
@@ -421,7 +431,7 @@ mod update_task_tests {
     #[test]
     fn test_update_task_with_long_description() {
         let mut repo = TaskRepository::new();
-        let id = repo.add("Short description".to_string());
+        let id = repo.add_task("Short description".to_string());
 
         // Create a very long description
         let long_description = "a".repeat(1000);
@@ -431,5 +441,124 @@ mod update_task_tests {
 
         let updated_task = repo.get_task(id).unwrap();
         assert_eq!(updated_task.description, long_description);
+    }
+}
+#[cfg(test)]
+mod delete_task_tests {
+    use super::*;
+
+    #[test]
+    fn test_delete_existing_task() {
+        // Arrange
+        let mut repo = TaskRepository::new();
+        let id = repo.add_task("Test task".to_string());
+
+        // Act
+        repo.delete_task(id);
+
+        // Assert
+        assert!(repo.get_task(id).is_none());
+    }
+
+    #[test]
+    fn test_delete_nonexistent_task_does_not_panic() {
+        // Arrange
+        let mut repo = TaskRepository::new();
+        let nonexistent_id = 9999;
+
+        // Act & Assert - should not panic
+        repo.delete_task(nonexistent_id);
+    }
+
+    #[test]
+    fn test_delete_task_maintains_other_tasks() {
+        // Arrange
+        let mut repo = TaskRepository::new();
+        let id1 = repo.add_task("Task 1".to_string());
+        let id2 = repo.add_task("Task 2".to_string());
+        let id3 = repo.add_task("Task 3".to_string());
+
+        // Act
+        repo.delete_task(id2);
+
+        // Assert
+        assert!(repo.get_task(id1).is_some());
+        assert!(repo.get_task(id2).is_none());
+        assert!(repo.get_task(id3).is_some());
+    }
+
+    #[test]
+    fn test_delete_task_cannot_retrieve_deleted_task() {
+        // Arrange
+        let mut repo = TaskRepository::new();
+        let id = repo.add_task("Doomed task".to_string());
+
+        // Save the task data before deletion
+        let task_before = repo.get_task(id).unwrap().clone();
+
+        // Act
+        repo.delete_task(id);
+
+        // Assert
+        assert!(repo.get_task(id).is_none());
+
+        // Add a new task and verify it gets a new ID
+        let new_id = repo.add_task("New task".to_string());
+        assert_ne!(id, new_id);
+    }
+
+    #[test]
+    fn test_delete_and_readd_with_same_description() {
+        // Arrange
+        let mut repo = TaskRepository::new();
+        let description = "Recurring task".to_string();
+        let id1 = repo.add_task(description.clone());
+
+        // Act
+        repo.delete_task(id1);
+        let id2 = repo.add_task(description);
+
+        // Assert
+        assert_ne!(id1, id2); // Should get a new ID
+        assert!(repo.get_task(id1).is_none());
+        assert!(repo.get_task(id2).is_some());
+    }
+
+    #[test]
+    fn test_delete_all_tasks() {
+        // Arrange
+        let mut repo = TaskRepository::new();
+        let ids = vec![
+            repo.add_task("Task 1".to_string()),
+            repo.add_task("Task 2".to_string()),
+            repo.add_task("Task 3".to_string()),
+        ];
+
+        // Act
+        for id in ids {
+            repo.delete_task(id);
+        }
+
+        // Assert - repository should be empty
+        // This assumes there's a way to get all tasks or check if empty
+        for id in 1..10 {
+            assert!(repo.get_task(id).is_none());
+        }
+    }
+
+    #[test]
+    fn test_delete_same_task_twice() {
+        // Arrange
+        let mut repo = TaskRepository::new();
+        let id = repo.add_task("Task to delete twice".to_string());
+
+        // Act
+        repo.delete_task(id);
+
+        // Should not panic when deleting again
+        repo.delete_task(id);
+
+        // Assert
+        assert!(repo.get_task(id).is_none());
     }
 }
