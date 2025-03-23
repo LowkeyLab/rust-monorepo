@@ -494,7 +494,7 @@ mod delete_task_tests {
         let id = repo.add_task("Doomed task".to_string());
 
         // Save the task data before deletion
-        let task_before = repo.get_task(id).unwrap().clone();
+        let _ = repo.get_task(id).unwrap().clone();
 
         // Act
         repo.delete_task(id);
