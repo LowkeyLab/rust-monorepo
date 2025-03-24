@@ -5,6 +5,9 @@
 Task CLI is a simple command-line task management application built in Rust. It
 allows you to create, update, and manage your tasks directly from the terminal.
 
+This project was done as part
+of [roadmap.sh](https://roadmap.sh/projects/task-tracker)
+
 ## Features
 
 - Add new tasks with descriptions
