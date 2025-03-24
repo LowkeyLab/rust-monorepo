@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use std::fs;
 use std::fs::{File, OpenOptions};
 use std::path::Path;
@@ -8,6 +8,23 @@ use task_cli::TaskRepository;
 struct Cli {
     #[command(subcommand)]
     command: Commands,
+}
+
+#[derive(Debug, Clone, ValueEnum)]
+enum StatusArg {
+    Todo,
+    InProgress,
+    Done,
+}
+
+impl From<StatusArg> for task_cli::Status {
+    fn from(status_arg: StatusArg) -> Self {
+        match status_arg {
+            StatusArg::Todo => task_cli::Status::Todo,
+            StatusArg::InProgress => task_cli::Status::InProgress,
+            StatusArg::Done => task_cli::Status::Done,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Subcommand)]
@@ -30,7 +47,10 @@ enum Commands {
     Delete {
         id: u32,
     },
-    List,
+    List {
+        // Optional positional argument for status
+        status: Option<StatusArg>,
+    },
 }
 
 fn open_file_and_truncate(path: &Path) -> File {
@@ -95,8 +115,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             tasks.save_as_json(&mut file);
             println!("Task with ID {} deleted", id);
         }
-        Commands::List => {
-            println!("{}", tasks);
+        Commands::List { status } => {
+            let filtered_status = status.map(task_cli::Status::from);
+
+            let Some(status) = filtered_status else {
+                // Show all tasks
+                println!("{}", tasks);
+                return Ok(());
+            };
+
+            // Filter tasks by status
+            println!("Listing tasks with status: {:?}", status);
+            for task in tasks.get_tasks_with_status(status) {
+                println!("{}", task);
+            }
         }
     };
 

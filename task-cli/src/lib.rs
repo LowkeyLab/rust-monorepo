@@ -67,6 +67,14 @@ impl TaskRepository {
         self.tasks.get(&id)
     }
 
+    pub fn get_tasks_with_status(&self, status: Status) -> Vec<Task> {
+        self.tasks
+            .values()
+            .filter(|task| task.status == status)
+            .cloned()
+            .collect()
+    }
+
     pub fn update_task(&mut self, id: u32, description: String) -> Result<(), String> {
         match self.tasks.get_mut(&id) {
             Some(task) => {
@@ -912,5 +920,183 @@ mod mark_done_tests {
         let result2 = repo.mark_done(id);
         assert!(result2.is_ok());
         assert_eq!(repo.get_task(id).unwrap().status, Status::Done);
+    }
+}
+
+#[cfg(test)]
+mod get_tasks_with_status_tests {
+    use super::*;
+
+    #[test]
+    fn test_get_tasks_with_matching_status() {
+        // Arrange
+        let mut repo = TaskRepository::new();
+        let id = repo.add_task("Test task".to_string());
+
+        // Act
+        let tasks = repo.get_tasks_with_status(Status::Todo);
+
+        // Assert
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].id, id);
+        assert_eq!(tasks[0].status, Status::Todo);
+    }
+
+    #[test]
+    fn test_get_tasks_with_non_matching_status() {
+        // Arrange
+        let mut repo = TaskRepository::new();
+        repo.add_task("Test task".to_string());
+
+        // Act
+        let tasks = repo.get_tasks_with_status(Status::InProgress);
+
+        // Assert
+        assert!(tasks.is_empty());
+    }
+
+    #[test]
+    fn test_get_empty_repository_tasks() {
+        // Arrange
+        let repo = TaskRepository::new();
+
+        // Act
+        let tasks = repo.get_tasks_with_status(Status::Todo);
+
+        // Assert
+        assert!(tasks.is_empty());
+    }
+
+    #[test]
+    fn test_get_tasks_with_status_after_status_change() {
+        // Arrange
+        let mut repo = TaskRepository::new();
+        let id = repo.add_task("Test task".to_string());
+        repo.mark_in_progress(id).unwrap();
+
+        // Act - Try to get with old status
+        let todo_tasks = repo.get_tasks_with_status(Status::Todo);
+
+        // Assert
+        assert!(todo_tasks.is_empty());
+
+        // Act - Try to get with new status
+        let in_progress_tasks = repo.get_tasks_with_status(Status::InProgress);
+
+        // Assert
+        assert_eq!(in_progress_tasks.len(), 1);
+        assert_eq!(in_progress_tasks[0].status, Status::InProgress);
+    }
+
+    #[test]
+    fn test_get_tasks_with_status_through_all_states() {
+        // Arrange
+        let mut repo = TaskRepository::new();
+        let id = repo.add_task("Task to transition".to_string());
+
+        assert_eq!(repo.get_tasks_with_status(Status::Todo).len(), 1);
+        assert!(repo.get_tasks_with_status(Status::InProgress).is_empty());
+        assert!(repo.get_tasks_with_status(Status::Done).is_empty());
+
+        // Move to InProgress
+        repo.mark_in_progress(id).unwrap();
+
+        // Assert InProgress state
+        assert!(repo.get_tasks_with_status(Status::Todo).is_empty());
+        assert_eq!(repo.get_tasks_with_status(Status::InProgress).len(), 1);
+        assert!(repo.get_tasks_with_status(Status::Done).is_empty());
+
+        // Move to Done
+        repo.mark_done(id).unwrap();
+
+        // Assert Done state
+        assert!(repo.get_tasks_with_status(Status::Todo).is_empty());
+        assert!(repo.get_tasks_with_status(Status::InProgress).is_empty());
+        assert_eq!(repo.get_tasks_with_status(Status::Done).len(), 1);
+    }
+
+    #[test]
+    fn test_get_deleted_task_with_status() {
+        // Arrange
+        let mut repo = TaskRepository::new();
+        let id = repo.add_task("Task to delete".to_string());
+
+        assert_eq!(repo.get_tasks_with_status(Status::Todo).len(), 1);
+
+        // Delete the task
+        repo.delete_task(id);
+
+        // Act
+        let tasks = repo.get_tasks_with_status(Status::Todo);
+
+        // Assert
+        assert!(tasks.is_empty());
+    }
+
+    #[test]
+    fn test_get_multiple_tasks_with_same_status() {
+        // Arrange
+        let mut repo = TaskRepository::new();
+        let id1 = repo.add_task("Task 1".to_string());
+        let id2 = repo.add_task("Task 2".to_string());
+        let id3 = repo.add_task("Task 3".to_string());
+
+        // Act
+        let todo_tasks = repo.get_tasks_with_status(Status::Todo);
+
+        // Assert
+        assert_eq!(todo_tasks.len(), 3);
+
+        // Verify all tasks are included
+        let task_ids: Vec<u32> = todo_tasks.iter().map(|t| t.id).collect();
+        assert!(task_ids.contains(&id1));
+        assert!(task_ids.contains(&id2));
+        assert!(task_ids.contains(&id3));
+    }
+
+    #[test]
+    fn test_get_tasks_with_mixed_statuses() {
+        // Arrange
+        let mut repo = TaskRepository::new();
+        let id1 = repo.add_task("Task 1".to_string());
+        let id2 = repo.add_task("Task 2".to_string());
+        let id3 = repo.add_task("Task 3".to_string());
+
+        repo.mark_in_progress(id2).unwrap(); // InProgress
+        repo.mark_done(id3).unwrap(); // Done
+
+        // Act & Assert
+        let todo_tasks = repo.get_tasks_with_status(Status::Todo);
+        let in_progress_tasks = repo.get_tasks_with_status(Status::InProgress);
+        let done_tasks = repo.get_tasks_with_status(Status::Done);
+
+        // Verify counts
+        assert_eq!(todo_tasks.len(), 1);
+        assert_eq!(in_progress_tasks.len(), 1);
+        assert_eq!(done_tasks.len(), 1);
+
+        // Verify correct task in each status
+        assert_eq!(todo_tasks[0].id, id1);
+        assert_eq!(in_progress_tasks[0].id, id2);
+        assert_eq!(done_tasks[0].id, id3);
+    }
+
+    #[test]
+    fn test_get_tasks_after_update_description() {
+        // Arrange
+        let mut repo = TaskRepository::new();
+        let id = repo.add_task("Initial description".to_string());
+
+        // Update the description but preserve the status
+        repo.update_task(id, "Updated description".to_string())
+            .unwrap();
+
+        // Act
+        let tasks = repo.get_tasks_with_status(Status::Todo);
+
+        // Assert
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].description, "Updated description");
+        assert_eq!(tasks[0].status, Status::Todo);
     }
 }
