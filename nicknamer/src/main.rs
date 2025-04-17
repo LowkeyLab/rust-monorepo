@@ -26,6 +26,7 @@ async fn nick(_ctx: Context<'_>, member: serenity::Member) -> Result<(), Error> 
 
 #[tokio::main]
 async fn main() {
+    env_logger::init();
     let token = std::env::var("DISCORD_TOKEN").expect("missing DISCORD_TOKEN");
     let intents = serenity::GatewayIntents::non_privileged();
 
