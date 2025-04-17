@@ -1,5 +1,6 @@
 mod nicknamer;
 
+use log::info;
 use poise::serenity_prelude as serenity;
 
 struct Data {} // User data, which is stored and accessible in all command invocations
@@ -48,5 +49,7 @@ async fn main() {
     let client = serenity::ClientBuilder::new(token, intents)
         .framework(framework)
         .await;
+
+    info!("Starting bot...");
     client.unwrap().start().await.unwrap();
 }
