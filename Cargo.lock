@@ -1205,6 +1205,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "nicknamer"
+version = "0.1.0"
+dependencies = [
+ "poise",
+ "tokio",
+]
+
+[[package]]
 name = "normalize-line-endings"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1514,14 +1522,6 @@ dependencies = [
  "libc",
  "untrusted",
  "windows-sys 0.52.0",
-]
-
-[[package]]
-name = "rust"
-version = "0.1.0"
-dependencies = [
- "poise",
- "tokio",
 ]
 
 [[package]]
