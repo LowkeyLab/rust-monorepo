@@ -1,11 +1,11 @@
 mod nicknamer;
 
+use crate::nicknamer::commands;
 use log::{LevelFilter, error, info};
 use log4rs::Config;
 use log4rs::append::console::ConsoleAppender;
 use log4rs::config::{Appender, Logger, Root};
 use poise::serenity_prelude as serenity;
-use std::collections::HashMap;
 
 struct Data {} // User data, which is stored and accessible in all command invocations
 type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -39,7 +39,7 @@ Type ~help command for more info on a command.",
 /// Routine responsible for 'nick' discord command.
 #[poise::command(prefix_command)]
 async fn nick(_ctx: Context<'_>, member: serenity::Member) -> Result<(), Error> {
-    nicknamer::nick(member.user.id);
+    commands::nick(member.user.id);
     Ok(())
 }
 
