@@ -52,6 +52,7 @@ async fn reveal(ctx: discord::serenity::Context<'_>) -> Result<(), discord::sere
     info!("Loaded {} real names", real_names.names.len());
     let connector = discord::serenity::SerenityDiscordConnector::new(ctx);
     let members = connector.get_members_of_current_channel().await?;
+    info!("Found {} members in current channel", members.len());
     let users: Vec<commands::User> = members
         .iter()
         .filter_map(|member| {
