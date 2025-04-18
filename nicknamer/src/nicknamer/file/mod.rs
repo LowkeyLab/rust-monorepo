@@ -24,10 +24,22 @@ pub struct RealNames {
 impl RealNames {
     /// Creates a new RealNames struct by parsing the embedded YAML content
     pub fn from_embedded_yaml() -> Result<Self, FileError> {
-        let real_names: RealNames = serde_yml::from_str(REAL_NAMES_YAML).or(Err(FileError {
-            description: "Failed to read embedded YAML file".to_string(),
-        }))?;
-        Ok(real_names)
+        Self::from_yaml(REAL_NAMES_YAML)
+    }
+
+    /// Parse a YAML string into a RealNames struct
+    ///
+    /// # Arguments
+    ///
+    /// * `yaml_string` - A string containing YAML formatted data with the names mapping
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Self, FileError>` - A RealNames struct on success, or an error if parsing fails
+    pub fn from_yaml(yaml_string: &str) -> Result<Self, FileError> {
+        serde_yml::from_str(yaml_string).or(Err(FileError {
+            description: "Failed to parse YAML content".to_string(),
+        }))
     }
 }
 
@@ -40,13 +52,13 @@ mod tests {
     fn test_real_name_deser() {
         // Create a YAML string representing RealNames
         let yaml_data = r#"
-        names:
-          123456789: Alice
-          987654321: Bob
-    "#;
+names:
+  123456789: Alice
+  987654321: Bob
+"#;
 
         // Deserialize the YAML string using from_yaml
-        let deserialized = serde_yml::from_str::<RealNames>(yaml_data).unwrap();
+        let deserialized = RealNames::from_yaml(yaml_data).unwrap();
 
         // Create the expected RealNames object for comparison
         let mut expected = RealNames {
