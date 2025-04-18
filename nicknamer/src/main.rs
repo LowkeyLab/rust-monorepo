@@ -46,21 +46,28 @@ async fn nick(
 
 #[poise::command(prefix_command)]
 async fn reveal(ctx: discord::serenity::Context<'_>) -> Result<(), discord::serenity::Error> {
+    info!("Revealing nicknames for current channel members ...");
     let real_names = file::RealNames::from_embedded_yaml()?;
+    info!("Loaded {} real names", real_names.names.len());
     let connector = discord::serenity::SerenityDiscordConnector::new(ctx);
     let members = connector.get_members_of_current_channel().await?;
-    let users = members
+    let users: Vec<commands::User> = members
         .iter()
-        .filter(|member| real_names.names.contains_key(&member.id))
-        .map(|member| commands::User {
-            id: member.id,
-            display_name: member
-                .nick_name
-                .clone()
-                .unwrap_or_else(|| member.user_name.clone()),
-            real_name: real_names.names.get(&member.id).unwrap().clone(),
+        .filter_map(|member| {
+            let Some(real_name) = real_names.names.get(&member.id) else {
+                return None;
+            };
+            Some(commands::User {
+                id: member.id,
+                display_name: member
+                    .nick_name
+                    .clone()
+                    .unwrap_or_else(|| member.user_name.clone()),
+                real_name: real_name.clone(),
+            })
         })
-        .collect::<Vec<_>>();
+        .collect();
+    info!("Found {} users with real names", users.len());
     let real_names = commands::RealNames { users };
     ctx.reply(commands::reveal(&real_names)?).await?;
     Ok(())
