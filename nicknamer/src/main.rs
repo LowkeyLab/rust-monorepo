@@ -1,10 +1,11 @@
 mod nicknamer;
 
-use log::{LevelFilter, info};
+use log::{LevelFilter, error, info};
 use log4rs::Config;
 use log4rs::append::console::ConsoleAppender;
 use log4rs::config::{Appender, Logger, Root};
 use poise::serenity_prelude as serenity;
+use std::collections::HashMap;
 
 struct Data {} // User data, which is stored and accessible in all command invocations
 type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -39,6 +40,17 @@ Type ~help command for more info on a command.",
 #[poise::command(prefix_command)]
 async fn nick(_ctx: Context<'_>, member: serenity::Member) -> Result<(), Error> {
     nicknamer::nick(member.user.id);
+    Ok(())
+}
+
+#[poise::command(prefix_command)]
+async fn reveal(_ctx: Context<'_>) -> Result<(), Error> {
+    // let author = ctx.author().clone();
+    // let name = author.global_name.unwrap_or(author.name);
+    // let reply = nicknamer::reveal(&nicknamer::User {
+    //     name,
+    //     id: author.id.get(),
+    // });
     Ok(())
 }
 
