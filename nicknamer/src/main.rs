@@ -85,8 +85,9 @@ async fn main() {
         .unwrap();
     let _log4rs_handle = log4rs::init_config(config).unwrap();
     let token = std::env::var("DISCORD_TOKEN").expect("missing DISCORD_TOKEN");
-    let intents =
-        serenity::GatewayIntents::non_privileged() | serenity::GatewayIntents::MESSAGE_CONTENT;
+    let intents = serenity::GatewayIntents::non_privileged()
+        | serenity::GatewayIntents::MESSAGE_CONTENT
+        | serenity::GatewayIntents::GUILD_PRESENCES;
 
     let framework =
         poise::Framework::<discord::serenity::Data, discord::serenity::Error>::builder()
