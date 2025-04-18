@@ -59,14 +59,10 @@ async fn reveal(ctx: discord::serenity::Context<'_>) -> Result<(), discord::sere
             let Some(real_name) = real_names.names.get(&member.id) else {
                 return None;
             };
-            Some(commands::User {
-                id: member.id,
-                display_name: member
-                    .nick_name
-                    .clone()
-                    .unwrap_or_else(|| member.user_name.clone()),
-                real_name: real_name.clone(),
-            })
+            Some(commands::User::from_discord_server_member(
+                member,
+                real_name.clone(),
+            ))
         })
         .collect();
     info!("Found {} users with real names", users.len());
