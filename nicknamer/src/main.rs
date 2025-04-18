@@ -1,8 +1,9 @@
 mod nicknamer;
 
+use self::nicknamer::discord::serenity::{Context, Data, Error};
 use crate::nicknamer::commands;
 use crate::nicknamer::discord;
-use crate::nicknamer::discord::{Context, Data, DiscordConnector, Error};
+use crate::nicknamer::discord::DiscordConnector;
 use crate::nicknamer::file;
 use log::{LevelFilter, info};
 use log4rs::Config;

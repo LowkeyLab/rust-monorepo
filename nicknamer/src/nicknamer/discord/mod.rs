@@ -1,8 +1,6 @@
-pub(crate) mod serenity;
+use self::serenity::Error;
 
-pub struct Data {} // User data, which is stored and accessible in all command invocations
-pub type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
-pub type Context<'a> = poise::Context<'a, Data, Error>;
+pub(crate) mod serenity;
 
 pub trait DiscordConnector {
     async fn get_members_of_current_channel(&self) -> Result<Vec<ServerMember>, Error>;
