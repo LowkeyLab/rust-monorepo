@@ -1,10 +1,24 @@
+//! Serenity-based implementation of Discord connectivity.
+//!
+//! This module provides the concrete implementation of the Discord connector
+//! trait using the Serenity Discord library.
+
 use crate::nicknamer::discord::{DiscordConnector, ServerMember};
 
+/// Discord connector implementation using Serenity library.
+///
+/// Provides functionality to interact with Discord servers using
+/// the Serenity context.
 pub struct SerenityDiscordConnector<'a> {
     context: Context<'a>,
 }
 
 impl<'a> SerenityDiscordConnector<'a> {
+    /// Creates a new SerenityDiscordConnector instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `context` - Poise command context for Discord interactions
     pub fn new(context: Context<'a>) -> Self {
         Self { context }
     }
@@ -30,8 +44,10 @@ impl DiscordConnector for SerenityDiscordConnector<'_> {
     }
 }
 
+/// Empty data structure for Poise framework configuration
 pub struct Data {}
 
-// User data, which is stored and accessible in all command invocations
+/// Type alias for error handling in Discord operations
 pub type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
+/// Type alias for Poise command context
 pub type Context<'a> = poise::Context<'a, Data, Error>;
