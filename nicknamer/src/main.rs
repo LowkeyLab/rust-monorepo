@@ -15,7 +15,7 @@ use poise::serenity_prelude as serenity;
 ///
 /// Any instance of bot connected to the server will respond with "Pong!" and some runtime information.
 #[poise::command(prefix_command)]
-async fn ping(ctx: Context<'_>) -> Result<(), Error> {
+async fn ping(ctx: discord::serenity::Context<'_>) -> Result<(), Error> {
     ctx.reply("Pong!").await?;
     Ok(())
 }
@@ -23,7 +23,7 @@ async fn ping(ctx: Context<'_>) -> Result<(), Error> {
 /// Show this menu
 #[poise::command(prefix_command)]
 pub async fn help(
-    ctx: Context<'_>,
+    ctx: discord::serenity::Context<'_>,
     #[description = "Specific command to show help about"] command: Option<String>,
 ) -> Result<(), Error> {
     let config = poise::builtins::HelpConfiguration {
@@ -37,13 +37,13 @@ Type ~help command for more info on a command.",
 
 /// Routine responsible for 'nick' discord command.
 #[poise::command(prefix_command)]
-async fn nick(_ctx: Context<'_>, member: serenity::Member) -> Result<(), Error> {
+async fn nick(_ctx: discord::serenity::Context<'_>, member: serenity::Member) -> Result<(), Error> {
     commands::nick(member.user.id);
     Ok(())
 }
 
 #[poise::command(prefix_command)]
-async fn reveal(ctx: Context<'_>) -> Result<(), Error> {
+async fn reveal(ctx: discord::serenity::Context<'_>) -> Result<(), Error> {
     let real_names = file::RealNames::from_embedded_yaml()?;
     let connector = discord::serenity::SerenityDiscordConnector::new(ctx);
     let members = connector.get_members_of_current_channel().await?;
