@@ -6,8 +6,15 @@ type Reply = String;
 
 #[derive(Debug, PartialEq)]
 pub struct User {
+    pub id: u64,
     pub display_name: String,
     pub real_name: String,
+}
+
+impl Display for User {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.display_name, self.real_name)
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -22,7 +29,7 @@ impl Display for RealNames {
             "{}",
             self.users
                 .iter()
-                .map(|user| format!("{}: {}", user.display_name, user.real_name))
+                .map(|user| format!("{}", user))
                 .collect::<Vec<String>>()
                 .join("\n")
         )
@@ -63,10 +70,12 @@ mod tests {
         RealNames {
             users: vec![
                 User {
+                    id: 1,
                     display_name: "Alice's nickname".to_string(),
                     real_name: "Alice".to_string(),
                 },
                 User {
+                    id: 2,
                     display_name: "Bob's nickname".to_string(),
                     real_name: "Bob".to_string(),
                 },

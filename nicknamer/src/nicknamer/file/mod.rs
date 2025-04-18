@@ -1,8 +1,20 @@
 use serde::{Deserialize, Serialize};
-use std::error::Error;
-
+use std::fmt::{Debug, Display, Formatter};
 // Include the YAML content at compile time
 const REAL_NAMES_YAML: &str = include_str!("real_names.yml");
+
+#[derive(Debug)]
+pub struct FileError {
+    description: String,
+}
+
+impl Display for FileError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.description)
+    }
+}
+
+impl std::error::Error for FileError {}
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct RealNames {
@@ -11,12 +23,10 @@ pub struct RealNames {
 
 impl RealNames {
     /// Creates a new RealNames struct by parsing the embedded YAML content
-    ///
-    /// # Returns
-    ///
-    /// * `Result<RealNames, Box<dyn Error>>` - A new RealNames struct or an error
-    pub fn from_embedded_yaml() -> Result<Self, Box<dyn Error>> {
-        let real_names: RealNames = serde_yml::from_str(REAL_NAMES_YAML)?;
+    pub fn from_embedded_yaml() -> Result<Self, FileError> {
+        let real_names: RealNames = serde_yml::from_str(REAL_NAMES_YAML).or(Err(FileError {
+            description: "Failed to read embedded YAML file".to_string(),
+        }))?;
         Ok(real_names)
     }
 }
@@ -30,7 +40,6 @@ mod tests {
     fn test_real_name_deser() {
         // Create a YAML string representing RealNames
         let yaml_data = r#"
-    names:
       123456789: Alice
       987654321: Bob
     "#;

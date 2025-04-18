@@ -1,3 +1,3 @@
 pub(crate) mod commands;
 mod config;
-mod file;
+pub(crate) mod file;
