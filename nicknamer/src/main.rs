@@ -1,17 +1,14 @@
 mod nicknamer;
 
 use crate::nicknamer::commands;
+use crate::nicknamer::discord;
+use crate::nicknamer::discord::{Context, Data, DiscordConnector, Error};
 use crate::nicknamer::file;
 use log::{LevelFilter, info};
 use log4rs::Config;
 use log4rs::append::console::ConsoleAppender;
 use log4rs::config::{Appender, Logger, Root};
 use poise::serenity_prelude as serenity;
-
-struct Data {} // User data, which is stored and accessible in all command invocations
-type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
-#[allow(dead_code)]
-type Context<'a> = poise::Context<'a, Data, Error>;
 
 /// Ping command to test bot availability
 ///
@@ -47,21 +44,18 @@ async fn nick(_ctx: Context<'_>, member: serenity::Member) -> Result<(), Error> 
 #[poise::command(prefix_command)]
 async fn reveal(ctx: Context<'_>) -> Result<(), Error> {
     let real_names = file::RealNames::from_embedded_yaml()?;
-    let channel = ctx.channel_id().to_channel(ctx).await?;
-    let Some(channel) = channel.guild() else {
-        return Err("You're not in a discord server's channel".into());
-    };
-    let members = channel.members(ctx)?;
+    let connector = discord::serenity::SerenityDiscordConnector::new(ctx);
+    let members = connector.get_members_of_current_channel().await?;
     let users = members
         .iter()
-        .filter(|member| real_names.names.contains_key(&member.user.id.get()))
+        .filter(|member| real_names.names.contains_key(&member.id))
         .map(|member| commands::User {
-            id: member.user.id.get(),
+            id: member.id,
             display_name: member
-                .nick
+                .nick_name
                 .clone()
-                .unwrap_or_else(|| member.user.name.clone()),
-            real_name: real_names.names.get(&member.user.id.get()).unwrap().clone(),
+                .unwrap_or_else(|| member.user_name.clone()),
+            real_name: real_names.names.get(&member.id).unwrap().clone(),
         })
         .collect::<Vec<_>>();
     let real_names = commands::RealNames { users };
