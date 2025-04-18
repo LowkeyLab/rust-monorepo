@@ -1,5 +1,6 @@
 use crate::nicknamer::discord;
 use poise::serenity_prelude as serenity;
+use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
 pub mod reveal;
@@ -37,7 +38,7 @@ impl Display for User {
 
 #[derive(Debug, PartialEq)]
 pub struct RealNames {
-    pub(crate) users: Vec<User>,
+    pub(crate) users: HashMap<u64, User>,
 }
 
 impl Display for RealNames {
@@ -47,7 +48,7 @@ impl Display for RealNames {
             "{}",
             self.users
                 .iter()
-                .map(|user| format!("{}", user))
+                .map(|(_, user)| format!("{}", user))
                 .collect::<Vec<String>>()
                 .join("\n")
         )
