@@ -55,32 +55,41 @@ async fn reveal(
     ctx: discord::serenity::Context<'_>,
     #[description = "The specific member to reveal the name of"] member: Option<serenity::Member>,
 ) -> Result<(), discord::serenity::Error> {
-    info!("Revealing nicknames for current channel members ...");
     let real_names = file::RealNames::from_embedded_yaml()?;
     info!("Loaded {} real names", real_names.names.len());
     let connector = discord::serenity::SerenityDiscordConnector::new(ctx);
-    let members = connector.get_members_of_current_channel().await?;
-    info!("Found {} members in current channel", members.len());
-    let users: HashMap<u64, commands::User> = members
-        .iter()
-        .filter_map(|member| {
-            let Some(real_name) = real_names.names.get(&member.id) else {
-                return None;
-            };
-            let user = commands::User::from_discord_server_member(member, real_name.clone());
-            Some((user.id, user))
-        })
-        .collect();
-    info!("Found {} users with real names", users.len());
-    let real_names = commands::RealNames { users };
     match member {
         Some(member) => {
-            ctx.reply(reveal::reveal_member(member.user.id.get(), &real_names)?)
-                .await?
+            ctx.reply(reveal::reveal_user(
+                commands::User::from_discord_server_member(&discord::ServerMember::from(member)),
+            ))
+            .await?;
+            Ok(())
         }
-        None => ctx.reply(reveal::reveal(&real_names)?).await?,
-    };
-    Ok(())
+        None => {
+            info!("Revealing nicknames for current channel members ...");
+            let members = connector.get_members_of_current_channel().await?;
+            info!("Found {} members in current channel", members.len());
+            let users: HashMap<u64, commands::User> = members
+                .iter()
+                .filter_map(|member| {
+                    let Some(real_name) = real_names.names.get(&member.id) else {
+                        return None;
+                    };
+                    let user =
+                        commands::User::from_discord_server_member(member, real_name.clone());
+                    Some((user.id, user))
+                })
+                .collect();
+            info!("Found {} users with real names", users.len());
+            let reply = commands::RealNames { users };
+            match member {
+                Some(member) => {}
+                None => ctx.reply(reveal::reveal(&reply)?).await?,
+            };
+            Ok(())
+        }
+    }
 }
 
 #[tokio::main]

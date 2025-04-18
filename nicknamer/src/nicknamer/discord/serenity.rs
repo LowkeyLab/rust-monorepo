@@ -2,8 +2,8 @@
 //!
 //! This module provides the concrete implementation of the Discord connector
 //! trait using the Serenity Discord library.
-
 use crate::nicknamer::discord::{DiscordConnector, ServerMember};
+use poise::serenity_prelude as serenity;
 
 /// Discord connector implementation using Serenity library.
 ///
@@ -34,13 +34,19 @@ impl DiscordConnector for SerenityDiscordConnector<'_> {
         let members = channel.members(ctx)?;
         let members = members
             .iter()
-            .map(|member| ServerMember {
-                id: member.user.id.get(),
-                nick_name: member.nick.clone(),
-                user_name: member.user.name.clone(),
-            })
+            .map(|member| ServerMember::from(member))
             .collect();
         Ok(members)
+    }
+}
+
+impl From<&serenity::Member> for ServerMember {
+    fn from(member: &serenity::Member) -> Self {
+        ServerMember {
+            id: member.user.id.get(),
+            nick_name: member.nick.clone(),
+            user_name: member.user.name.clone(),
+        }
     }
 }
 

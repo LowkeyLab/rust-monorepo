@@ -1,4 +1,4 @@
-use crate::nicknamer::commands::{RealNames, Reply};
+use crate::nicknamer::commands::{RealNames, Reply, User};
 use crate::nicknamer::config;
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
@@ -11,11 +11,8 @@ pub fn reveal(real_names: &RealNames) -> Result<Reply, Error> {
     ))
 }
 
-pub fn reveal_member(id: u64, real_names: &RealNames) -> Result<Reply, Error> {
-    match real_names.users.get(&id) {
-        Some(user) => Ok(format!("'{}' is {}", user.display_name, user.real_name)),
-        None => Ok("No one has that id".to_string()),
-    }
+pub fn reveal_user(user: User) -> Result<Reply, Error> {
+    Ok(user.to_string())
 }
 
 #[cfg(test)]
@@ -50,7 +47,7 @@ mod tests {
     }
 
     #[test]
-    fn test_reveal_existing_user() {
+    fn can_reveal_users_with_real_names() {
         let real_names = setup_test_data();
         let result = reveal::reveal(&real_names).unwrap();
 
@@ -73,7 +70,7 @@ mod tests {
     }
 
     #[test]
-    fn test_reveal_empty_names() {
+    fn can_reveal_users_even_if_there_are_no_real_names() {
         let empty_real_names = RealNames {
             users: HashMap::new(),
         };
@@ -87,15 +84,17 @@ mod tests {
     }
 
     #[test]
-    fn test_reveal_member() {
-        let real_names = setup_test_data();
-
+    fn can_reveal_single_user() {
         // Test for an existing member
-        let existing_result = reveal::reveal_member(1, &real_names).unwrap();
+        let existing_result = reveal::reveal_user(User {
+            id: 0,
+            display_name: "Alice's nickname".to_string(),
+            real_name: "Alice".to_string(),
+        })
+        .unwrap();
         assert_eq!(existing_result, "'Alice's nickname' is Alice");
-
-        // Test for a non-existent member
-        let nonexistent_result = reveal::reveal_member(999, &real_names).unwrap();
-        assert_eq!(nonexistent_result, "No one has that id");
     }
+
+    #[test]
+    fn revealing_user_with_no_nickname_results_in_insult() {}
 }
