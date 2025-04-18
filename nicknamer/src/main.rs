@@ -65,7 +65,7 @@ async fn reveal(ctx: Context<'_>) -> Result<(), Error> {
         })
         .collect::<Vec<_>>();
     let real_names = commands::RealNames { users };
-    ctx.reply(real_names.to_string()).await?;
+    ctx.reply(commands::reveal(&real_names)?).await?;
     Ok(())
 }
 
@@ -84,7 +84,7 @@ async fn main() {
 
     let framework = poise::Framework::<Data, Error>::builder()
         .options(poise::FrameworkOptions {
-            commands: vec![help(), ping()],
+            commands: vec![help(), ping(), reveal()],
             prefix_options: poise::PrefixFrameworkOptions {
                 prefix: Some("~".into()),
                 ..Default::default()
