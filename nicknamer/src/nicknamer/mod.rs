@@ -27,7 +27,10 @@ pub struct User {
 pub struct RealNames {
     names: std::collections::HashMap<u64, String>,
 }
-pub fn reveal(user: &User, real_names: &RealNames) -> Result<Reply, Box<dyn std::error::Error>> {
+pub fn reveal(
+    user: &User,
+    real_names: &RealNames,
+) -> Result<Reply, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let real_name = real_names.names.get(&user.id).ok_or("User not found")?;
     Ok(format!(
         "Here are people's real names, {}:
