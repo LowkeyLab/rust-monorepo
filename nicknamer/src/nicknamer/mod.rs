@@ -1,7 +1,20 @@
 use poise::serenity_prelude as serenity;
+use serde::{Deserialize, Serialize};
 
 mod config;
 mod file;
+
+type Reply = String;
+
+pub struct User {
+    pub(crate) name: String,
+    pub(crate) id: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+pub struct RealNames {
+    names: std::collections::HashMap<u64, String>,
+}
 
 ///    This function handles the 'nick' command for the `nicknamer` bot. Its purpose is to
 ///     allow discord users to manage each other's nicknames, even if they are in the same
@@ -17,16 +30,6 @@ mod file;
 #[allow(dead_code)]
 pub fn nick(_user_id: serenity::UserId) {}
 
-type Reply = String;
-
-pub struct User {
-    pub(crate) name: String,
-    pub(crate) id: u64,
-}
-
-pub struct RealNames {
-    names: std::collections::HashMap<u64, String>,
-}
 pub fn reveal(
     user: &User,
     real_names: &RealNames,
@@ -98,5 +101,28 @@ mod tests {
         };
         let result = reveal(&user, &empty_real_names);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_real_name_deser() {
+        // Create a YAML string representing RealNames
+        let yaml_data = r#"
+    names:
+      123456789: Alice
+      987654321: Bob
+    "#;
+
+        // Deserialize the YAML string
+        let deserialized: RealNames = serde_yml::from_str(yaml_data).unwrap();
+
+        // Create the expected RealNames object for comparison
+        let mut expected = RealNames {
+            names: HashMap::new(),
+        };
+        expected.names.insert(123456789, "Alice".to_string());
+        expected.names.insert(987654321, "Bob".to_string());
+
+        // Assert that deserialization produced the expected object
+        assert_eq!(deserialized, expected);
     }
 }
