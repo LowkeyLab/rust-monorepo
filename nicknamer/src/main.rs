@@ -3,7 +3,7 @@ mod nicknamer;
 use log::{LevelFilter, info};
 use log4rs::Config;
 use log4rs::append::console::ConsoleAppender;
-use log4rs::config::{Appender, Root};
+use log4rs::config::{Appender, Logger, Root};
 use poise::serenity_prelude as serenity;
 
 struct Data {} // User data, which is stored and accessible in all command invocations
@@ -32,7 +32,8 @@ async fn main() {
     let stdout = ConsoleAppender::builder().build();
     let config = Config::builder()
         .appender(Appender::builder().build("stdout", Box::new(stdout)))
-        .build(Root::builder().appender("stdout").build(LevelFilter::Info))
+        .logger(Logger::builder().build("nicknamer", LevelFilter::Info))
+        .build(Root::builder().appender("stdout").build(LevelFilter::Warn))
         .unwrap();
     let _log4rs_handle = log4rs::init_config(config).unwrap();
     let token = std::env::var("DISCORD_TOKEN").expect("missing DISCORD_TOKEN");
