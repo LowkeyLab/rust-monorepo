@@ -13,7 +13,7 @@ pub struct User {
 
 impl Display for User {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}: {}", self.display_name, self.real_name)
+        write!(f, "'{}' is {}", self.display_name, self.real_name)
     }
 }
 

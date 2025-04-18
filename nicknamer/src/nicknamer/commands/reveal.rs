@@ -6,8 +6,7 @@ pub fn reveal(
 ) -> Result<Reply, Box<dyn std::error::Error + Send + Sync + 'static>> {
     Ok(format!(
         "Here are people's real names, {}:
-            {}
-        ",
+{}",
         config::REVEAL_INSULT,
         real_names
     ))
@@ -43,7 +42,7 @@ mod tests {
         assert_eq!(
             result.unwrap(),
             format!(
-                "Here are people's real names, {}:\n            Alice's nickname: Alice\nBob's nickname: Bob\n        ",
+                "Here are people's real names, {}:\n'Alice's nickname' is Alice\n'Bob's nickname' is Bob",
                 config::REVEAL_INSULT
             )
         );
@@ -55,10 +54,7 @@ mod tests {
         let result = reveal::reveal(&empty_real_names);
         assert_eq!(
             result.unwrap(),
-            format!(
-                "Here are people's real names, {}:\n            \n        ",
-                config::REVEAL_INSULT
-            )
+            format!("Here are people's real names, {}:\n", config::REVEAL_INSULT)
         );
     }
 }
