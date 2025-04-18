@@ -16,38 +16,7 @@ impl RealNames {
     ///
     /// * `Result<RealNames, Box<dyn Error>>` - A new RealNames struct or an error
     pub fn from_embedded_yaml() -> Result<Self, Box<dyn Error>> {
-        Self::from_yaml(REAL_NAMES_YAML)
-    }
-
-    /// Parses a YAML string into a RealNames struct
-    ///
-    /// # Arguments
-    ///
-    /// * `yaml_string` - A string containing YAML formatted data with the names mapping
-    ///
-    /// # Returns
-    ///
-    /// * `Result<RealNames, Box<dyn Error>>` - A RealNames struct on success, or an error if parsing fails
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error if:
-    /// * The YAML syntax is invalid
-    /// * The YAML structure doesn't match the RealNames struct format
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// let yaml_data = r#"
-    /// names:
-    ///   123456789: Alice
-    ///   987654321: Bob
-    /// "#;
-    ///
-    /// let real_names = RealNames::from_yaml(yaml_data).unwrap();
-    /// ```
-    pub fn from_yaml(yaml_string: &str) -> Result<Self, Box<dyn Error>> {
-        let real_names: RealNames = serde_yml::from_str(yaml_string)?;
+        let real_names: RealNames = serde_yml::from_str(REAL_NAMES_YAML)?;
         Ok(real_names)
     }
 }
@@ -67,7 +36,7 @@ mod tests {
     "#;
 
         // Deserialize the YAML string using from_yaml
-        let deserialized = RealNames::from_yaml(yaml_data).unwrap();
+        let deserialized = serde_yml::from_str::<RealNames>(yaml_data).unwrap();
 
         // Create the expected RealNames object for comparison
         let mut expected = RealNames {
