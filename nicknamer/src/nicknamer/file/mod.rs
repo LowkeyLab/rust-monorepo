@@ -66,8 +66,8 @@ mod tests {
       987654321: Bob
     "#;
 
-        // Deserialize the YAML string
-        let deserialized: RealNames = serde_yml::from_str(yaml_data).unwrap();
+        // Deserialize the YAML string using from_yaml
+        let deserialized = RealNames::from_yaml(yaml_data).unwrap();
 
         // Create the expected RealNames object for comparison
         let mut expected = RealNames {
