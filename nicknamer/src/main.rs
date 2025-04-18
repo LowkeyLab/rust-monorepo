@@ -16,7 +16,22 @@ type Context<'a> = poise::Context<'a, Data, Error>;
 ///     runtime information.
 #[poise::command(prefix_command)]
 async fn ping(ctx: Context<'_>) -> Result<(), Error> {
-    ctx.reply("pong").await?;
+    ctx.reply("Pong!").await?;
+    Ok(())
+}
+
+/// Show this menu
+#[poise::command(prefix_command)]
+pub async fn help(
+    ctx: Context<'_>,
+    #[description = "Specific command to show help about"] command: Option<String>,
+) -> Result<(), Error> {
+    let config = poise::builtins::HelpConfiguration {
+        extra_text_at_bottom: "\
+Type ~help command for more info on a command.",
+        ..Default::default()
+    };
+    poise::builtins::help(ctx, command.as_deref(), config).await?;
     Ok(())
 }
 
@@ -42,7 +57,7 @@ async fn main() {
 
     let framework = poise::Framework::<Data, Error>::builder()
         .options(poise::FrameworkOptions {
-            commands: vec![ping()],
+            commands: vec![help(), ping()],
             prefix_options: poise::PrefixFrameworkOptions {
                 prefix: Some("~".into()),
                 ..Default::default()
