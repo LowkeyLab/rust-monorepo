@@ -3,12 +3,16 @@ use poise::serenity_prelude as serenity;
 mod config;
 mod file;
 
-///    This function handles the 'nick' command for the `nicknamer` bot. Its purpose is to \
-///     allow discord users to manage each other's nicknames, even if they are in the same \
-///     Discord Role. The bot applies any nickname changes as specified by this command. \
-///     This command assumes that the bot has a higher Role than all users which invoke this \
-///     command. \
-///     In certain failure scenarios, such as offering an invalid nickname, the bot will \
+///    This function handles the 'nick' command for the `nicknamer` bot. Its purpose is to
+///     allow discord users to manage each other's nicknames, even if they are in the same
+///     Discord Role.
+///
+///     The bot applies any nickname changes as specified by this command.
+///
+///     This command assumes that the bot has a higher Role than all users which invoke this
+///     command.
+///
+///     In certain failure scenarios, such as offering an invalid nickname, the bot will
 ///     reply with information about the invalid command.
 #[allow(dead_code)]
 pub fn nick(_user_id: serenity::UserId) {}
@@ -23,9 +27,14 @@ pub struct User {
 pub struct RealNames {
     names: std::collections::HashMap<u64, String>,
 }
-pub fn reveal(user: &User, real_names: &RealNames) -> Option<Reply> {
-    let real_name = real_names.names.get(&user.id)?;
-    Some(real_name.to_string())
+pub fn reveal(user: &User, real_names: &RealNames) -> Result<Reply, Box<dyn std::error::Error>> {
+    let real_name = real_names.names.get(&user.id).ok_or("User not found")?;
+    Ok(format!(
+        "Here are people's real names, {}:
+         
+        ",
+        config::REVEAL_INSULT,
+    ))
 }
 
 #[cfg(test)]
@@ -50,7 +59,7 @@ mod tests {
             id: 123456789,
         };
         let result = reveal(&user, &real_names);
-        assert_eq!(result, Some("Alice".to_string()));
+        assert_eq!(result.unwrap(), "Alice".to_string());
     }
 
     #[test]
@@ -61,7 +70,7 @@ mod tests {
             id: 987654321,
         };
         let result = reveal(&user, &real_names);
-        assert_eq!(result, Some("Bob".to_string()));
+        assert_eq!(result.unwrap(), "Bob".to_string());
     }
 
     #[test]
@@ -72,7 +81,7 @@ mod tests {
             id: 111111111,
         };
         let result = reveal(&user, &real_names);
-        assert_eq!(result, None);
+        assert!(result.is_err());
     }
 
     #[test]
@@ -85,6 +94,6 @@ mod tests {
             id: 123456789,
         };
         let result = reveal(&user, &empty_real_names);
-        assert_eq!(result, None);
+        assert!(result.is_err());
     }
 }
