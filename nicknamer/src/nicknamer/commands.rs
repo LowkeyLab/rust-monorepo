@@ -4,13 +4,15 @@ use std::fmt::{Display, Formatter};
 
 type Reply = String;
 
+#[derive(Debug, PartialEq)]
 pub struct User {
-    display_name: String,
-    real_name: String,
+    pub display_name: String,
+    pub real_name: String,
 }
+
 #[derive(Debug, PartialEq)]
 pub struct RealNames {
-    pub(crate) names: std::collections::HashMap<String, String>,
+    pub(crate) users: Vec<User>,
 }
 
 impl Display for RealNames {
@@ -18,9 +20,9 @@ impl Display for RealNames {
         write!(
             f,
             "{}",
-            self.names
+            self.users
                 .iter()
-                .map(|(id, name)| format!("{}: {}", id, name))
+                .map(|user| format!("{}: {}", user.display_name, user.real_name))
                 .collect::<Vec<String>>()
                 .join("\n")
         )
@@ -56,20 +58,22 @@ pub fn reveal(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
 
     fn setup_test_data() -> RealNames {
-        let mut real_names = RealNames {
-            names: HashMap::new(),
-        };
-        real_names
-            .names
-            .insert("Alice's nickname".to_string(), "Alice".to_string());
-        real_names
-            .names
-            .insert("Bob's nickname".to_string(), "Bob".to_string());
-        real_names
+        RealNames {
+            users: vec![
+                User {
+                    display_name: "Alice's nickname".to_string(),
+                    real_name: "Alice".to_string(),
+                },
+                User {
+                    display_name: "Bob's nickname".to_string(),
+                    real_name: "Bob".to_string(),
+                },
+            ],
+        }
     }
+
     #[test]
     fn test_reveal_existing_user() {
         let real_names = setup_test_data();
@@ -77,7 +81,7 @@ mod tests {
         assert_eq!(
             result.unwrap(),
             format!(
-                "Here are people's real names, {}:\n            Bob's nickname: Bob\nAlice's nickname: Alice\n        ",
+                "Here are people's real names, {}:\n            Alice's nickname: Alice\nBob's nickname: Bob\n        ",
                 config::REVEAL_INSULT
             )
         );
@@ -85,9 +89,7 @@ mod tests {
 
     #[test]
     fn test_reveal_empty_names() {
-        let empty_real_names = RealNames {
-            names: HashMap::new(),
-        };
+        let empty_real_names = RealNames { users: Vec::new() };
         let result = reveal(&empty_real_names);
         assert_eq!(
             result.unwrap(),
