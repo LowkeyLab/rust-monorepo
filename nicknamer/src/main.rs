@@ -57,7 +57,7 @@ async fn main() {
 
     let framework = poise::Framework::<Data, Error>::builder()
         .options(poise::FrameworkOptions {
-            commands: vec![ping()],
+            commands: vec![help(), ping()],
             prefix_options: poise::PrefixFrameworkOptions {
                 prefix: Some("~".into()),
                 ..Default::default()
