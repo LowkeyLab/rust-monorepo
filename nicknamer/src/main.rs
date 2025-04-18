@@ -1,6 +1,9 @@
 mod nicknamer;
 
-use log::info;
+use log::{LevelFilter, info};
+use log4rs::Config;
+use log4rs::append::console::ConsoleAppender;
+use log4rs::config::{Appender, Root};
 use poise::serenity_prelude as serenity;
 
 struct Data {} // User data, which is stored and accessible in all command invocations
@@ -26,7 +29,12 @@ async fn nick(_ctx: Context<'_>, member: serenity::Member) -> Result<(), Error> 
 
 #[tokio::main]
 async fn main() {
-    log4rs::init_file("log4rs.yml", Default::default()).unwrap();
+    let stdout = ConsoleAppender::builder().build();
+    let config = Config::builder()
+        .appender(Appender::builder().build("stdout", Box::new(stdout)))
+        .build(Root::builder().appender("stdout").build(LevelFilter::Info))
+        .unwrap();
+    let _log4rs_handle = log4rs::init_config(config).unwrap();
     let token = std::env::var("DISCORD_TOKEN").expect("missing DISCORD_TOKEN");
     let intents = serenity::GatewayIntents::non_privileged();
 
