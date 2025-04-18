@@ -40,8 +40,9 @@ mod tests {
     fn test_real_name_deser() {
         // Create a YAML string representing RealNames
         let yaml_data = r#"
-      123456789: Alice
-      987654321: Bob
+        names:
+          123456789: Alice
+          987654321: Bob
     "#;
 
         // Deserialize the YAML string using from_yaml
