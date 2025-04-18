@@ -11,9 +11,9 @@ type Error = Box<dyn std::error::Error + Send + Sync>;
 #[allow(dead_code)]
 type Context<'a> = poise::Context<'a, Data, Error>;
 
-/// Ping command to test bot availability
-/// Any instance of bot connected to the server will respond with "Pong!" and some \
-///     runtime information.
+/// Ping command to test bot availability \
+///
+/// Any instance of bot connected to the server will respond with "Pong!" and some runtime information.
 #[poise::command(prefix_command)]
 async fn ping(ctx: Context<'_>) -> Result<(), Error> {
     ctx.reply("Pong!").await?;
