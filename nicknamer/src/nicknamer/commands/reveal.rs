@@ -1,43 +1,5 @@
+use crate::nicknamer::commands::{RealNames, Reply};
 use crate::nicknamer::config;
-use poise::serenity_prelude as serenity;
-use std::fmt::{Display, Formatter};
-
-type Reply = String;
-
-#[derive(Debug, PartialEq)]
-pub struct User {
-    pub id: u64,
-    pub display_name: String,
-    pub real_name: String,
-}
-
-impl Display for User {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}: {}", self.display_name, self.real_name)
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub struct RealNames {
-    pub(crate) users: Vec<User>,
-}
-
-impl Display for RealNames {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            self.users
-                .iter()
-                .map(|user| format!("{}", user))
-                .collect::<Vec<String>>()
-                .join("\n")
-        )
-    }
-}
-
-#[allow(dead_code)]
-pub fn nick(_user_id: serenity::UserId) {}
 
 pub fn reveal(
     real_names: &RealNames,
@@ -53,7 +15,9 @@ pub fn reveal(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::nicknamer::commands::reveal;
+    use crate::nicknamer::commands::*;
+    use crate::nicknamer::config;
 
     fn setup_test_data() -> RealNames {
         RealNames {
@@ -75,7 +39,7 @@ mod tests {
     #[test]
     fn test_reveal_existing_user() {
         let real_names = setup_test_data();
-        let result = reveal(&real_names);
+        let result = reveal::reveal(&real_names);
         assert_eq!(
             result.unwrap(),
             format!(
@@ -88,7 +52,7 @@ mod tests {
     #[test]
     fn test_reveal_empty_names() {
         let empty_real_names = RealNames { users: Vec::new() };
-        let result = reveal(&empty_real_names);
+        let result = reveal::reveal(&empty_real_names);
         assert_eq!(
             result.unwrap(),
             format!(

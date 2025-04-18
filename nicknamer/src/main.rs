@@ -1,5 +1,6 @@
 mod nicknamer;
 
+use self::nicknamer::commands::reveal;
 use crate::nicknamer::commands;
 use crate::nicknamer::discord;
 use crate::nicknamer::discord::DiscordConnector;
@@ -69,7 +70,7 @@ async fn reveal(ctx: discord::serenity::Context<'_>) -> Result<(), discord::sere
         .collect();
     info!("Found {} users with real names", users.len());
     let real_names = commands::RealNames { users };
-    ctx.reply(commands::reveal(&real_names)?).await?;
+    ctx.reply(reveal::reveal(&real_names)?).await?;
     Ok(())
 }
 
