@@ -1,5 +1,6 @@
 mod nicknamer;
 
+use self::nicknamer::commands::reveal;
 use crate::nicknamer::commands;
 use crate::nicknamer::discord;
 use crate::nicknamer::discord::DiscordConnector;
@@ -51,6 +52,7 @@ async fn reveal(ctx: discord::serenity::Context<'_>) -> Result<(), discord::sere
     info!("Loaded {} real names", real_names.names.len());
     let connector = discord::serenity::SerenityDiscordConnector::new(ctx);
     let members = connector.get_members_of_current_channel().await?;
+    info!("Found {} members in current channel", members.len());
     let users: Vec<commands::User> = members
         .iter()
         .filter_map(|member| {
@@ -69,7 +71,7 @@ async fn reveal(ctx: discord::serenity::Context<'_>) -> Result<(), discord::sere
         .collect();
     info!("Found {} users with real names", users.len());
     let real_names = commands::RealNames { users };
-    ctx.reply(commands::reveal(&real_names)?).await?;
+    ctx.reply(reveal::reveal(&real_names)?).await?;
     Ok(())
 }
 
