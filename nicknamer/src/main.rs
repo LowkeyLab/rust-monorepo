@@ -1,5 +1,7 @@
 mod nicknamer;
 
+use crate::nicknamer::commands;
+use crate::nicknamer::file;
 use log::{LevelFilter, info};
 use log4rs::Config;
 use log4rs::append::console::ConsoleAppender;
@@ -7,7 +9,7 @@ use log4rs::config::{Appender, Logger, Root};
 use poise::serenity_prelude as serenity;
 
 struct Data {} // User data, which is stored and accessible in all command invocations
-type Error = Box<dyn std::error::Error + Send + Sync>;
+type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 #[allow(dead_code)]
 type Context<'a> = poise::Context<'a, Data, Error>;
 
@@ -38,7 +40,32 @@ Type ~help command for more info on a command.",
 /// Routine responsible for 'nick' discord command.
 #[poise::command(prefix_command)]
 async fn nick(_ctx: Context<'_>, member: serenity::Member) -> Result<(), Error> {
-    nicknamer::nick(member.user.id);
+    commands::nick(member.user.id);
+    Ok(())
+}
+
+#[poise::command(prefix_command)]
+async fn reveal(ctx: Context<'_>) -> Result<(), Error> {
+    let real_names = file::RealNames::from_embedded_yaml()?;
+    let channel = ctx.channel_id().to_channel(ctx).await?;
+    let Some(channel) = channel.guild() else {
+        return Err("You're not in a discord server's channel".into());
+    };
+    let members = channel.members(ctx)?;
+    let users = members
+        .iter()
+        .filter(|member| real_names.names.contains_key(&member.user.id.get()))
+        .map(|member| commands::User {
+            id: member.user.id.get(),
+            display_name: member
+                .nick
+                .clone()
+                .unwrap_or_else(|| member.user.name.clone()),
+            real_name: real_names.names.get(&member.user.id.get()).unwrap().clone(),
+        })
+        .collect::<Vec<_>>();
+    let real_names = commands::RealNames { users };
+    ctx.reply(commands::reveal(&real_names)?).await?;
     Ok(())
 }
 
@@ -57,7 +84,7 @@ async fn main() {
 
     let framework = poise::Framework::<Data, Error>::builder()
         .options(poise::FrameworkOptions {
-            commands: vec![help(), ping()],
+            commands: vec![help(), ping(), reveal()],
             prefix_options: poise::PrefixFrameworkOptions {
                 prefix: Some("~".into()),
                 ..Default::default()
