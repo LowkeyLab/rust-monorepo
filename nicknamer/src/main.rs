@@ -1,6 +1,8 @@
 mod nicknamer;
 
 use crate::nicknamer::commands;
+use crate::nicknamer::discord;
+use crate::nicknamer::discord::DiscordConnector;
 use crate::nicknamer::file;
 use log::{LevelFilter, info};
 use log4rs::Config;
@@ -8,16 +10,11 @@ use log4rs::append::console::ConsoleAppender;
 use log4rs::config::{Appender, Logger, Root};
 use poise::serenity_prelude as serenity;
 
-struct Data {} // User data, which is stored and accessible in all command invocations
-type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
-#[allow(dead_code)]
-type Context<'a> = poise::Context<'a, Data, Error>;
-
 /// Ping command to test bot availability
 ///
 /// Any instance of bot connected to the server will respond with "Pong!" and some runtime information.
 #[poise::command(prefix_command)]
-async fn ping(ctx: Context<'_>) -> Result<(), Error> {
+async fn ping(ctx: discord::serenity::Context<'_>) -> Result<(), discord::serenity::Error> {
     ctx.reply("Pong!").await?;
     Ok(())
 }
@@ -25,9 +22,9 @@ async fn ping(ctx: Context<'_>) -> Result<(), Error> {
 /// Show this menu
 #[poise::command(prefix_command)]
 pub async fn help(
-    ctx: Context<'_>,
+    ctx: discord::serenity::Context<'_>,
     #[description = "Specific command to show help about"] command: Option<String>,
-) -> Result<(), Error> {
+) -> Result<(), discord::serenity::Error> {
     let config = poise::builtins::HelpConfiguration {
         extra_text_at_bottom: "\
 Type ~help command for more info on a command.",
@@ -39,29 +36,29 @@ Type ~help command for more info on a command.",
 
 /// Routine responsible for 'nick' discord command.
 #[poise::command(prefix_command)]
-async fn nick(_ctx: Context<'_>, member: serenity::Member) -> Result<(), Error> {
+async fn nick(
+    _ctx: discord::serenity::Context<'_>,
+    member: serenity::Member,
+) -> Result<(), discord::serenity::Error> {
     commands::nick(member.user.id);
     Ok(())
 }
 
 #[poise::command(prefix_command)]
-async fn reveal(ctx: Context<'_>) -> Result<(), Error> {
+async fn reveal(ctx: discord::serenity::Context<'_>) -> Result<(), discord::serenity::Error> {
     let real_names = file::RealNames::from_embedded_yaml()?;
-    let channel = ctx.channel_id().to_channel(ctx).await?;
-    let Some(channel) = channel.guild() else {
-        return Err("You're not in a discord server's channel".into());
-    };
-    let members = channel.members(ctx)?;
+    let connector = discord::serenity::SerenityDiscordConnector::new(ctx);
+    let members = connector.get_members_of_current_channel().await?;
     let users = members
         .iter()
-        .filter(|member| real_names.names.contains_key(&member.user.id.get()))
+        .filter(|member| real_names.names.contains_key(&member.id))
         .map(|member| commands::User {
-            id: member.user.id.get(),
+            id: member.id,
             display_name: member
-                .nick
+                .nick_name
                 .clone()
-                .unwrap_or_else(|| member.user.name.clone()),
-            real_name: real_names.names.get(&member.user.id.get()).unwrap().clone(),
+                .unwrap_or_else(|| member.user_name.clone()),
+            real_name: real_names.names.get(&member.id).unwrap().clone(),
         })
         .collect::<Vec<_>>();
     let real_names = commands::RealNames { users };
@@ -82,22 +79,23 @@ async fn main() {
     let intents =
         serenity::GatewayIntents::non_privileged() | serenity::GatewayIntents::MESSAGE_CONTENT;
 
-    let framework = poise::Framework::<Data, Error>::builder()
-        .options(poise::FrameworkOptions {
-            commands: vec![help(), ping(), reveal()],
-            prefix_options: poise::PrefixFrameworkOptions {
-                prefix: Some("~".into()),
+    let framework =
+        poise::Framework::<discord::serenity::Data, discord::serenity::Error>::builder()
+            .options(poise::FrameworkOptions {
+                commands: vec![help(), ping(), reveal()],
+                prefix_options: poise::PrefixFrameworkOptions {
+                    prefix: Some("~".into()),
+                    ..Default::default()
+                },
                 ..Default::default()
-            },
-            ..Default::default()
-        })
-        .setup(|ctx, _ready, framework| {
-            Box::pin(async move {
-                poise::builtins::register_globally(ctx, &framework.options().commands).await?;
-                Ok(Data {})
             })
-        })
-        .build();
+            .setup(|ctx, _ready, framework| {
+                Box::pin(async move {
+                    poise::builtins::register_globally(ctx, &framework.options().commands).await?;
+                    Ok(discord::serenity::Data {})
+                })
+            })
+            .build();
 
     let client = serenity::ClientBuilder::new(token, intents)
         .framework(framework)

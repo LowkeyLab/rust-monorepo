@@ -1,4 +1,3 @@
-#[allow(dead_code)]
 pub const REVEAL_INSULT: &str = "ya dingus";
 #[allow(dead_code)]
 pub const CODE_MONKEYS_ROLE_NAME: &str = "Code Monkeys";
