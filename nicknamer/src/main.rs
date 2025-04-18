@@ -46,12 +46,6 @@ async fn nick(_ctx: Context<'_>, member: serenity::Member) -> Result<(), Error> 
 
 #[poise::command(prefix_command)]
 async fn reveal(ctx: Context<'_>) -> Result<(), Error> {
-    // let author = ctx.author().clone();
-    // let name = author.global_name.unwrap_or(author.name);
-    // let reply = nicknamer::reveal(&nicknamer::User {
-    //     name,
-    //     id: author.id.get(),
-    // });
     let real_names = file::RealNames::from_embedded_yaml()?;
     let channel = ctx.channel_id().to_channel(ctx).await?;
     let Some(channel) = channel.guild() else {
