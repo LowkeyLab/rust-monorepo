@@ -45,6 +45,9 @@ async fn nick(
     Ok(())
 }
 
+/// Reveal members' true names, greatly diminishing their power level
+///
+/// Specifically, I'll review the names of members that can access this channel.
 #[poise::command(prefix_command)]
 async fn reveal(ctx: discord::serenity::Context<'_>) -> Result<(), discord::serenity::Error> {
     info!("Revealing nicknames for current channel members ...");
