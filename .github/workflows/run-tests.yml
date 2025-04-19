@@ -32,3 +32,4 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
           files: lcov.info
           fail_ci_if_error: true
+          slug: LowkeyLab/rust-monorepo
