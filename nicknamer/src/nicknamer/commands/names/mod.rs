@@ -1,3 +1,4 @@
+use crate::nicknamer::commands::names::Error::CannotLoadNames;
 use log::info;
 use mockall::automock;
 use serde::{Deserialize, Serialize};
@@ -5,8 +6,8 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("Failed to parse YAML")]
-    SerdeYamlError(#[from] serde_yml::Error),
+    #[error("Failed to load names")]
+    CannotLoadNames,
 }
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Names {
@@ -32,7 +33,7 @@ impl EmbeddedNamesRepository {
 
 impl NamesRepository for EmbeddedNamesRepository {
     async fn load_real_names(&self) -> Result<Names, Error> {
-        let names: Names = serde_yml::from_str(self.embedded_names)?;
+        let names: Names = serde_yml::from_str(self.embedded_names).map_err(|_| CannotLoadNames)?;
         info!("Loaded {} names", names.names.len());
         Ok(names)
     }
