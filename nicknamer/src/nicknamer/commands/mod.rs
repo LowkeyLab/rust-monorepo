@@ -40,10 +40,11 @@ impl From<&discord::ServerMember> for User {
 
 impl Display for User {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let Some(real_name) = &self.real_name else {
-            return Ok(());
-        };
-        write!(f, "'{}' is {}", self.display_name, real_name)
+        if let Some(real_name) = &self.real_name {
+            write!(f, "'{}' is {}", self.display_name, real_name)
+        } else {
+            write!(f, "'{}' has no real name available", self.display_name)
+        }
     }
 }
 
@@ -152,5 +153,88 @@ mod tests {
         assert_eq!(user.id, 24680);
         assert_eq!(user.display_name, "SameName");
         assert_eq!(user.real_name, Some("Real Name".into()));
+    }
+
+    #[test]
+    fn test_user_display_with_real_name() {
+        // Arrange
+        let user = User {
+            id: 12345,
+            display_name: "DisplayName".to_string(),
+            real_name: Some("RealName".to_string()),
+        };
+
+        // Act
+        let display_string = format!("{}", user);
+
+        // Assert
+        assert_eq!(display_string, "'DisplayName' is RealName");
+    }
+
+    #[test]
+    fn test_user_display_without_real_name() {
+        // Arrange
+        let user = User {
+            id: 12345,
+            display_name: "DisplayName".to_string(),
+            real_name: None,
+        };
+
+        // Act
+        let display_string = format!("{}", user);
+
+        // Assert
+        assert_eq!(display_string, "'DisplayName' has no real name available");
+    }
+
+    #[test]
+    fn test_user_display_with_empty_display_name() {
+        // Arrange
+        let user = User {
+            id: 12345,
+            display_name: "".to_string(),
+            real_name: Some("RealName".to_string()),
+        };
+
+        // Act
+        let display_string = format!("{}", user);
+
+        // Assert
+        assert_eq!(display_string, "'' is RealName");
+    }
+
+    #[test]
+    fn test_user_display_with_special_characters() {
+        // Arrange
+        let user = User {
+            id: 12345,
+            display_name: "Name\"With'Quotes".to_string(),
+            real_name: Some("Real\"Name'With'Quotes".to_string()),
+        };
+
+        // Act
+        let display_string = format!("{}", user);
+
+        // Assert
+        assert_eq!(
+            display_string,
+            "'Name\"With'Quotes' is Real\"Name'With'Quotes"
+        );
+    }
+
+    #[test]
+    fn test_user_display_with_empty_real_name() {
+        // Arrange - edge case with empty string (not None) for real_name
+        let user = User {
+            id: 12345,
+            display_name: "DisplayName".to_string(),
+            real_name: Some("".to_string()),
+        };
+
+        // Act
+        let display_string = format!("{}", user);
+
+        // Assert
+        assert_eq!(display_string, "'DisplayName' is ");
     }
 }
