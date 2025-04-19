@@ -1,12 +1,15 @@
 mod nicknamer;
 
+use self::nicknamer::commands::names::EmbeddedNamesRepository;
+use self::nicknamer::commands::names::Names;
 use self::nicknamer::commands::reveal;
+use self::nicknamer::connectors::discord;
+use self::nicknamer::connectors::discord::DiscordConnector;
+use self::nicknamer::connectors::discord::serenity::{Context, SerenityDiscordConnector};
+use self::nicknamer::connectors::file::RealNames;
 use crate::nicknamer::commands;
-use crate::nicknamer::discord;
-use crate::nicknamer::discord::DiscordConnector;
-use crate::nicknamer::discord::serenity::{Context, Error, SerenityDiscordConnector};
-use crate::nicknamer::file;
-use crate::nicknamer::file::RealNames;
+use crate::nicknamer::commands::reveal::{Revealer, RevealerImpl};
+use crate::nicknamer::connectors::discord::ServerMember;
 use log::{LevelFilter, info};
 use log4rs::Config;
 use log4rs::append::console::ConsoleAppender;
@@ -18,7 +21,7 @@ use poise::serenity_prelude::Member;
 ///
 /// Any instance of bot connected to the server will respond with "Pong!" and some runtime information.
 #[poise::command(prefix_command)]
-async fn ping(ctx: discord::serenity::Context<'_>) -> Result<(), discord::serenity::Error> {
+async fn ping(ctx: Context<'_>) -> anyhow::Result<()> {
     ctx.reply("Pong!").await?;
     Ok(())
 }
@@ -26,9 +29,9 @@ async fn ping(ctx: discord::serenity::Context<'_>) -> Result<(), discord::sereni
 /// Show this menu
 #[poise::command(prefix_command)]
 pub async fn help(
-    ctx: discord::serenity::Context<'_>,
+    ctx: Context<'_>,
     #[description = "Specific command to show help about"] command: Option<String>,
-) -> Result<(), discord::serenity::Error> {
+) -> anyhow::Result<()> {
     let config = poise::builtins::HelpConfiguration {
         extra_text_at_bottom: "\
 Type ~help command for more info on a command.",
@@ -43,7 +46,7 @@ Type ~help command for more info on a command.",
 async fn nick(
     _ctx: discord::serenity::Context<'_>,
     member: serenity::Member,
-) -> Result<(), discord::serenity::Error> {
+) -> anyhow::Result<()> {
     commands::nick(member.user.id);
     Ok(())
 }
@@ -55,40 +58,28 @@ async fn nick(
 /// You can also tag another member and I'll only reveal the real name of that person
 #[poise::command(prefix_command)]
 async fn reveal(
-    ctx: discord::serenity::Context<'_>,
-    #[description = "The specific member to reveal the name of"] member: Option<serenity::Member>,
-) -> Result<(), discord::serenity::Error> {
-    let real_names = file::RealNames::from_embedded_yaml()?;
-    info!("Loaded {} real names", real_names.names.len());
-    let connector = discord::serenity::SerenityDiscordConnector::new(ctx);
+    ctx: Context<'_>,
+    #[description = "The specific member to reveal the name of"] member: Option<Member>,
+) -> anyhow::Result<()> {
+    let name_repository = EmbeddedNamesRepository::new();
+    let connector = SerenityDiscordConnector::new(ctx);
+    let revealer = RevealerImpl::new(&name_repository, &connector);
     match member {
-        Some(member) => reveal_single_member(ctx, &real_names, member).await,
-        None => reveal_all_members(ctx, &real_names, connector).await,
+        Some(member) => reveal_single_member(&revealer, &member.into()).await,
+        None => reveal_all_members(&revealer).await,
     }
 }
 
-async fn reveal_all_members(
-    ctx: Context<'_>,
-    real_names: &RealNames,
-    connector: SerenityDiscordConnector<'_>,
-) -> Result<(), Error> {
-    info!("Revealing nicknames for current channel members ...");
-    let members = connector.get_members_of_current_channel().await?;
-    info!("Found {} members in current channel", members.len());
-    let result = reveal::reveal_all_members(members, real_names)?;
-    ctx.reply(result).await?;
+async fn reveal_all_members<T: Revealer>(revealer: &T) -> anyhow::Result<()> {
+    let _ = revealer.reveal_all().await?;
     Ok(())
 }
 
-async fn reveal_single_member(
-    ctx: Context<'_>,
-    real_names: &RealNames,
-    member: Member,
-) -> Result<(), Error> {
-    info!("Revealing nickname for {} ...", member.user.name);
-    let server_member: discord::ServerMember = member.clone().into();
-    let reply = reveal::reveal_member(server_member, real_names)?;
-    ctx.reply(reply).await?;
+async fn reveal_single_member<T: Revealer>(
+    revealer: &T,
+    _member: &ServerMember,
+) -> anyhow::Result<()> {
+    let _ = revealer.reveal_all().await?;
     Ok(())
 }
 
@@ -106,23 +97,22 @@ async fn main() {
         | serenity::GatewayIntents::MESSAGE_CONTENT
         | serenity::GatewayIntents::GUILD_PRESENCES;
 
-    let framework =
-        poise::Framework::<discord::serenity::Data, discord::serenity::Error>::builder()
-            .options(poise::FrameworkOptions {
-                commands: vec![help(), ping(), reveal()],
-                prefix_options: poise::PrefixFrameworkOptions {
-                    prefix: Some("~".into()),
-                    ..Default::default()
-                },
+    let framework = poise::Framework::<discord::serenity::Data, anyhow::Error>::builder()
+        .options(poise::FrameworkOptions {
+            commands: vec![help(), ping(), reveal()],
+            prefix_options: poise::PrefixFrameworkOptions {
+                prefix: Some("~".into()),
                 ..Default::default()
+            },
+            ..Default::default()
+        })
+        .setup(|ctx, _ready, framework| {
+            Box::pin(async move {
+                poise::builtins::register_globally(ctx, &framework.options().commands).await?;
+                Ok(discord::serenity::Data {})
             })
-            .setup(|ctx, _ready, framework| {
-                Box::pin(async move {
-                    poise::builtins::register_globally(ctx, &framework.options().commands).await?;
-                    Ok(discord::serenity::Data {})
-                })
-            })
-            .build();
+        })
+        .build();
 
     let client = serenity::ClientBuilder::new(token, intents)
         .framework(framework)

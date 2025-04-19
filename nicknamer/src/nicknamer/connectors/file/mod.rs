@@ -1,20 +1,16 @@
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Debug, Display};
+use thiserror::Error;
+
 // Include the YAML content at compile time
 const REAL_NAMES_YAML: &str = include_str!("real_names.yml");
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
+#[error("{msg}")]
 pub struct FileError {
-    description: String,
+    msg: String,
 }
-
-impl Display for FileError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.description)
-    }
-}
-
-impl std::error::Error for FileError {}
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct RealNames {
@@ -38,7 +34,7 @@ impl RealNames {
     /// * `Result<Self, FileError>` - A RealNames struct on success, or an error if parsing fails
     pub fn from_yaml(yaml_string: &str) -> Result<Self, FileError> {
         serde_yml::from_str(yaml_string).or(Err(FileError {
-            description: "Failed to parse YAML content".to_string(),
+            msg: "Failed to parse YAML content".to_string(),
         }))
     }
 }

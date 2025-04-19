@@ -1,6 +1,18 @@
-use self::serenity::Error;
+use thiserror::Error;
 
 pub(crate) mod serenity;
+
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("Not in a server channel")]
+    NotInServerChannel,
+    #[error("Cannot find channel")]
+    CannotFindChannel,
+    #[error("Cannot find members of channel")]
+    CannotFindMembersOfChannel,
+    #[error("Cannot send reply")]
+    CannotSendReply,
+}
 
 /// Trait for abstracting Discord server interactions.
 ///
@@ -13,6 +25,7 @@ pub trait DiscordConnector {
     ///
     /// * `Result<Vec<ServerMember>, Error>` - List of server members on success, or Discord error
     async fn get_members_of_current_channel(&self) -> Result<Vec<ServerMember>, Error>;
+    async fn send_reply(&self, message: &str) -> Result<(), Error>;
 }
 
 /// Represents a member of a Discord server.
