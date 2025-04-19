@@ -77,6 +77,7 @@ where
 mod tests {
     use crate::nicknamer::commands::reveal;
     use crate::nicknamer::commands::*;
+    use crate::nicknamer::config;
     use crate::nicknamer::discord::ServerMember;
     use crate::nicknamer::file::RealNames;
     use std::collections::HashMap;
@@ -245,6 +246,130 @@ mod tests {
         assert_eq!(
             result,
             "How mysterious! Unknown User's true name is shrouded by darkness"
+        );
+    }
+
+    #[test]
+    fn test_reveal_all_members_with_real_names() {
+        // Setup
+        let real_names = create_test_real_names();
+        let members = vec![
+            create_server_member(
+                123456789,
+                Some("AliceNickname".to_string()),
+                "AliceUsername".to_string(),
+            ),
+            create_server_member(
+                987654321,
+                Some("BobNickname".to_string()),
+                "BobUsername".to_string(),
+            ),
+        ];
+
+        // Call the function
+        let result = reveal::reveal_all_members(members, &real_names).unwrap();
+
+        // The result should contain all users with real names
+        let expected_header = format!("Here are people's real names, {}:", config::REVEAL_INSULT);
+        assert!(
+            result.starts_with(&expected_header),
+            "Result should start with the expected header"
+        );
+        assert!(
+            result.contains("'AliceNickname' is Alice"),
+            "Result should contain Alice's information"
+        );
+        assert!(
+            result.contains("'BobNickname' is Bob"),
+            "Result should contain Bob's information"
+        );
+    }
+
+    #[test]
+    fn test_reveal_all_members_with_some_without_real_names() {
+        // Setup
+        let real_names = create_test_real_names();
+        let members = vec![
+            create_server_member(
+                123456789,
+                Some("AliceNickname".to_string()),
+                "AliceUsername".to_string(),
+            ),
+            create_server_member(
+                111222333, // ID not in real_names
+                Some("UnknownUser".to_string()),
+                "UnknownUsername".to_string(),
+            ),
+            create_server_member(
+                987654321,
+                Some("BobNickname".to_string()),
+                "BobUsername".to_string(),
+            ),
+        ];
+
+        // Call the function
+        let result = reveal::reveal_all_members(members, &real_names).unwrap();
+
+        // The result should only contain users with real names (Alice and Bob)
+        let expected_header = format!("Here are people's real names, {}:", config::REVEAL_INSULT);
+        assert!(
+            result.starts_with(&expected_header),
+            "Result should start with the expected header"
+        );
+        assert!(
+            result.contains("'AliceNickname' is Alice"),
+            "Result should contain Alice's information"
+        );
+        assert!(
+            result.contains("'BobNickname' is Bob"),
+            "Result should contain Bob's information"
+        );
+        assert!(
+            !result.contains("UnknownUser"),
+            "Result should not contain unknown user's information"
+        );
+    }
+
+    #[test]
+    fn test_reveal_all_members_with_no_real_names() {
+        // Setup
+        let real_names = create_test_real_names();
+        let members = vec![
+            create_server_member(
+                111222333, // ID not in real_names
+                Some("UnknownUser1".to_string()),
+                "UnknownUsername1".to_string(),
+            ),
+            create_server_member(
+                444555666, // ID not in real_names
+                Some("UnknownUser2".to_string()),
+                "UnknownUsername2".to_string(),
+            ),
+        ];
+
+        // Call the function
+        let result = reveal::reveal_all_members(members, &real_names).unwrap();
+
+        // For no real names, we should get the "unimportant" message
+        assert_eq!(
+            result,
+            "Y'all a bunch of unimportant, good fer nothing no-names"
+        );
+    }
+
+    #[test]
+    fn test_reveal_all_members_with_empty_members_list() {
+        // Setup
+        let real_names = create_test_real_names();
+        let members: Vec<ServerMember> = vec![];
+
+        // Call the function
+        let result = reveal::reveal_all_members(members, &real_names).unwrap();
+
+        // For empty members list, we should also get the "unimportant" message
+        assert_eq!(
+            result,
+            "Y'all a bunch of unimportant, good fer nothing no-names"
         );
     }
 }
