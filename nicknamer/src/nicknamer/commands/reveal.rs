@@ -504,15 +504,6 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn handles_names_error_when_revealing_all() {
-            // Setup mock objects
-            let mut mock_repo = MockNamesRepository::new();
-            let mut mock_discord = MockDiscordConnector::new();
-
-            // Define test data
-        }
-
-        #[tokio::test]
         async fn can_successfully_reveal_single_member() {
             // Setup mock objects
             let mut mock_repo = MockNamesRepository::new();
