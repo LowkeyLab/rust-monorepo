@@ -1,7 +1,7 @@
 use crate::nicknamer::discord;
-use poise::serenity_prelude as serenity;
 use std::fmt::{Display, Formatter};
 
+pub(crate) mod nick;
 pub mod reveal;
 
 pub(crate) type Reply = String;
@@ -47,9 +47,6 @@ impl Display for User {
         }
     }
 }
-
-#[allow(dead_code)]
-pub fn nick(_user_id: serenity::UserId) {}
 
 #[cfg(test)]
 mod tests {

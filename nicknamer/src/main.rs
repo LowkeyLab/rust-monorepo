@@ -1,6 +1,6 @@
 mod nicknamer;
 
-use self::nicknamer::commands::reveal;
+use self::nicknamer::commands::{nick, reveal};
 use crate::nicknamer::commands;
 use crate::nicknamer::discord;
 use crate::nicknamer::discord::DiscordConnector;
@@ -44,7 +44,8 @@ async fn nick(
     _ctx: discord::serenity::Context<'_>,
     member: serenity::Member,
 ) -> Result<(), discord::serenity::Error> {
-    commands::nick(member.user.id);
+    let member: discord::ServerMember = member.into();
+
     Ok(())
 }
 
