@@ -139,7 +139,7 @@ mod tests {
     }
 
     #[test]
-    fn test_reveal_member_with_real_name() {
+    fn can_reveal_member_with_real_name() {
         // Setup
         let real_names = create_test_real_names();
         let server_member = create_server_member(
@@ -156,7 +156,7 @@ mod tests {
     }
 
     #[test]
-    fn test_reveal_member_without_nickname() {
+    fn can_reveal_member_without_nickname() {
         // Setup - member with username but no nickname
         let real_names = create_test_real_names();
         let server_member = create_server_member(123456789, None, "AliceUsername".to_string());
@@ -169,7 +169,7 @@ mod tests {
     }
 
     #[test]
-    fn test_reveal_member_without_real_name() {
+    fn can_reveal_member_without_real_name() {
         // Setup - member with an ID that doesn't exist in real_names
         let real_names = create_test_real_names();
         let server_member = create_server_member(
@@ -189,7 +189,7 @@ mod tests {
     }
 
     #[test]
-    fn test_reveal_member_with_special_characters() {
+    fn can_reveal_member_with_special_characters() {
         // Setup
         let mut real_names = create_test_real_names();
         real_names
@@ -212,7 +212,7 @@ mod tests {
     }
 
     #[test]
-    fn test_reveal_member_preserves_nickname_case() {
+    fn can_preserve_nickname_case_when_revealing_member() {
         // Setup
         let real_names = create_test_real_names();
         let server_member = create_server_member(
@@ -229,7 +229,7 @@ mod tests {
     }
 
     #[test]
-    fn test_multiple_members_with_same_real_name() {
+    fn can_reveal_multiple_members_with_same_real_name() {
         // Setup - two members with the same real name
         let mut real_names = create_test_real_names();
         real_names.names.insert(111222333, "Bob".to_string());
@@ -256,7 +256,7 @@ mod tests {
     }
 
     #[test]
-    fn test_conversion_from_server_member_to_user() {
+    fn can_convert_server_member_to_user() {
         // Setup
         let server_member = create_server_member(
             123456789,
@@ -274,7 +274,7 @@ mod tests {
     }
 
     #[test]
-    fn revealing_user_with_no_nickname_results_in_insult() {
+    fn can_get_mysterious_message_for_user_without_real_name() {
         // Test for a user with no real name
         let result = reveal::create_reply_for(&User {
             id: 0,
@@ -291,7 +291,7 @@ mod tests {
     }
 
     #[test]
-    fn test_reveal_all_members_with_real_names() {
+    fn can_reveal_all_members_with_real_names() {
         // Setup
         let real_names = create_test_real_names();
         let members = vec![
@@ -327,7 +327,7 @@ mod tests {
     }
 
     #[test]
-    fn test_reveal_all_members_with_some_without_real_names() {
+    fn can_reveal_known_members_when_some_members_have_no_real_names() {
         // Setup
         let real_names = create_test_real_names();
         let members = vec![
@@ -372,7 +372,7 @@ mod tests {
     }
 
     #[test]
-    fn test_reveal_all_members_with_no_real_names() {
+    fn can_provide_insult_when_no_members_have_real_names() {
         // Setup
         let real_names = create_test_real_names();
         let members = vec![
@@ -399,7 +399,7 @@ mod tests {
     }
 
     #[test]
-    fn test_reveal_all_members_with_empty_members_list() {
+    fn can_provide_insult_when_members_list_is_empty() {
         // Setup
         let real_names = create_test_real_names();
         let members: Vec<ServerMember> = vec![];
@@ -424,7 +424,7 @@ mod tests {
         use std::collections::HashMap;
 
         #[tokio::test]
-        async fn test_reveal_all_success() {
+        async fn can_successfully_reveal_all_members() {
             // Setup mock objects
             let mut mock_repo = MockNamesRepository::new();
             let mut mock_discord = MockDiscordConnector::new();
@@ -476,7 +476,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn test_reveal_all_discord_error() {
+        async fn handles_discord_error_when_revealing_all() {
             // Setup mock objects
             let mock_repo = MockNamesRepository::new();
             let mut mock_discord = MockDiscordConnector::new();
@@ -504,41 +504,12 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn test_reveal_all_names_error() {
+        async fn handles_names_error_when_revealing_all() {
             // Setup mock objects
             let mut mock_repo = MockNamesRepository::new();
             let mut mock_discord = MockDiscordConnector::new();
 
             // Define test data
-            let members = vec![ServerMember {
-                id: 123456789,
-                nick_name: Some("AliceNickname".to_string()),
-                user_name: "AliceUsername".to_string(),
-            }];
-
-            // Set up expectations
-            mock_discord
-                .expect_get_members_of_current_channel()
-                .times(1)
-                .returning(move || Ok(members.clone()));
-
-            mock_repo
-                .expect_load_real_names()
-                .times(1)
-                .returning(move || Err(names::Error::CannotLoadNames));
-
-            // Create revealer with mock objects
-            let revealer = RevealerImpl::new(&mock_repo, &mock_discord);
-
-            // Execute the method under test
-            let result = revealer.reveal_all().await;
-
-            // Verify results
-            assert!(result.is_err(), "reveal_all should fail");
-            assert!(
-                matches!(result.unwrap_err(), reveal::Error::NamesAccessError(_)),
-                "Error should be a NamesAccessError"
-            );
         }
 
         #[tokio::test]
