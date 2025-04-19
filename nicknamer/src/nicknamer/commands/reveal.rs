@@ -1,5 +1,5 @@
 use crate::nicknamer::commands::{Reply, User};
-use crate::nicknamer::discord::{ServerMember, serenity};
+use crate::nicknamer::discord::ServerMember;
 use crate::nicknamer::{config, file};
 use log::info;
 
@@ -8,7 +8,7 @@ type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 pub fn reveal_member(
     server_member: ServerMember,
     real_names: &file::RealNames,
-) -> Result<Reply, serenity::Error> {
+) -> Result<Reply, Error> {
     let user_id = server_member.id;
     let mut user: User = server_member.into();
     let real_name = real_names.names.get(&user_id).cloned();
