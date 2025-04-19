@@ -4,7 +4,7 @@ use std::fmt::{Display, Formatter};
 
 pub mod reveal;
 
-type Reply = String;
+pub(crate) type Reply = String;
 
 #[derive(Debug, PartialEq, Default)]
 pub struct User {
