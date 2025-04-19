@@ -2,7 +2,12 @@
 //!
 //! This module provides the concrete implementation of the Discord connector
 //! trait using the Serenity Discord library.
-use crate::nicknamer::discord::{DiscordConnector, ServerMember};
+
+use crate::nicknamer::connectors::discord::Error::{
+    CannotFindChannel, CannotFindMembersOfChannel, CannotSendReply, NotInServerChannel,
+};
+use crate::nicknamer::connectors::discord::{DiscordConnector, Error, ServerMember};
+use log::info;
 use poise::serenity_prelude as serenity;
 
 /// Discord connector implementation using Serenity library.
@@ -27,13 +32,27 @@ impl<'a> SerenityDiscordConnector<'a> {
 impl DiscordConnector for SerenityDiscordConnector<'_> {
     async fn get_members_of_current_channel(&self) -> Result<Vec<ServerMember>, Error> {
         let ctx = &self.context;
-        let channel = ctx.channel_id().to_channel(ctx).await?;
-        let Some(channel) = channel.guild() else {
-            return Err("You're not in a discord server's channel".into());
+        let Ok(channel) = ctx.channel_id().to_channel(ctx).await else {
+            return Err(CannotFindChannel);
         };
-        let members = channel.members(ctx)?;
-        let members = members.iter().map(|member| member.clone().into()).collect();
+        let Some(channel) = channel.guild() else {
+            return Err(NotInServerChannel);
+        };
+        let Ok(members) = channel.members(ctx) else {
+            return Err(CannotFindMembersOfChannel);
+        };
+        let members: Vec<ServerMember> =
+            members.iter().map(|member| member.clone().into()).collect();
+        info!("Found {} members in current channel", members.len());
         Ok(members)
+    }
+
+    async fn send_reply(&self, message: &str) -> Result<(), Error> {
+        let ctx = &self.context;
+        let Ok(_) = ctx.reply(message).await else {
+            return Err(CannotSendReply);
+        };
+        Ok(())
     }
 }
 
@@ -50,7 +69,5 @@ impl From<serenity::Member> for ServerMember {
 /// Empty data structure for Poise framework configuration
 pub struct Data {}
 
-/// Type alias for error handling in Discord operations
-pub type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 /// Type alias for Poise command context
-pub type Context<'a> = poise::Context<'a, Data, Error>;
+pub type Context<'a> = poise::Context<'a, Data, anyhow::Error>;

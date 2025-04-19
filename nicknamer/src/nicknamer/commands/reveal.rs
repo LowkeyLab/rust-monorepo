@@ -1,25 +1,69 @@
-use crate::nicknamer::commands::{Reply, User};
-use crate::nicknamer::discord::ServerMember;
-use crate::nicknamer::{config, file};
+use crate::nicknamer::commands::names::{Names, NamesRepository};
+use crate::nicknamer::commands::{Reply, User, names};
+use crate::nicknamer::config;
+use crate::nicknamer::connectors::discord;
+use crate::nicknamer::connectors::discord::{DiscordConnector, ServerMember};
 use log::info;
+use thiserror::Error;
 
-type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("Something went wrong with Discord")]
+    DiscordError(#[from] discord::Error),
+    #[error("Something went wrong getting people's names")]
+    NamesAccessError(#[from] names::Error),
+}
+pub trait Revealer {
+    async fn reveal_all(&self) -> Result<(), Error>;
+    async fn reveal_member(&self, member: &ServerMember) -> Result<(), Error>;
+}
+pub struct RevealerImpl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> {
+    names_repository: &'a REPO,
+    discord_connector: &'a DISCORD,
+}
 
-pub fn reveal_member(
-    server_member: ServerMember,
-    real_names: &file::RealNames,
-) -> Result<Reply, Error> {
+impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> RevealerImpl<'a, REPO, DISCORD> {
+    pub fn new(names_repository: &'a REPO, discord_connector: &'a DISCORD) -> Self {
+        Self {
+            names_repository,
+            discord_connector,
+        }
+    }
+}
+
+impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> Revealer
+    for RevealerImpl<'a, REPO, DISCORD>
+{
+    async fn reveal_all(&self) -> Result<(), Error> {
+        info!("Revealing nicknames for current channel members ...");
+        let members = self
+            .discord_connector
+            .get_members_of_current_channel()
+            .await?;
+        let real_names = self.names_repository.load_real_names().await?;
+        let reply = reveal_all_members(&members, &real_names)?;
+        self.discord_connector.send_reply(&reply).await?;
+        Ok(())
+    }
+
+    async fn reveal_member(&self, member: &ServerMember) -> Result<(), Error> {
+        info!("Revealing nickname for {}", member.user_name);
+        let names = self.names_repository.load_real_names().await?;
+        let reply = reveal_member(member, &names)?;
+        self.discord_connector.send_reply(&reply).await?;
+        Ok(())
+    }
+}
+
+pub fn reveal_member(server_member: &ServerMember, real_names: &Names) -> Result<Reply, Error> {
     let user_id = server_member.id;
     let mut user: User = server_member.into();
     let real_name = real_names.names.get(&user_id).cloned();
     user.real_name = real_name;
-    create_reply_for(user)
+    create_reply_for(&user)
 }
 
-pub fn reveal_all_members(
-    members: Vec<ServerMember>,
-    real_names: &file::RealNames,
-) -> Result<Reply, Error> {
+fn reveal_all_members(members: &[ServerMember], real_names: &Names) -> Result<Reply, Error> {
     let users: Vec<User> = members
         .iter()
         .filter_map(|member| {
@@ -33,10 +77,10 @@ pub fn reveal_all_members(
         })
         .collect();
     info!("Found {} users with real names", users.len());
-    create_reply_for_all(users)
+    create_reply_for_all(&users)
 }
 
-fn create_reply_for(user: User) -> Result<Reply, Error> {
+fn create_reply_for(user: &User) -> Result<Reply, Error> {
     match user.real_name {
         Some(_) => Ok(user.to_string()),
         None => Ok(format!(
@@ -46,10 +90,7 @@ fn create_reply_for(user: User) -> Result<Reply, Error> {
     }
 }
 
-fn create_reply_for_all<T>(users: T) -> Result<Reply, Error>
-where
-    T: IntoIterator<Item = User>,
-{
+fn create_reply_for_all(users: &[User]) -> Result<Reply, Error> {
     let users = users
         .into_iter()
         .filter(|user| user.real_name.is_some())
@@ -75,18 +116,18 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::nicknamer::commands::names::Names;
     use crate::nicknamer::commands::reveal;
     use crate::nicknamer::commands::*;
     use crate::nicknamer::config;
-    use crate::nicknamer::discord::ServerMember;
-    use crate::nicknamer::file::RealNames;
+    use crate::nicknamer::connectors::discord::ServerMember;
     use std::collections::HashMap;
 
-    fn create_test_real_names() -> RealNames {
+    fn create_test_real_names() -> Names {
         let mut names = HashMap::new();
         names.insert(123456789, "Alice".to_string());
         names.insert(987654321, "Bob".to_string());
-        RealNames { names }
+        Names { names }
     }
 
     fn create_server_member(id: u64, nickname: Option<String>, username: String) -> ServerMember {
@@ -108,7 +149,7 @@ mod tests {
         );
 
         // Call the function
-        let result = reveal::reveal_member(server_member, &real_names).unwrap();
+        let result = reveal::reveal_member(&server_member, &real_names).unwrap();
 
         // The result should contain the user's nickname (or username if no nickname) and real name
         assert_eq!(result, "'AliceNickname' is Alice");
@@ -121,7 +162,7 @@ mod tests {
         let server_member = create_server_member(123456789, None, "AliceUsername".to_string());
 
         // Call the function
-        let result = reveal::reveal_member(server_member, &real_names).unwrap();
+        let result = reveal::reveal_member(&server_member, &real_names).unwrap();
 
         // Should use the username when no nickname is available
         assert_eq!(result, "'AliceUsername' is Alice");
@@ -138,7 +179,7 @@ mod tests {
         );
 
         // Call the function
-        let result = reveal::reveal_member(server_member, &real_names).unwrap();
+        let result = reveal::reveal_member(&server_member, &real_names).unwrap();
 
         // Should return the "mysterious" message for users without real names
         assert_eq!(
@@ -161,7 +202,7 @@ mod tests {
         );
 
         // Call the function
-        let result = reveal::reveal_member(server_member, &real_names).unwrap();
+        let result = reveal::reveal_member(&server_member, &real_names).unwrap();
 
         // Should handle special characters correctly
         assert_eq!(
@@ -181,7 +222,7 @@ mod tests {
         );
 
         // Call the function
-        let result = reveal::reveal_member(server_member, &real_names).unwrap();
+        let result = reveal::reveal_member(&server_member, &real_names).unwrap();
 
         // Should preserve the nickname case exactly
         assert_eq!(result, "'ALICE_UPPERCASE' is Alice");
@@ -199,7 +240,7 @@ mod tests {
             Some("BobNickname1".to_string()),
             "BobUsername1".to_string(),
         );
-        let result1 = reveal::reveal_member(server_member1, &real_names).unwrap();
+        let result1 = reveal::reveal_member(&server_member1, &real_names).unwrap();
 
         // Second member
         let server_member2 = create_server_member(
@@ -207,7 +248,7 @@ mod tests {
             Some("BobNickname2".to_string()),
             "BobUsername2".to_string(),
         );
-        let result2 = reveal::reveal_member(server_member2, &real_names).unwrap();
+        let result2 = reveal::reveal_member(&server_member2, &real_names).unwrap();
 
         // Different nicknames but same real name
         assert_eq!(result1, "'BobNickname1' is Bob");
@@ -235,7 +276,7 @@ mod tests {
     #[test]
     fn revealing_user_with_no_nickname_results_in_insult() {
         // Test for a user with no real name
-        let result = reveal::create_reply_for(User {
+        let result = reveal::create_reply_for(&User {
             id: 0,
             display_name: "Unknown User".to_string(),
             real_name: None,
@@ -267,7 +308,7 @@ mod tests {
         ];
 
         // Call the function
-        let result = reveal::reveal_all_members(members, &real_names).unwrap();
+        let result = reveal::reveal_all_members(&members, &real_names).unwrap();
 
         // The result should contain all users with real names
         let expected_header = format!("Here are people's real names, {}:", config::REVEAL_INSULT);
@@ -308,7 +349,7 @@ mod tests {
         ];
 
         // Call the function
-        let result = reveal::reveal_all_members(members, &real_names).unwrap();
+        let result = reveal::reveal_all_members(&members, &real_names).unwrap();
 
         // The result should only contain users with real names (Alice and Bob)
         let expected_header = format!("Here are people's real names, {}:", config::REVEAL_INSULT);
@@ -348,7 +389,7 @@ mod tests {
         ];
 
         // Call the function
-        let result = reveal::reveal_all_members(members, &real_names).unwrap();
+        let result = reveal::reveal_all_members(&members, &real_names).unwrap();
 
         // For no real names, we should get the "unimportant" message
         assert_eq!(
@@ -364,7 +405,7 @@ mod tests {
         let members: Vec<ServerMember> = vec![];
 
         // Call the function
-        let result = reveal::reveal_all_members(members, &real_names).unwrap();
+        let result = reveal::reveal_all_members(&members, &real_names).unwrap();
 
         // For empty members list, we should also get the "unimportant" message
         assert_eq!(

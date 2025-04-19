@@ -1,7 +1,8 @@
-use crate::nicknamer::discord;
+use crate::nicknamer::connectors::discord;
 use poise::serenity_prelude as serenity;
 use std::fmt::{Display, Formatter};
 
+pub(crate) mod names;
 pub mod reveal;
 
 pub(crate) type Reply = String;
@@ -54,7 +55,7 @@ pub fn nick(_user_id: serenity::UserId) {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::nicknamer::discord::ServerMember;
+    use crate::nicknamer::connectors::discord::ServerMember;
 
     #[test]
     fn test_from_discord_server_member_with_nickname() {
