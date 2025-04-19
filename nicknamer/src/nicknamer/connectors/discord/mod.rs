@@ -1,3 +1,4 @@
+use mockall::automock;
 use thiserror::Error;
 
 pub(crate) mod serenity;
@@ -18,6 +19,7 @@ pub enum Error {
 ///
 /// This trait defines the required functionality for connecting to
 /// and retrieving information from Discord servers.
+#[automock]
 pub trait DiscordConnector {
     /// Retrieves all members present in the current Discord channel.
     ///

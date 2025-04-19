@@ -1,4 +1,5 @@
 use log::info;
+use mockall::automock;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -12,6 +13,7 @@ pub struct Names {
     pub(crate) names: std::collections::HashMap<u64, String>,
 }
 
+#[automock]
 pub trait NamesRepository {
     async fn load_real_names(&self) -> Result<Names, Error>;
 }
