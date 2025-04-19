@@ -48,25 +48,6 @@ impl Display for User {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub struct RealNames {
-    pub(crate) users: Vec<User>,
-}
-
-impl Display for RealNames {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            self.users
-                .iter()
-                .map(|user| format!("{}", user))
-                .collect::<Vec<String>>()
-                .join("\n")
-        )
-    }
-}
-
 #[allow(dead_code)]
 pub fn nick(_user_id: serenity::UserId) {}
 
