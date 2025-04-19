@@ -1,6 +1,5 @@
 use crate::nicknamer::discord;
 use poise::serenity_prelude as serenity;
-use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
 pub mod reveal;
@@ -11,34 +10,46 @@ type Reply = String;
 pub struct User {
     pub id: u64,
     pub display_name: String,
-    pub real_name: String,
+    pub real_name: Option<String>,
 }
-
-impl User {
-    pub fn from_discord_server_member(
-        discord_member: &discord::ServerMember,
-        real_name: String,
-    ) -> Self {
+impl From<discord::ServerMember> for User {
+    fn from(discord_member: discord::ServerMember) -> Self {
         Self {
             id: discord_member.id,
             display_name: discord_member
                 .nick_name
                 .clone()
                 .unwrap_or_else(|| discord_member.user_name.clone()),
-            real_name,
+            real_name: None,
+        }
+    }
+}
+
+impl From<&discord::ServerMember> for User {
+    fn from(discord_member: &discord::ServerMember) -> Self {
+        Self {
+            id: discord_member.id,
+            display_name: discord_member
+                .nick_name
+                .clone()
+                .unwrap_or_else(|| discord_member.user_name.clone()),
+            real_name: None,
         }
     }
 }
 
 impl Display for User {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "'{}' is {}", self.display_name, self.real_name)
+        let Some(real_name) = &self.real_name else {
+            return Ok(());
+        };
+        write!(f, "'{}' is {}", self.display_name, real_name)
     }
 }
 
 #[derive(Debug, PartialEq)]
 pub struct RealNames {
-    pub(crate) users: HashMap<u64, User>,
+    pub(crate) users: Vec<User>,
 }
 
 impl Display for RealNames {
@@ -48,7 +59,7 @@ impl Display for RealNames {
             "{}",
             self.users
                 .iter()
-                .map(|(_, user)| format!("{}", user))
+                .map(|user| format!("{}", user))
                 .collect::<Vec<String>>()
                 .join("\n")
         )
@@ -71,15 +82,16 @@ mod tests {
             nick_name: Some("NickName".to_string()),
             user_name: "UserName".to_string(),
         };
-        let real_name = "Real Name".to_string();
+        let real_name = Some("Real Name".to_string());
 
         // Act
-        let user = User::from_discord_server_member(&member, real_name);
+        let mut user = User::from(member);
+        user.real_name = real_name;
 
         // Assert
         assert_eq!(user.id, 12345);
         assert_eq!(user.display_name, "NickName");
-        assert_eq!(user.real_name, "Real Name");
+        assert_eq!(user.real_name, Some("Real Name".into()));
     }
 
     #[test]
@@ -90,15 +102,16 @@ mod tests {
             nick_name: None,
             user_name: "UserName".to_string(),
         };
-        let real_name = "Real Name".to_string();
+        let real_name = Some("Real Name".to_string());
 
         // Act
-        let user = User::from_discord_server_member(&member, real_name);
+        let mut user = User::from(member);
+        user.real_name = real_name;
 
         // Assert
         assert_eq!(user.id, 67890);
         assert_eq!(user.display_name, "UserName"); // Should fall back to username
-        assert_eq!(user.real_name, "Real Name");
+        assert_eq!(user.real_name, Some("Real Name".into()));
     }
 
     #[test]
@@ -109,15 +122,16 @@ mod tests {
             nick_name: Some("".to_string()), // Empty nickname
             user_name: "UserName".to_string(),
         };
-        let real_name = "Real Name".to_string();
+        let real_name = Some("Real Name".to_string());
 
         // Act
-        let user = User::from_discord_server_member(&member, real_name);
+        let mut user = User::from(member);
+        user.real_name = real_name;
 
         // Assert
         assert_eq!(user.id, 13579);
         assert_eq!(user.display_name, ""); // Should use the empty nickname
-        assert_eq!(user.real_name, "Real Name");
+        assert_eq!(user.real_name, Some("Real Name".into()));
     }
 
     #[test]
@@ -128,14 +142,15 @@ mod tests {
             nick_name: Some("SameName".to_string()),
             user_name: "SameName".to_string(),
         };
-        let real_name = "Real Name".to_string();
+        let real_name = Some("Real Name".to_string());
 
         // Act
-        let user = User::from_discord_server_member(&member, real_name);
+        let mut user = User::from(member);
+        user.real_name = real_name;
 
         // Assert
         assert_eq!(user.id, 24680);
         assert_eq!(user.display_name, "SameName");
-        assert_eq!(user.real_name, "Real Name");
+        assert_eq!(user.real_name, Some("Real Name".into()));
     }
 }

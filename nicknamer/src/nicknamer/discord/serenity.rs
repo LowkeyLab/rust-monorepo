@@ -32,16 +32,13 @@ impl DiscordConnector for SerenityDiscordConnector<'_> {
             return Err("You're not in a discord server's channel".into());
         };
         let members = channel.members(ctx)?;
-        let members = members
-            .iter()
-            .map(|member| ServerMember::from(member))
-            .collect();
+        let members = members.iter().map(|member| member.clone().into()).collect();
         Ok(members)
     }
 }
 
-impl From<&serenity::Member> for ServerMember {
-    fn from(member: &serenity::Member) -> Self {
+impl From<serenity::Member> for ServerMember {
+    fn from(member: serenity::Member) -> Self {
         ServerMember {
             id: member.user.id.get(),
             nick_name: member.nick.clone(),

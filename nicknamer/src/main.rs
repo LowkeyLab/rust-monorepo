@@ -10,7 +10,6 @@ use log4rs::Config;
 use log4rs::append::console::ConsoleAppender;
 use log4rs::config::{Appender, Logger, Root};
 use poise::serenity_prelude as serenity;
-use std::collections::HashMap;
 
 /// Ping command to test bot availability
 ///
@@ -60,33 +59,35 @@ async fn reveal(
     let connector = discord::serenity::SerenityDiscordConnector::new(ctx);
     match member {
         Some(member) => {
-            ctx.reply(reveal::reveal_user(
-                commands::User::from_discord_server_member(&discord::ServerMember::from(member)),
-            ))
-            .await?;
+            let server_member: discord::ServerMember = member.clone().into();
+            let user_id = server_member.id;
+            // Look up real name from the loaded real_names
+            let mut user: commands::User = server_member.into();
+            let real_name = real_names.names.get(&user_id).cloned();
+            user.real_name = real_name;
+            let reply = reveal::reveal_user(user)?;
+            ctx.reply(reply).await?;
             Ok(())
         }
         None => {
             info!("Revealing nicknames for current channel members ...");
             let members = connector.get_members_of_current_channel().await?;
             info!("Found {} members in current channel", members.len());
-            let users: HashMap<u64, commands::User> = members
+            let users: Vec<commands::User> = members
                 .iter()
                 .filter_map(|member| {
+                    // Only include users with real names in our database
                     let Some(real_name) = real_names.names.get(&member.id) else {
                         return None;
                     };
-                    let user =
-                        commands::User::from_discord_server_member(member, real_name.clone());
-                    Some((user.id, user))
+                    let mut user: commands::User = member.into();
+                    user.real_name = Some(real_name.clone());
+                    Some(user)
                 })
                 .collect();
             info!("Found {} users with real names", users.len());
             let reply = commands::RealNames { users };
-            match member {
-                Some(member) => {}
-                None => ctx.reply(reveal::reveal(&reply)?).await?,
-            };
+            ctx.reply(reveal::reveal(&reply)?).await?;
             Ok(())
         }
     }
