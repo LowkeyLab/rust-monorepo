@@ -4,12 +4,15 @@ use self::nicknamer::commands::reveal;
 use crate::nicknamer::commands;
 use crate::nicknamer::discord;
 use crate::nicknamer::discord::DiscordConnector;
+use crate::nicknamer::discord::serenity::{Context, Error, SerenityDiscordConnector};
 use crate::nicknamer::file;
+use crate::nicknamer::file::RealNames;
 use log::{LevelFilter, info};
 use log4rs::Config;
 use log4rs::append::console::ConsoleAppender;
 use log4rs::config::{Appender, Logger, Root};
 use poise::serenity_prelude as serenity;
+use poise::serenity_prelude::Member;
 
 /// Ping command to test bot availability
 ///
@@ -45,29 +48,46 @@ async fn nick(
     Ok(())
 }
 
+/// Reveal members' true names, greatly diminishing their power level
+///
+/// Specifically, I'll reveal the names of members that can access this channel \
+/// You can also tag another member and I'll only reveal the real name of that person
 #[poise::command(prefix_command)]
-async fn reveal(ctx: discord::serenity::Context<'_>) -> Result<(), discord::serenity::Error> {
-    info!("Revealing nicknames for current channel members ...");
+async fn reveal(
+    ctx: discord::serenity::Context<'_>,
+    #[description = "The specific member to reveal the name of"] member: Option<serenity::Member>,
+) -> Result<(), discord::serenity::Error> {
     let real_names = file::RealNames::from_embedded_yaml()?;
     info!("Loaded {} real names", real_names.names.len());
     let connector = discord::serenity::SerenityDiscordConnector::new(ctx);
+    match member {
+        Some(member) => reveal_single_member(ctx, &real_names, member).await,
+        None => reveal_all_members(ctx, &real_names, connector).await,
+    }
+}
+
+async fn reveal_all_members(
+    ctx: Context<'_>,
+    real_names: &RealNames,
+    connector: SerenityDiscordConnector<'_>,
+) -> Result<(), Error> {
+    info!("Revealing nicknames for current channel members ...");
     let members = connector.get_members_of_current_channel().await?;
     info!("Found {} members in current channel", members.len());
-    let users: Vec<commands::User> = members
-        .iter()
-        .filter_map(|member| {
-            let Some(real_name) = real_names.names.get(&member.id) else {
-                return None;
-            };
-            Some(commands::User::from_discord_server_member(
-                member,
-                real_name.clone(),
-            ))
-        })
-        .collect();
-    info!("Found {} users with real names", users.len());
-    let real_names = commands::RealNames { users };
-    ctx.reply(reveal::reveal(&real_names)?).await?;
+    let result = reveal::reveal_all_members(members, real_names)?;
+    ctx.reply(result).await?;
+    Ok(())
+}
+
+async fn reveal_single_member(
+    ctx: Context<'_>,
+    real_names: &RealNames,
+    member: Member,
+) -> Result<(), Error> {
+    info!("Revealing nickname for {} ...", member.user.name);
+    let server_member: discord::ServerMember = member.clone().into();
+    let reply = reveal::reveal_member(server_member, real_names)?;
+    ctx.reply(reply).await?;
     Ok(())
 }
 
