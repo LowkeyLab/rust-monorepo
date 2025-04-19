@@ -50,7 +50,8 @@ async fn nick(
 
 /// Reveal members' true names, greatly diminishing their power level
 ///
-/// Specifically, I'll reveal the names of members that can access this channel \
+/// Specifically, I'll reveal the names of members that can access this channel
+///
 /// You can also tag another member and I'll only reveal the real name of that person
 #[poise::command(prefix_command)]
 async fn reveal(
