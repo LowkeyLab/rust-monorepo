@@ -60,10 +60,10 @@ pub fn reveal_member(server_member: &ServerMember, real_names: &Names) -> Result
     let mut user: User = server_member.into();
     let real_name = real_names.names.get(&user_id).cloned();
     user.real_name = real_name;
-    create_reply_for(user)
+    create_reply_for(&user)
 }
 
-fn reveal_all_members(members: &Vec<ServerMember>, real_names: &Names) -> Result<Reply, Error> {
+fn reveal_all_members(members: &[ServerMember], real_names: &Names) -> Result<Reply, Error> {
     let users: Vec<User> = members
         .iter()
         .filter_map(|member| {
@@ -77,10 +77,10 @@ fn reveal_all_members(members: &Vec<ServerMember>, real_names: &Names) -> Result
         })
         .collect();
     info!("Found {} users with real names", users.len());
-    create_reply_for_all(users)
+    create_reply_for_all(&users)
 }
 
-fn create_reply_for(user: User) -> Result<Reply, Error> {
+fn create_reply_for(user: &User) -> Result<Reply, Error> {
     match user.real_name {
         Some(_) => Ok(user.to_string()),
         None => Ok(format!(
@@ -90,10 +90,7 @@ fn create_reply_for(user: User) -> Result<Reply, Error> {
     }
 }
 
-fn create_reply_for_all<T>(users: T) -> Result<Reply, Error>
-where
-    T: IntoIterator<Item = User>,
-{
+fn create_reply_for_all(users: &[User]) -> Result<Reply, Error> {
     let users = users
         .into_iter()
         .filter(|user| user.real_name.is_some())
@@ -279,7 +276,7 @@ mod tests {
     #[test]
     fn revealing_user_with_no_nickname_results_in_insult() {
         // Test for a user with no real name
-        let result = reveal::create_reply_for(User {
+        let result = reveal::create_reply_for(&User {
             id: 0,
             display_name: "Unknown User".to_string(),
             real_name: None,
