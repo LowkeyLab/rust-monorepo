@@ -1,12 +1,8 @@
 mod nicknamer;
 
 use self::nicknamer::commands::names::EmbeddedNamesRepository;
-use self::nicknamer::commands::names::Names;
-use self::nicknamer::commands::reveal;
 use self::nicknamer::connectors::discord;
-use self::nicknamer::connectors::discord::DiscordConnector;
 use self::nicknamer::connectors::discord::serenity::{Context, SerenityDiscordConnector};
-use self::nicknamer::connectors::file::RealNames;
 use crate::nicknamer::commands;
 use crate::nicknamer::commands::reveal::{Revealer, RevealerImpl};
 use crate::nicknamer::connectors::discord::ServerMember;
@@ -77,9 +73,9 @@ async fn reveal_all_members<T: Revealer>(revealer: &T) -> anyhow::Result<()> {
 
 async fn reveal_single_member<T: Revealer>(
     revealer: &T,
-    _member: &ServerMember,
+    member: &ServerMember,
 ) -> anyhow::Result<()> {
-    let _ = revealer.reveal_all().await?;
+    let _ = revealer.reveal_member(member).await?;
     Ok(())
 }
 

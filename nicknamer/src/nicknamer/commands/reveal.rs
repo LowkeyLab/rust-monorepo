@@ -46,12 +46,16 @@ impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> Revealer
         Ok(())
     }
 
-    async fn reveal_member(&self, _member: &ServerMember) -> Result<(), Error> {
-        todo!()
+    async fn reveal_member(&self, member: &ServerMember) -> Result<(), Error> {
+        info!("Revealing nickname for {}", member.user_name);
+        let names = self.names_repository.load_real_names().await?;
+        let reply = reveal_member(member, &names)?;
+        self.discord_connector.send_reply(&reply).await?;
+        Ok(())
     }
 }
 
-pub fn reveal_member(server_member: ServerMember, real_names: &Names) -> Result<Reply, Error> {
+pub fn reveal_member(server_member: &ServerMember, real_names: &Names) -> Result<Reply, Error> {
     let user_id = server_member.id;
     let mut user: User = server_member.into();
     let real_name = real_names.names.get(&user_id).cloned();
@@ -148,7 +152,7 @@ mod tests {
         );
 
         // Call the function
-        let result = reveal::reveal_member(server_member, &real_names).unwrap();
+        let result = reveal::reveal_member(&server_member, &real_names).unwrap();
 
         // The result should contain the user's nickname (or username if no nickname) and real name
         assert_eq!(result, "'AliceNickname' is Alice");
@@ -161,7 +165,7 @@ mod tests {
         let server_member = create_server_member(123456789, None, "AliceUsername".to_string());
 
         // Call the function
-        let result = reveal::reveal_member(server_member, &real_names).unwrap();
+        let result = reveal::reveal_member(&server_member, &real_names).unwrap();
 
         // Should use the username when no nickname is available
         assert_eq!(result, "'AliceUsername' is Alice");
@@ -178,7 +182,7 @@ mod tests {
         );
 
         // Call the function
-        let result = reveal::reveal_member(server_member, &real_names).unwrap();
+        let result = reveal::reveal_member(&server_member, &real_names).unwrap();
 
         // Should return the "mysterious" message for users without real names
         assert_eq!(
@@ -201,7 +205,7 @@ mod tests {
         );
 
         // Call the function
-        let result = reveal::reveal_member(server_member, &real_names).unwrap();
+        let result = reveal::reveal_member(&server_member, &real_names).unwrap();
 
         // Should handle special characters correctly
         assert_eq!(
@@ -221,7 +225,7 @@ mod tests {
         );
 
         // Call the function
-        let result = reveal::reveal_member(server_member, &real_names).unwrap();
+        let result = reveal::reveal_member(&server_member, &real_names).unwrap();
 
         // Should preserve the nickname case exactly
         assert_eq!(result, "'ALICE_UPPERCASE' is Alice");
@@ -239,7 +243,7 @@ mod tests {
             Some("BobNickname1".to_string()),
             "BobUsername1".to_string(),
         );
-        let result1 = reveal::reveal_member(server_member1, &real_names).unwrap();
+        let result1 = reveal::reveal_member(&server_member1, &real_names).unwrap();
 
         // Second member
         let server_member2 = create_server_member(
@@ -247,7 +251,7 @@ mod tests {
             Some("BobNickname2".to_string()),
             "BobUsername2".to_string(),
         );
-        let result2 = reveal::reveal_member(server_member2, &real_names).unwrap();
+        let result2 = reveal::reveal_member(&server_member2, &real_names).unwrap();
 
         // Different nicknames but same real name
         assert_eq!(result1, "'BobNickname1' is Bob");
