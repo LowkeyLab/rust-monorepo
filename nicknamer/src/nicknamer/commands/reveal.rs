@@ -1,22 +1,9 @@
-use crate::nicknamer::commands::{RealNames, Reply, User};
+use crate::nicknamer::commands::{Reply, User};
 use crate::nicknamer::discord::{ServerMember, serenity};
 use crate::nicknamer::{config, file};
+use log::info;
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
-pub fn reveal(real_names: &RealNames) -> Result<Reply, Error> {
-    let users = real_names
-        .users
-        .iter()
-        .filter(|user| user.real_name.is_some())
-        .map(|user| user.to_string())
-        .collect::<Vec<String>>();
-    Ok(format!(
-        "Here are people's real names, {}:
-{}",
-        config::REVEAL_INSULT,
-        users.join("\n")
-    ))
-}
 
 pub fn reveal_member(
     server_member: ServerMember,
@@ -26,10 +13,30 @@ pub fn reveal_member(
     let mut user: User = server_member.into();
     let real_name = real_names.names.get(&user_id).cloned();
     user.real_name = real_name;
-    create_reply(user)
+    create_reply_for(user)
 }
 
-fn create_reply(user: User) -> Result<Reply, Error> {
+pub fn reveal_all_members(
+    members: Vec<ServerMember>,
+    real_names: &file::RealNames,
+) -> Result<Reply, Error> {
+    let users: Vec<User> = members
+        .iter()
+        .filter_map(|member| {
+            // Only include users with real names in our database
+            let Some(real_name) = real_names.names.get(&member.id) else {
+                return None;
+            };
+            let mut user: User = member.into();
+            user.real_name = Some(real_name.clone());
+            Some(user)
+        })
+        .collect();
+    info!("Found {} users with real names", users.len());
+    create_reply_for_all(users)
+}
+
+fn create_reply_for(user: User) -> Result<Reply, Error> {
     match user.real_name {
         Some(_) => Ok(user.to_string()),
         None => Ok(format!(
@@ -37,6 +44,33 @@ fn create_reply(user: User) -> Result<Reply, Error> {
             user.display_name
         )),
     }
+}
+
+fn create_reply_for_all<T>(users: T) -> Result<Reply, Error>
+where
+    T: IntoIterator<Item = User>,
+{
+    let users = users
+        .into_iter()
+        .filter(|user| user.real_name.is_some())
+        .filter_map(|user| match create_reply_for(user) {
+            Ok(reply) => Some(reply),
+            Err(err) => {
+                info!("Error creating reply for user: {}", err);
+                None
+            }
+        })
+        .collect::<Vec<String>>();
+    if users.is_empty() {
+        return Ok("Y'all a bunch of unimportant, good fer nothing no-names".to_string());
+    }
+
+    Ok(format!(
+        "Here are people's real names, {}:
+{}",
+        config::REVEAL_INSULT,
+        users.join("\n")
+    ))
 }
 
 #[cfg(test)]
@@ -200,7 +234,7 @@ mod tests {
     #[test]
     fn revealing_user_with_no_nickname_results_in_insult() {
         // Test for a user with no real name
-        let result = reveal::create_reply(User {
+        let result = reveal::create_reply_for(User {
             id: 0,
             display_name: "Unknown User".to_string(),
             real_name: None,

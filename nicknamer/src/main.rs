@@ -62,34 +62,21 @@ async fn reveal(
     let connector = discord::serenity::SerenityDiscordConnector::new(ctx);
     match member {
         Some(member) => reveal_single_member(ctx, &real_names, member).await,
-        None => reveal_multiple_members(ctx, real_names, connector).await?,
+        None => reveal_all_members(ctx, &real_names, connector).await,
     }
 }
 
-async fn reveal_multiple_members(
+async fn reveal_all_members(
     ctx: Context<'_>,
-    real_names: RealNames,
+    real_names: &RealNames,
     connector: SerenityDiscordConnector<'_>,
-) -> Result<Result<(), Error>, Error> {
+) -> Result<(), Error> {
     info!("Revealing nicknames for current channel members ...");
     let members = connector.get_members_of_current_channel().await?;
     info!("Found {} members in current channel", members.len());
-    let users: Vec<commands::User> = members
-        .iter()
-        .filter_map(|member| {
-            // Only include users with real names in our database
-            let Some(real_name) = real_names.names.get(&member.id) else {
-                return None;
-            };
-            let mut user: commands::User = member.into();
-            user.real_name = Some(real_name.clone());
-            Some(user)
-        })
-        .collect();
-    info!("Found {} users with real names", users.len());
-    let reply = commands::RealNames { users };
-    ctx.reply(reveal::reveal(&reply)?).await?;
-    Ok(Ok(()))
+    let result = reveal::reveal_all_members(members, real_names)?;
+    ctx.reply(result).await?;
+    Ok(())
 }
 
 async fn reveal_single_member(
@@ -97,6 +84,7 @@ async fn reveal_single_member(
     real_names: &RealNames,
     member: Member,
 ) -> Result<(), Error> {
+    info!("Revealing nickname for {} ...", member.user.name);
     let server_member: discord::ServerMember = member.clone().into();
     let reply = reveal::reveal_member(server_member, real_names)?;
     ctx.reply(reply).await?;
