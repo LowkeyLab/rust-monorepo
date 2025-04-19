@@ -513,7 +513,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn test_reveal_member_success() {
+        async fn can_successfully_reveal_single_member() {
             // Setup mock objects
             let mut mock_repo = MockNamesRepository::new();
             let mut mock_discord = MockDiscordConnector::new();
@@ -552,7 +552,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn test_reveal_member_without_real_name() {
+        async fn can_produce_mysterious_message_for_member_without_real_name() {
             // Setup mock objects
             let mut mock_repo = MockNamesRepository::new();
             let mut mock_discord = MockDiscordConnector::new();
@@ -597,7 +597,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn test_reveal_member_discord_send_error() {
+        async fn handles_discord_error_when_revealing_single_member() {
             // Setup mock objects
             let mut mock_repo = MockNamesRepository::new();
             let mut mock_discord = MockDiscordConnector::new();

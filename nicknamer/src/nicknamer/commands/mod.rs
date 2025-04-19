@@ -58,7 +58,7 @@ mod tests {
     use crate::nicknamer::connectors::discord::ServerMember;
 
     #[test]
-    fn test_from_discord_server_member_with_nickname() {
+    fn can_convert_server_member_with_nickname_to_user() {
         // Arrange
         let member = ServerMember {
             id: 12345,
@@ -78,7 +78,7 @@ mod tests {
     }
 
     #[test]
-    fn test_from_discord_server_member_without_nickname() {
+    fn can_convert_server_member_without_nickname_using_username_fallback() {
         // Arrange
         let member = ServerMember {
             id: 67890,
@@ -98,7 +98,7 @@ mod tests {
     }
 
     #[test]
-    fn test_from_discord_server_member_empty_nickname() {
+    fn can_handle_empty_nickname_when_converting_server_member() {
         // Arrange
         let member = ServerMember {
             id: 13579,
@@ -118,7 +118,7 @@ mod tests {
     }
 
     #[test]
-    fn test_from_discord_server_member_with_matching_names() {
+    fn can_convert_server_member_when_nickname_matches_username() {
         // Arrange - when nickname matches username
         let member = ServerMember {
             id: 24680,
@@ -138,7 +138,7 @@ mod tests {
     }
 
     #[test]
-    fn test_user_display_with_real_name() {
+    fn can_format_user_with_real_name_for_display() {
         // Arrange
         let user = User {
             id: 12345,
@@ -154,7 +154,7 @@ mod tests {
     }
 
     #[test]
-    fn test_user_display_without_real_name() {
+    fn can_format_user_without_real_name_for_display() {
         // Arrange
         let user = User {
             id: 12345,
@@ -170,7 +170,7 @@ mod tests {
     }
 
     #[test]
-    fn test_user_display_with_empty_display_name() {
+    fn can_format_user_with_empty_display_name() {
         // Arrange
         let user = User {
             id: 12345,
@@ -186,7 +186,7 @@ mod tests {
     }
 
     #[test]
-    fn test_user_display_with_special_characters() {
+    fn can_handle_special_characters_when_formatting_user() {
         // Arrange
         let user = User {
             id: 12345,
@@ -205,7 +205,7 @@ mod tests {
     }
 
     #[test]
-    fn test_user_display_with_empty_real_name() {
+    fn can_format_user_with_empty_real_name_string() {
         // Arrange - edge case with empty string (not None) for real_name
         let user = User {
             id: 12345,
