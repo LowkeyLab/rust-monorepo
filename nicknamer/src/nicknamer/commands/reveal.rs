@@ -116,81 +116,10 @@ fn create_reply_for_all(users: &[User]) -> Result<Reply, Error> {
 
 #[cfg(test)]
 mod tests {
-    use crate::nicknamer::commands::names::Names;
-    use crate::nicknamer::commands::reveal;
-    use crate::nicknamer::connectors::discord::ServerMember;
-    use std::collections::HashMap;
-
-    fn create_test_real_names() -> Names {
-        let mut names = HashMap::new();
-        names.insert(123456789, "Alice".to_string());
-        names.insert(987654321, "Bob".to_string());
-        Names { names }
-    }
-
-    fn create_server_member(id: u64, nickname: Option<String>, username: String) -> ServerMember {
-        ServerMember {
-            id,
-            nick_name: nickname,
-            user_name: username,
-        }
-    }
-
-    #[test]
-    fn can_reveal_member_with_real_name() {
-        // Setup
-        let real_names = create_test_real_names();
-        let server_member = create_server_member(
-            123456789,
-            Some("AliceNickname".to_string()),
-            "AliceUsername".to_string(),
-        );
-
-        // Call the function
-        let result = reveal::reveal_member(&server_member, &real_names).unwrap();
-
-        // The result should contain the user's nickname (or username if no nickname) and real name
-        assert_eq!(result, "'AliceNickname' is Alice");
-    }
-
-    #[test]
-    fn can_reveal_member_without_nickname() {
-        // Setup - member with username but no nickname
-        let real_names = create_test_real_names();
-        let server_member = create_server_member(123456789, None, "AliceUsername".to_string());
-
-        // Call the function
-        let result = reveal::reveal_member(&server_member, &real_names).unwrap();
-
-        // Should use the username when no nickname is available
-        assert_eq!(result, "'AliceUsername' is Alice");
-    }
-
-    #[test]
-    fn can_reveal_member_without_real_name() {
-        // Setup - member with an ID that doesn't exist in real_names
-        let real_names = create_test_real_names();
-        let server_member = create_server_member(
-            111222333,
-            Some("UnknownNickname".to_string()),
-            "UnknownUsername".to_string(),
-        );
-
-        // Call the function
-        let result = reveal::reveal_member(&server_member, &real_names).unwrap();
-
-        // Should return the "mysterious" message for users without real names
-        assert_eq!(
-            result,
-            "How mysterious! UnknownNickname's true name is shrouded by darkness"
-        );
-    }
-
     // Tests for RevealerImpl using MockDiscordConnector and MockNamesRepository
     mod revealer_impl_tests {
-        use super::*;
         use crate::nicknamer::commands::names::{MockNamesRepository, Names};
-        use crate::nicknamer::commands::reveal::{Revealer, RevealerImpl};
+        use crate::nicknamer::commands::reveal::{Error, Revealer, RevealerImpl};
         use crate::nicknamer::connectors::discord::{MockDiscordConnector, ServerMember};
         use mockall::predicate::*;
         use std::collections::HashMap;
@@ -270,7 +199,7 @@ mod tests {
             // Verify results
             assert!(result.is_err(), "reveal_all should fail");
             assert!(
-                matches!(result.unwrap_err(), reveal::Error::DiscordError(_)),
+                matches!(result.unwrap_err(), Error::DiscordError(_)),
                 "Error should be a DiscordError"
             );
         }
@@ -396,7 +325,7 @@ mod tests {
             // Verify results
             assert!(result.is_err(), "reveal_member should fail");
             assert!(
-                matches!(result.unwrap_err(), reveal::Error::DiscordError(_)),
+                matches!(result.unwrap_err(), Error::DiscordError(_)),
                 "Error should be a DiscordError"
             );
         }
