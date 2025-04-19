@@ -9,7 +9,7 @@ pub enum Error {
     #[error("Failed to load names")]
     CannotLoadNames,
 }
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Names {
     pub(crate) names: std::collections::HashMap<u64, String>,
 }

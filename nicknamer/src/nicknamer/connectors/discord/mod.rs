@@ -34,6 +34,7 @@ pub trait DiscordConnector {
 ///
 /// Contains basic information about a Discord server member,
 /// including their ID, nickname (if any), and username.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct ServerMember {
     /// Discord user's unique identifier
     pub(crate) id: u64,

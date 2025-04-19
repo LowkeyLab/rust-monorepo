@@ -413,4 +413,258 @@ mod tests {
             "Y'all a bunch of unimportant, good fer nothing no-names"
         );
     }
+
+    // Tests for RevealerImpl using MockDiscordConnector and MockNamesRepository
+    mod revealer_impl_tests {
+        use super::*;
+        use crate::nicknamer::commands::names::{MockNamesRepository, Names};
+        use crate::nicknamer::commands::reveal::{Revealer, RevealerImpl};
+        use crate::nicknamer::connectors::discord::{MockDiscordConnector, ServerMember};
+        use mockall::predicate::*;
+        use std::collections::HashMap;
+
+        #[tokio::test]
+        async fn test_reveal_all_success() {
+            // Setup mock objects
+            let mut mock_repo = MockNamesRepository::new();
+            let mut mock_discord = MockDiscordConnector::new();
+
+            // Define test data
+            let members = vec![
+                ServerMember {
+                    id: 123456789,
+                    nick_name: Some("AliceNickname".to_string()),
+                    user_name: "AliceUsername".to_string(),
+                },
+                ServerMember {
+                    id: 987654321,
+                    nick_name: Some("BobNickname".to_string()),
+                    user_name: "BobUsername".to_string(),
+                },
+            ];
+
+            let mut names_map = HashMap::new();
+            names_map.insert(123456789, "Alice".to_string());
+            names_map.insert(987654321, "Bob".to_string());
+            let names = Names { names: names_map };
+
+            // Set up expectations
+            mock_discord
+                .expect_get_members_of_current_channel()
+                .times(1)
+                .returning(move || Ok(members.clone()));
+
+            mock_repo
+                .expect_load_real_names()
+                .times(1)
+                .returning(move || Ok(names.clone()));
+
+            mock_discord
+                .expect_send_reply()
+                .with(always()) // We don't test exact message content here as that's tested separately
+                .times(1)
+                .returning(|_| Ok(()));
+
+            // Create revealer with mock objects
+            let revealer = RevealerImpl::new(&mock_repo, &mock_discord);
+
+            // Execute the method under test
+            let result = revealer.reveal_all().await;
+
+            // Verify results
+            assert!(result.is_ok(), "reveal_all should succeed");
+        }
+
+        #[tokio::test]
+        async fn test_reveal_all_discord_error() {
+            // Setup mock objects
+            let mock_repo = MockNamesRepository::new();
+            let mut mock_discord = MockDiscordConnector::new();
+
+            // Setup discord connector to return an error
+            mock_discord
+                .expect_get_members_of_current_channel()
+                .times(1)
+                .returning(|| {
+                    Err(crate::nicknamer::connectors::discord::Error::NotInServerChannel)
+                });
+
+            // Create revealer with mock objects
+            let revealer = RevealerImpl::new(&mock_repo, &mock_discord);
+
+            // Execute the method under test
+            let result = revealer.reveal_all().await;
+
+            // Verify results
+            assert!(result.is_err(), "reveal_all should fail");
+            assert!(
+                matches!(result.unwrap_err(), reveal::Error::DiscordError(_)),
+                "Error should be a DiscordError"
+            );
+        }
+
+        #[tokio::test]
+        async fn test_reveal_all_names_error() {
+            // Setup mock objects
+            let mut mock_repo = MockNamesRepository::new();
+            let mut mock_discord = MockDiscordConnector::new();
+
+            // Define test data
+            let members = vec![ServerMember {
+                id: 123456789,
+                nick_name: Some("AliceNickname".to_string()),
+                user_name: "AliceUsername".to_string(),
+            }];
+
+            // Set up expectations
+            mock_discord
+                .expect_get_members_of_current_channel()
+                .times(1)
+                .returning(move || Ok(members.clone()));
+
+            mock_repo
+                .expect_load_real_names()
+                .times(1)
+                .returning(move || Err(names::Error::CannotLoadNames));
+
+            // Create revealer with mock objects
+            let revealer = RevealerImpl::new(&mock_repo, &mock_discord);
+
+            // Execute the method under test
+            let result = revealer.reveal_all().await;
+
+            // Verify results
+            assert!(result.is_err(), "reveal_all should fail");
+            assert!(
+                matches!(result.unwrap_err(), reveal::Error::NamesAccessError(_)),
+                "Error should be a NamesAccessError"
+            );
+        }
+
+        #[tokio::test]
+        async fn test_reveal_member_success() {
+            // Setup mock objects
+            let mut mock_repo = MockNamesRepository::new();
+            let mut mock_discord = MockDiscordConnector::new();
+
+            // Define test data
+            let member = ServerMember {
+                id: 123456789,
+                nick_name: Some("AliceNickname".to_string()),
+                user_name: "AliceUsername".to_string(),
+            };
+
+            let mut names_map = HashMap::new();
+            names_map.insert(123456789, "Alice".to_string());
+            let names = Names { names: names_map };
+
+            // Set up expectations
+            mock_repo
+                .expect_load_real_names()
+                .times(1)
+                .returning(move || Ok(names.clone()));
+
+            mock_discord
+                .expect_send_reply()
+                .with(eq("'AliceNickname' is Alice"))
+                .times(1)
+                .returning(|_| Ok(()));
+
+            // Create revealer with mock objects
+            let revealer = RevealerImpl::new(&mock_repo, &mock_discord);
+
+            // Execute the method under test
+            let result = revealer.reveal_member(&member).await;
+
+            // Verify results
+            assert!(result.is_ok(), "reveal_member should succeed");
+        }
+
+        #[tokio::test]
+        async fn test_reveal_member_without_real_name() {
+            // Setup mock objects
+            let mut mock_repo = MockNamesRepository::new();
+            let mut mock_discord = MockDiscordConnector::new();
+
+            // Define test data
+            let member = ServerMember {
+                id: 123456789,
+                nick_name: Some("AliceNickname".to_string()),
+                user_name: "AliceUsername".to_string(),
+            };
+
+            // Create an empty names map (no real name for Alice)
+            let names = Names {
+                names: HashMap::new(),
+            };
+
+            // Set up expectations
+            mock_repo
+                .expect_load_real_names()
+                .times(1)
+                .returning(move || Ok(names.clone()));
+
+            mock_discord
+                .expect_send_reply()
+                .with(eq(
+                    "How mysterious! AliceNickname's true name is shrouded by darkness",
+                ))
+                .times(1)
+                .returning(|_| Ok(()));
+
+            // Create revealer with mock objects
+            let revealer = RevealerImpl::new(&mock_repo, &mock_discord);
+
+            // Execute the method under test
+            let result = revealer.reveal_member(&member).await;
+
+            // Verify results
+            assert!(
+                result.is_ok(),
+                "reveal_member should succeed even when no real name is found"
+            );
+        }
+
+        #[tokio::test]
+        async fn test_reveal_member_discord_send_error() {
+            // Setup mock objects
+            let mut mock_repo = MockNamesRepository::new();
+            let mut mock_discord = MockDiscordConnector::new();
+
+            // Define test data
+            let member = ServerMember {
+                id: 123456789,
+                nick_name: Some("AliceNickname".to_string()),
+                user_name: "AliceUsername".to_string(),
+            };
+
+            let mut names_map = HashMap::new();
+            names_map.insert(123456789, "Alice".to_string());
+            let names = Names { names: names_map };
+
+            // Set up expectations
+            mock_repo
+                .expect_load_real_names()
+                .times(1)
+                .returning(move || Ok(names.clone()));
+
+            mock_discord
+                .expect_send_reply()
+                .times(1)
+                .returning(|_| Err(crate::nicknamer::connectors::discord::Error::CannotSendReply));
+
+            // Create revealer with mock objects
+            let revealer = RevealerImpl::new(&mock_repo, &mock_discord);
+
+            // Execute the method under test
+            let result = revealer.reveal_member(&member).await;
+
+            // Verify results
+            assert!(result.is_err(), "reveal_member should fail");
+            assert!(
+                matches!(result.unwrap_err(), reveal::Error::DiscordError(_)),
+                "Error should be a DiscordError"
+            );
+        }
+    }
 }
