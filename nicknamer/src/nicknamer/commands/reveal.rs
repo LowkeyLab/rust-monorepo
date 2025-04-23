@@ -35,7 +35,7 @@ impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> Revealer
     for RevealerImpl<'a, REPO, DISCORD>
 {
     async fn reveal_all(&self) -> Result<(), Error> {
-        info!("Revealing nicknames for current channel members ...");
+        info!("Revealing real names for current channel members ...");
         let members = self
             .discord_connector
             .get_members_of_current_channel()
