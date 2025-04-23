@@ -41,11 +41,7 @@ impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> Revealer
             .get_members_of_current_channel()
             .await?;
         let real_names = self.names_repository.load_real_names().await?;
-        let reply_for_users_with_real_name =
-            reveal_all_members_with_real_name(&members, &real_names)?;
-        self.discord_connector
-            .send_reply(&reply_for_users_with_real_name)
-            .await?;
+        self.reveal_all_members(&members, &real_names).await?;
         Ok(())
     }
 
@@ -53,6 +49,50 @@ impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> Revealer
         info!("Revealing nickname for {}", member.user_name);
         let names = self.names_repository.load_real_names().await?;
         let reply = reveal_member(member, &names);
+        self.discord_connector.send_reply(&reply).await?;
+        Ok(())
+    }
+}
+
+impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> RevealerImpl<'a, REPO, DISCORD> {
+    async fn reveal_all_members(
+        &self,
+        members: &[ServerMember],
+        real_names: &Names,
+    ) -> Result<(), Error> {
+        self.reveal_users_with_real_name(members, real_names)
+            .await?;
+        // self.reveal_users_without_real_name(members, real_names)
+        //     .await?;
+        Ok(())
+    }
+
+    async fn reveal_users_with_real_name(
+        &self,
+        members: &[ServerMember],
+        real_names: &Names,
+    ) -> Result<(), Error> {
+        let users_with_real_names: Vec<User> = get_users_with_real_names(&members, &real_names);
+        info!(
+            "Found {} users with real names",
+            users_with_real_names.len()
+        );
+        let reply_for_users_with_real_name =
+            create_reply_for_users_with_real_names(&users_with_real_names)?;
+        self.discord_connector
+            .send_reply(&reply_for_users_with_real_name)
+            .await?;
+        Ok(())
+    }
+
+    async fn reveal_users_without_real_name(
+        &self,
+        members: &[ServerMember],
+        real_names: &Names,
+    ) -> Result<(), Error> {
+        let users: Vec<User> = get_users_without_real_names(members, real_names);
+        info!("Found {} users without real names", users.len());
+        let reply = create_reply_for_users_without_real_names(&users)?;
         self.discord_connector.send_reply(&reply).await?;
         Ok(())
     }
@@ -70,18 +110,6 @@ fn reveal_member(server_member: &ServerMember, real_names: &Names) -> Reply {
     user.to_string()
 }
 
-fn reveal_all_members_with_real_name(
-    members: &[ServerMember],
-    real_names: &Names,
-) -> Result<Reply, Error> {
-    let users_with_real_names: Vec<User> = get_users_with_real_names(members, real_names);
-    info!(
-        "Found {} users with real names",
-        users_with_real_names.len()
-    );
-    create_reply_for_users_with_real_names(&users_with_real_names)
-}
-
 fn get_users_with_real_names(members: &[ServerMember], real_names: &Names) -> Vec<User> {
     members
         .iter()
@@ -97,13 +125,22 @@ fn get_users_with_real_names(members: &[ServerMember], real_names: &Names) -> Ve
         .collect()
 }
 
-fn create_reply_for_users_with_real_names(users: &[User]) -> Result<Reply, Error> {
-    let users_with_real_names = users
-        .into_iter()
-        .filter(|user| user.real_name.is_some())
-        .collect::<Vec<&User>>();
+fn get_users_without_real_names(members: &[ServerMember], real_names: &Names) -> Vec<User> {
+    members
+        .iter()
+        .filter_map(|member| {
+            // Only include users with real names in our database
+            let None = real_names.names.get(&member.id) else {
+                return None;
+            };
+            let user: User = member.into();
+            Some(user)
+        })
+        .collect()
+}
 
-    if users_with_real_names.is_empty() {
+fn create_reply_for_users_with_real_names(users: &[User]) -> Result<Reply, Error> {
+    if users.is_empty() {
         return Ok("Y'all a bunch of unimportant, good fer nothing no-names".to_string());
     }
 
@@ -118,6 +155,10 @@ fn create_reply_for_users_with_real_names(users: &[User]) -> Result<Reply, Error
         config::REVEAL_INSULT,
         reply_for_users_with_real_names.join("\n")
     ))
+}
+
+fn create_reply_for_users_without_real_names(users: &[User]) -> Result<Reply, Error> {
+    todo!()
 }
 
 #[cfg(test)]
