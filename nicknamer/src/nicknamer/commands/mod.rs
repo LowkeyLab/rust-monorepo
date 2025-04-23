@@ -10,14 +10,14 @@ pub(crate) type Reply = String;
 #[derive(Debug, PartialEq, Default)]
 pub struct User {
     pub id: u64,
-    pub display_name: String,
+    pub nick_name: String,
     pub real_name: Option<String>,
 }
 impl From<discord::ServerMember> for User {
     fn from(discord_member: discord::ServerMember) -> Self {
         Self {
             id: discord_member.id,
-            display_name: discord_member
+            nick_name: discord_member
                 .nick_name
                 .clone()
                 .unwrap_or_else(|| discord_member.user_name.clone()),
@@ -30,7 +30,7 @@ impl From<&discord::ServerMember> for User {
     fn from(discord_member: &discord::ServerMember) -> Self {
         Self {
             id: discord_member.id,
-            display_name: discord_member
+            nick_name: discord_member
                 .nick_name
                 .clone()
                 .unwrap_or_else(|| discord_member.user_name.clone()),
@@ -42,9 +42,9 @@ impl From<&discord::ServerMember> for User {
 impl Display for User {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         if let Some(real_name) = &self.real_name {
-            write!(f, "'{}' is {}", self.display_name, real_name)
+            write!(f, "'{}' is {}", self.nick_name, real_name)
         } else {
-            write!(f, "'{}' has no real name available", self.display_name)
+            write!(f, "'{}' has no real name available", self.nick_name)
         }
     }
 }
@@ -73,7 +73,7 @@ mod tests {
 
         // Assert
         assert_eq!(user.id, 12345);
-        assert_eq!(user.display_name, "NickName");
+        assert_eq!(user.nick_name, "NickName");
         assert_eq!(user.real_name, Some("Real Name".into()));
     }
 
@@ -93,7 +93,7 @@ mod tests {
 
         // Assert
         assert_eq!(user.id, 67890);
-        assert_eq!(user.display_name, "UserName"); // Should fall back to username
+        assert_eq!(user.nick_name, "UserName"); // Should fall back to username
         assert_eq!(user.real_name, Some("Real Name".into()));
     }
 
@@ -113,7 +113,7 @@ mod tests {
 
         // Assert
         assert_eq!(user.id, 13579);
-        assert_eq!(user.display_name, ""); // Should use the empty nickname
+        assert_eq!(user.nick_name, ""); // Should use the empty nickname
         assert_eq!(user.real_name, Some("Real Name".into()));
     }
 
@@ -133,7 +133,7 @@ mod tests {
 
         // Assert
         assert_eq!(user.id, 24680);
-        assert_eq!(user.display_name, "SameName");
+        assert_eq!(user.nick_name, "SameName");
         assert_eq!(user.real_name, Some("Real Name".into()));
     }
 
@@ -142,7 +142,7 @@ mod tests {
         // Arrange
         let user = User {
             id: 12345,
-            display_name: "DisplayName".to_string(),
+            nick_name: "DisplayName".to_string(),
             real_name: Some("RealName".to_string()),
         };
 
@@ -158,7 +158,7 @@ mod tests {
         // Arrange
         let user = User {
             id: 12345,
-            display_name: "DisplayName".to_string(),
+            nick_name: "DisplayName".to_string(),
             real_name: None,
         };
 
@@ -174,7 +174,7 @@ mod tests {
         // Arrange
         let user = User {
             id: 12345,
-            display_name: "".to_string(),
+            nick_name: "".to_string(),
             real_name: Some("RealName".to_string()),
         };
 
@@ -190,7 +190,7 @@ mod tests {
         // Arrange
         let user = User {
             id: 12345,
-            display_name: "Name\"With'Quotes".to_string(),
+            nick_name: "Name\"With'Quotes".to_string(),
             real_name: Some("Real\"Name'With'Quotes".to_string()),
         };
 
@@ -209,7 +209,7 @@ mod tests {
         // Arrange - edge case with empty string (not None) for real_name
         let user = User {
             id: 12345,
-            display_name: "DisplayName".to_string(),
+            nick_name: "DisplayName".to_string(),
             real_name: Some("".to_string()),
         };
 
