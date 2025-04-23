@@ -78,7 +78,7 @@ impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> RevealerImpl<'a, REPO
             users_with_real_names.len()
         );
         let reply_for_users_with_real_name =
-            create_reply_for_users_with_real_names(&users_with_real_names)?;
+            create_reply_for_users_with_real_names(&users_with_real_names);
         self.discord_connector
             .send_reply(&reply_for_users_with_real_name)
             .await?;
@@ -92,7 +92,10 @@ impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> RevealerImpl<'a, REPO
     ) -> Result<(), Error> {
         let users: Vec<User> = get_users_without_real_names(members, real_names);
         info!("Found {} users without real names", users.len());
-        let reply = create_reply_for_users_without_real_names(&users)?;
+        let reply = create_reply_for_users_without_real_names(&users);
+        if reply.is_empty() {
+            return Ok(());
+        }
         self.discord_connector.send_reply(&reply).await?;
         Ok(())
     }
@@ -129,7 +132,6 @@ fn get_users_without_real_names(members: &[ServerMember], real_names: &Names) ->
     members
         .iter()
         .filter_map(|member| {
-            // Only include users with real names in our database
             let None = real_names.names.get(&member.id) else {
                 return None;
             };
@@ -139,9 +141,9 @@ fn get_users_without_real_names(members: &[ServerMember], real_names: &Names) ->
         .collect()
 }
 
-fn create_reply_for_users_with_real_names(users: &[User]) -> Result<Reply, Error> {
+fn create_reply_for_users_with_real_names(users: &[User]) -> Reply {
     if users.is_empty() {
-        return Ok("Y'all a bunch of unimportant, good fer nothing no-names".to_string());
+        return "Y'all a bunch of unimportant, good fer nothing no-names".to_string();
     }
 
     let reply_for_users_with_real_names = users
@@ -149,15 +151,18 @@ fn create_reply_for_users_with_real_names(users: &[User]) -> Result<Reply, Error
         .map(|user| user.to_string())
         .collect::<Vec<String>>();
 
-    Ok(format!(
+    format!(
         "Here are people's real names, {}:
 {}",
         config::REVEAL_INSULT,
         reply_for_users_with_real_names.join("\n")
-    ))
+    )
 }
 
-fn create_reply_for_users_without_real_names(users: &[User]) -> Result<Reply, Error> {
+fn create_reply_for_users_without_real_names(users: &[User]) -> Reply {
+    if users.is_empty() {
+        return "".into();
+    }
     todo!()
 }
 
