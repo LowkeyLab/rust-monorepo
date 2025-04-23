@@ -49,18 +49,18 @@ impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> Revealer
     async fn reveal_member(&self, member: &ServerMember) -> Result<(), Error> {
         info!("Revealing nickname for {}", member.user_name);
         let names = self.names_repository.load_real_names().await?;
-        let reply = reveal_member(member, &names)?;
+        let reply = reveal_member(member, &names);
         self.discord_connector.send_reply(&reply).await?;
         Ok(())
     }
 }
 
-fn reveal_member(server_member: &ServerMember, real_names: &Names) -> Result<Reply, Error> {
+fn reveal_member(server_member: &ServerMember, real_names: &Names) -> Reply {
     let user_id = server_member.id;
     let mut user: User = server_member.into();
     let real_name = real_names.names.get(&user_id).cloned();
     user.real_name = real_name;
-    create_reply_for(&user)
+    create_reply_for_users_with_real_name(&user)
 }
 
 fn reveal_all_members(members: &[ServerMember], real_names: &Names) -> Result<Reply, Error> {
@@ -80,14 +80,47 @@ fn reveal_all_members(members: &[ServerMember], real_names: &Names) -> Result<Re
     create_reply_for_all(&users)
 }
 
-fn create_reply_for(user: &User) -> Result<Reply, Error> {
-    match user.real_name {
-        Some(_) => Ok(user.to_string()),
-        None => Ok(format!(
-            "How mysterious! {}'s true name is shrouded by darkness",
-            user.display_name
-        )),
-    }
+/// Creates a reply message for users who have a real name.
+///
+/// # Arguments
+///
+/// * `user` - A reference to a `User` object. The `User` must have the `real_name`
+///   field set to `Some`, as creating a reply is only possible for users with a real name.
+///
+/// # Returns
+///
+/// * A `Reply` message created from the user's information.
+///
+/// # Panics
+///
+/// This function will panic if the `real_name` field of the `User` is `None`.
+///
+/// # Examples
+///
+/// ```
+/// let user = User {
+///     real_name: Some(String::from("John Doe")),
+///     // other fields...
+/// };
+/// let reply = create_reply_for_users_with_real_name(&user);
+/// println!("{}", reply);
+/// ```
+///
+/// If the `real_name` is `None`:
+///
+/// ```should_panic
+/// let user = User {
+///     real_name: None,
+///     // other fields...
+/// };
+/// let reply = create_reply_for_users_with_real_name(&user); // This will panic
+/// ```
+fn create_reply_for_users_with_real_name(user: &User) -> Reply {
+    assert!(
+        user.real_name.is_some(),
+        "You can't create a reply for a user without a real name"
+    );
+    user.to_string()
 }
 
 fn create_reply_for_all(users: &[User]) -> Result<Reply, Error> {
@@ -108,13 +141,7 @@ fn create_reply_for_users_with_real_names(users: &[User]) -> Vec<String> {
     users
         .into_iter()
         .filter(|user| user.real_name.is_some())
-        .filter_map(|user| match create_reply_for(user) {
-            Ok(reply) => Some(reply),
-            Err(err) => {
-                info!("Error creating reply for user: {}", err);
-                None
-            }
-        })
+        .map(|user| create_reply_for_users_with_real_name(user))
         .collect::<Vec<String>>()
 }
 
@@ -245,51 +272,6 @@ mod tests {
 
             // Verify results
             assert!(result.is_ok(), "reveal_member should succeed");
-        }
-
-        #[tokio::test]
-        async fn can_produce_mysterious_message_for_member_without_real_name() {
-            // Setup mock objects
-            let mut mock_repo = MockNamesRepository::new();
-            let mut mock_discord = MockDiscordConnector::new();
-
-            // Define test data
-            let member = ServerMember {
-                id: 123456789,
-                nick_name: Some("AliceNickname".to_string()),
-                user_name: "AliceUsername".to_string(),
-            };
-
-            // Create an empty names map (no real name for Alice)
-            let names = Names {
-                names: HashMap::new(),
-            };
-
-            // Set up expectations
-            mock_repo
-                .expect_load_real_names()
-                .times(1)
-                .returning(move || Ok(names.clone()));
-
-            mock_discord
-                .expect_send_reply()
-                .with(eq(
-                    "How mysterious! AliceNickname's true name is shrouded by darkness",
-                ))
-                .times(1)
-                .returning(|_| Ok(()));
-
-            // Create revealer with mock objects
-            let revealer = RevealerImpl::new(&mock_repo, &mock_discord);
-
-            // Execute the method under test
-            let result = revealer.reveal_member(&member).await;
-
-            // Verify results
-            assert!(
-                result.is_ok(),
-                "reveal_member should succeed even when no real name is found"
-            );
         }
 
         #[tokio::test]
