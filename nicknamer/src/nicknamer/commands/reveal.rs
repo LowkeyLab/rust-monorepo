@@ -41,8 +41,11 @@ impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> Revealer
             .get_members_of_current_channel()
             .await?;
         let real_names = self.names_repository.load_real_names().await?;
-        let reply = reveal_all_members(&members, &real_names)?;
-        self.discord_connector.send_reply(&reply).await?;
+        let reply_for_users_with_real_name =
+            reveal_all_members_with_real_name(&members, &real_names)?;
+        self.discord_connector
+            .send_reply(&reply_for_users_with_real_name)
+            .await?;
         Ok(())
     }
 
@@ -67,8 +70,20 @@ fn reveal_member(server_member: &ServerMember, real_names: &Names) -> Reply {
     user.to_string()
 }
 
-fn reveal_all_members(members: &[ServerMember], real_names: &Names) -> Result<Reply, Error> {
-    let users: Vec<User> = members
+fn reveal_all_members_with_real_name(
+    members: &[ServerMember],
+    real_names: &Names,
+) -> Result<Reply, Error> {
+    let users_with_real_names: Vec<User> = get_users_with_real_names(members, real_names);
+    info!(
+        "Found {} users with real names",
+        users_with_real_names.len()
+    );
+    create_reply_for_users_with_real_names(&users_with_real_names)
+}
+
+fn get_users_with_real_names(members: &[ServerMember], real_names: &Names) -> Vec<User> {
+    members
         .iter()
         .filter_map(|member| {
             // Only include users with real names in our database
@@ -79,16 +94,15 @@ fn reveal_all_members(members: &[ServerMember], real_names: &Names) -> Result<Re
             user.real_name = Some(real_name.clone());
             Some(user)
         })
-        .collect();
-    info!("Found {} users with real names", users.len());
-    create_reply_for_all(&users)
+        .collect()
 }
 
-fn create_reply_for_all(users: &[User]) -> Result<Reply, Error> {
+fn create_reply_for_users_with_real_names(users: &[User]) -> Result<Reply, Error> {
     let users_with_real_names = users
         .into_iter()
         .filter(|user| user.real_name.is_some())
         .collect::<Vec<&User>>();
+
     if users_with_real_names.is_empty() {
         return Ok("Y'all a bunch of unimportant, good fer nothing no-names".to_string());
     }
