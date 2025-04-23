@@ -2,7 +2,7 @@ use crate::nicknamer::commands::names::{Names, NamesRepository};
 use crate::nicknamer::commands::{Reply, User, names};
 use crate::nicknamer::config;
 use crate::nicknamer::connectors::discord;
-use crate::nicknamer::connectors::discord::{DiscordConnector, ServerMember};
+use crate::nicknamer::connectors::discord::{DiscordConnector, Role, ServerMember};
 use log::info;
 use thiserror::Error;
 
@@ -22,8 +22,8 @@ pub struct RevealerImpl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> {
     discord_connector: &'a DISCORD,
 }
 
-impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> RevealerImpl<'a, REPO, DISCORD> {
-    pub fn new(names_repository: &'a REPO, discord_connector: &'a DISCORD) -> Self {
+impl<'a, NAMES: NamesRepository, DISCORD: DiscordConnector> RevealerImpl<'a, NAMES, DISCORD> {
+    pub fn new(names_repository: &'a NAMES, discord_connector: &'a DISCORD) -> Self {
         Self {
             names_repository,
             discord_connector,
@@ -35,36 +35,92 @@ impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> Revealer
     for RevealerImpl<'a, REPO, DISCORD>
 {
     async fn reveal_all(&self) -> Result<(), Error> {
-        info!("Revealing nicknames for current channel members ...");
+        info!("Revealing real names for current channel members ...");
         let members = self
             .discord_connector
             .get_members_of_current_channel()
             .await?;
         let real_names = self.names_repository.load_real_names().await?;
-        let reply = reveal_all_members(&members, &real_names)?;
-        self.discord_connector.send_reply(&reply).await?;
+        self.reveal_all_members(&members, &real_names).await?;
         Ok(())
     }
 
     async fn reveal_member(&self, member: &ServerMember) -> Result<(), Error> {
         info!("Revealing nickname for {}", member.user_name);
         let names = self.names_repository.load_real_names().await?;
-        let reply = reveal_member(member, &names)?;
+        let reply = reveal_member(member, &names);
         self.discord_connector.send_reply(&reply).await?;
         Ok(())
     }
 }
 
-fn reveal_member(server_member: &ServerMember, real_names: &Names) -> Result<Reply, Error> {
+impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> RevealerImpl<'a, REPO, DISCORD> {
+    async fn reveal_all_members(
+        &self,
+        members: &[ServerMember],
+        real_names: &Names,
+    ) -> Result<(), Error> {
+        self.reveal_users_with_real_name(members, real_names)
+            .await?;
+        self.reveal_users_without_real_name(members, real_names)
+            .await?;
+        Ok(())
+    }
+
+    async fn reveal_users_with_real_name(
+        &self,
+        members: &[ServerMember],
+        real_names: &Names,
+    ) -> Result<(), Error> {
+        let users: Vec<User> = get_users_with_real_names(&members, &real_names);
+        info!("Found {} users with real names", users.len());
+        if users.is_empty() {
+            return Ok(());
+        }
+        let reply_for_users_with_real_name = create_reply_for_users_with_real_names(&users);
+        self.discord_connector
+            .send_reply(&reply_for_users_with_real_name)
+            .await?;
+        Ok(())
+    }
+
+    async fn reveal_users_without_real_name(
+        &self,
+        members: &[ServerMember],
+        real_names: &Names,
+    ) -> Result<(), Error> {
+        let users: Vec<User> = get_users_without_real_names(members, real_names);
+        info!("Found {} users without real names", users.len());
+        if users.is_empty() {
+            return Ok(());
+        }
+        let role_to_mention = self
+            .discord_connector
+            .get_role_by_name(config::CODE_MONKEYS_ROLE_NAME)
+            .await?;
+        let reply = create_reply_for_users_without_real_names(&users, &*role_to_mention);
+        if reply.is_empty() {
+            return Ok(());
+        }
+        self.discord_connector.send_reply(&reply).await?;
+        Ok(())
+    }
+}
+
+fn reveal_member(server_member: &ServerMember, real_names: &Names) -> Reply {
     let user_id = server_member.id;
     let mut user: User = server_member.into();
     let real_name = real_names.names.get(&user_id).cloned();
     user.real_name = real_name;
-    create_reply_for(&user)
+    assert!(
+        user.real_name.is_some(),
+        "You can't create a reply for a user without a real name"
+    );
+    user.to_string()
 }
 
-fn reveal_all_members(members: &[ServerMember], real_names: &Names) -> Result<Reply, Error> {
-    let users: Vec<User> = members
+fn get_users_with_real_names(members: &[ServerMember], real_names: &Names) -> Vec<User> {
+    members
         .iter()
         .filter_map(|member| {
             // Only include users with real names in our database
@@ -75,49 +131,82 @@ fn reveal_all_members(members: &[ServerMember], real_names: &Names) -> Result<Re
             user.real_name = Some(real_name.clone());
             Some(user)
         })
-        .collect();
-    info!("Found {} users with real names", users.len());
-    create_reply_for_all(&users)
+        .collect()
 }
 
-fn create_reply_for(user: &User) -> Result<Reply, Error> {
-    match user.real_name {
-        Some(_) => Ok(user.to_string()),
-        None => Ok(format!(
-            "How mysterious! {}'s true name is shrouded by darkness",
-            user.display_name
-        )),
-    }
-}
-
-fn create_reply_for_all(users: &[User]) -> Result<Reply, Error> {
-    let users = users
-        .into_iter()
-        .filter(|user| user.real_name.is_some())
-        .filter_map(|user| match create_reply_for(user) {
-            Ok(reply) => Some(reply),
-            Err(err) => {
-                info!("Error creating reply for user: {}", err);
-                None
-            }
+fn get_users_without_real_names(members: &[ServerMember], real_names: &Names) -> Vec<User> {
+    members
+        .iter()
+        .filter_map(|member| {
+            let None = real_names.names.get(&member.id) else {
+                return None;
+            };
+            let user: User = member.into();
+            Some(user)
         })
-        .collect::<Vec<String>>();
-    if users.is_empty() {
-        return Ok("Y'all a bunch of unimportant, good fer nothing no-names".to_string());
-    }
+        .collect()
+}
 
-    Ok(format!(
+fn create_reply_for_users_with_real_names(users: &[User]) -> Reply {
+    assert!(
+        !users.is_empty(),
+        "You can't create a reply for an empty list of users"
+    );
+    let reply = users
+        .into_iter()
+        .map(|user| user.to_string())
+        .collect::<Vec<String>>();
+
+    format!(
         "Here are people's real names, {}:
-{}",
+\t{}",
         config::REVEAL_INSULT,
-        users.join("\n")
-    ))
+        reply.join("\n\t")
+    )
+}
+
+fn create_reply_for_users_without_real_names(users: &[User], mention: &dyn Role) -> Reply {
+    assert!(
+        !users.is_empty(),
+        "You can't create a reply for an empty list of users"
+    );
+    let reply = users
+        .into_iter()
+        .map(|user| user.to_string())
+        .collect::<Vec<String>>();
+
+    format!(
+        "Hey {}, these members are unrecognized:
+\t{}
+One of y'all should improve real name management and/or add them to the config",
+        mention.mention(),
+        reply.join("\n\t")
+    )
 }
 
 #[cfg(test)]
 mod tests {
     // Tests for RevealerImpl using MockDiscordConnector and MockNamesRepository
+    // Mock Role implementation for tests
+    #[derive(Default)]
+    struct MockRole {}
+
+    impl MockRole {
+        fn new() -> Self {
+            Self::default()
+        }
+    }
+
+    impl crate::nicknamer::connectors::discord::Mentionable for MockRole {
+        fn mention(&self) -> String {
+            "@CodeMonkeys".to_string()
+        }
+    }
+
+    impl crate::nicknamer::connectors::discord::Role for MockRole {}
+
     mod revealer_impl_tests {
+        use super::MockRole;
         use crate::nicknamer::commands::names::{MockNamesRepository, Names};
         use crate::nicknamer::commands::reveal::{Error, Revealer, RevealerImpl};
         use crate::nicknamer::connectors::discord::{MockDiscordConnector, ServerMember};
@@ -244,51 +333,6 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn can_produce_mysterious_message_for_member_without_real_name() {
-            // Setup mock objects
-            let mut mock_repo = MockNamesRepository::new();
-            let mut mock_discord = MockDiscordConnector::new();
-
-            // Define test data
-            let member = ServerMember {
-                id: 123456789,
-                nick_name: Some("AliceNickname".to_string()),
-                user_name: "AliceUsername".to_string(),
-            };
-
-            // Create an empty names map (no real name for Alice)
-            let names = Names {
-                names: HashMap::new(),
-            };
-
-            // Set up expectations
-            mock_repo
-                .expect_load_real_names()
-                .times(1)
-                .returning(move || Ok(names.clone()));
-
-            mock_discord
-                .expect_send_reply()
-                .with(eq(
-                    "How mysterious! AliceNickname's true name is shrouded by darkness",
-                ))
-                .times(1)
-                .returning(|_| Ok(()));
-
-            // Create revealer with mock objects
-            let revealer = RevealerImpl::new(&mock_repo, &mock_discord);
-
-            // Execute the method under test
-            let result = revealer.reveal_member(&member).await;
-
-            // Verify results
-            assert!(
-                result.is_ok(),
-                "reveal_member should succeed even when no real name is found"
-            );
-        }
-
-        #[tokio::test]
         async fn handles_discord_error_when_revealing_single_member() {
             // Setup mock objects
             let mut mock_repo = MockNamesRepository::new();
@@ -328,6 +372,69 @@ mod tests {
                 matches!(result.unwrap_err(), Error::DiscordError(_)),
                 "Error should be a DiscordError"
             );
+        }
+
+        #[tokio::test]
+        async fn displays_correct_message_when_no_members_have_real_names() {
+            // Setup mock objects
+            let mut mock_repo = MockNamesRepository::new();
+            let mut mock_discord = MockDiscordConnector::new();
+
+            // Define test data - channel members with IDs not in the real names database
+            let members = vec![
+                ServerMember {
+                    id: 111111111, // ID not in real_names database
+                    nick_name: Some("UnknownNick1".to_string()),
+                    user_name: "UnknownUser1".to_string(),
+                },
+                ServerMember {
+                    id: 222222222, // ID not in real_names database
+                    nick_name: Some("UnknownNick2".to_string()),
+                    user_name: "UnknownUser2".to_string(),
+                },
+            ];
+
+            // Empty real names database
+            let names = Names {
+                names: HashMap::new(),
+            };
+
+            // Set up expectations
+            mock_discord
+                .expect_get_members_of_current_channel()
+                .times(1)
+                .returning(move || Ok(members.clone()));
+
+            mock_repo
+                .expect_load_real_names()
+                .times(1)
+                .returning(move || Ok(names.clone()));
+
+            // Mock the role request
+            mock_discord
+                .expect_get_role_by_name()
+                .with(eq("Code Monkeys"))
+                .times(1)
+                .returning(|_| Ok(Box::new(MockRole::new())));
+
+            // Then expect a reply for users without real names
+            mock_discord
+                .expect_send_reply()
+                .with(eq("Hey @CodeMonkeys, these members are unrecognized:
+\tUnknownUser1 aka 'UnknownNick1'
+\tUnknownUser2 aka 'UnknownNick2'
+One of y'all should improve real name management and/or add them to the config"))
+                .times(1)
+                .returning(|_| Ok(()));
+
+            // Create revealer with mock objects
+            let revealer = RevealerImpl::new(&mock_repo, &mock_discord);
+
+            // Execute the method under test
+            let result = revealer.reveal_all().await;
+
+            // Verify results
+            assert!(result.is_ok(), "reveal_all should succeed");
         }
     }
 }

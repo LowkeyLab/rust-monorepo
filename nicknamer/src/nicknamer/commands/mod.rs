@@ -10,17 +10,16 @@ pub(crate) type Reply = String;
 #[derive(Debug, PartialEq, Default)]
 pub struct User {
     pub id: u64,
-    pub display_name: String,
+    pub user_name: String,
+    pub nick_name: Option<String>,
     pub real_name: Option<String>,
 }
 impl From<discord::ServerMember> for User {
     fn from(discord_member: discord::ServerMember) -> Self {
         Self {
             id: discord_member.id,
-            display_name: discord_member
-                .nick_name
-                .clone()
-                .unwrap_or_else(|| discord_member.user_name.clone()),
+            user_name: discord_member.user_name.clone(),
+            nick_name: discord_member.nick_name.clone(),
             real_name: None,
         }
     }
@@ -30,10 +29,8 @@ impl From<&discord::ServerMember> for User {
     fn from(discord_member: &discord::ServerMember) -> Self {
         Self {
             id: discord_member.id,
-            display_name: discord_member
-                .nick_name
-                .clone()
-                .unwrap_or_else(|| discord_member.user_name.clone()),
+            user_name: discord_member.user_name.clone(),
+            nick_name: discord_member.nick_name.clone(),
             real_name: None,
         }
     }
@@ -42,9 +39,35 @@ impl From<&discord::ServerMember> for User {
 impl Display for User {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         if let Some(real_name) = &self.real_name {
-            write!(f, "'{}' is {}", self.display_name, real_name)
+            self.display_user_with_real_name(f, real_name)
         } else {
-            write!(f, "'{}' has no real name available", self.display_name)
+            self.display_user_without_real_name(f)
+        }
+    }
+}
+
+impl User {
+    fn display_user_with_real_name(
+        &self,
+        f: &mut Formatter,
+        real_name: &String,
+    ) -> std::fmt::Result {
+        if let Some(nick_name) = &self.nick_name {
+            write!(f, "'{}' is {}", nick_name, real_name)
+        } else {
+            write!(f, "'{}' is {}", self.user_name, real_name)
+        }
+    }
+
+    fn display_user_without_real_name(&self, f: &mut Formatter) -> std::fmt::Result {
+        if let Some(nick_name) = &self.nick_name {
+            write!(f, "{} aka '{}'", self.user_name, nick_name)
+        } else {
+            write!(
+                f,
+                "{} has neither a nickname nor a real name",
+                self.user_name
+            )
         }
     }
 }
@@ -73,7 +96,7 @@ mod tests {
 
         // Assert
         assert_eq!(user.id, 12345);
-        assert_eq!(user.display_name, "NickName");
+        assert_eq!(user.nick_name, Some("NickName".to_string()));
         assert_eq!(user.real_name, Some("Real Name".into()));
     }
 
@@ -93,7 +116,7 @@ mod tests {
 
         // Assert
         assert_eq!(user.id, 67890);
-        assert_eq!(user.display_name, "UserName"); // Should fall back to username
+        assert_eq!(user.nick_name, None); // No fallback behavior in the From implementation
         assert_eq!(user.real_name, Some("Real Name".into()));
     }
 
@@ -113,7 +136,7 @@ mod tests {
 
         // Assert
         assert_eq!(user.id, 13579);
-        assert_eq!(user.display_name, ""); // Should use the empty nickname
+        assert_eq!(user.nick_name, Some("".to_string())); // Should use the empty nickname
         assert_eq!(user.real_name, Some("Real Name".into()));
     }
 
@@ -133,7 +156,7 @@ mod tests {
 
         // Assert
         assert_eq!(user.id, 24680);
-        assert_eq!(user.display_name, "SameName");
+        assert_eq!(user.nick_name, Some("SameName".to_string()));
         assert_eq!(user.real_name, Some("Real Name".into()));
     }
 
@@ -142,7 +165,8 @@ mod tests {
         // Arrange
         let user = User {
             id: 12345,
-            display_name: "DisplayName".to_string(),
+            user_name: "UserName".to_string(),
+            nick_name: Some("DisplayName".to_string()),
             real_name: Some("RealName".to_string()),
         };
 
@@ -158,7 +182,8 @@ mod tests {
         // Arrange
         let user = User {
             id: 12345,
-            display_name: "DisplayName".to_string(),
+            user_name: "UserName".to_string(),
+            nick_name: Some("DisplayName".to_string()),
             real_name: None,
         };
 
@@ -166,7 +191,7 @@ mod tests {
         let display_string = format!("{}", user);
 
         // Assert
-        assert_eq!(display_string, "'DisplayName' has no real name available");
+        assert_eq!(display_string, "UserName aka 'DisplayName'");
     }
 
     #[test]
@@ -174,7 +199,8 @@ mod tests {
         // Arrange
         let user = User {
             id: 12345,
-            display_name: "".to_string(),
+            user_name: "UserName".to_string(),
+            nick_name: Some("".to_string()),
             real_name: Some("RealName".to_string()),
         };
 
@@ -190,7 +216,8 @@ mod tests {
         // Arrange
         let user = User {
             id: 12345,
-            display_name: "Name\"With'Quotes".to_string(),
+            user_name: "UserName".to_string(),
+            nick_name: Some("Name\"With'Quotes".to_string()),
             real_name: Some("Real\"Name'With'Quotes".to_string()),
         };
 
@@ -209,7 +236,8 @@ mod tests {
         // Arrange - edge case with empty string (not None) for real_name
         let user = User {
             id: 12345,
-            display_name: "DisplayName".to_string(),
+            user_name: "UserName".to_string(),
+            nick_name: Some("DisplayName".to_string()),
             real_name: Some("".to_string()),
         };
 
@@ -218,5 +246,42 @@ mod tests {
 
         // Assert
         assert_eq!(display_string, "'DisplayName' is ");
+    }
+
+    #[test]
+    fn can_format_user_with_no_nickname_no_real_name() {
+        // Arrange
+        let user = User {
+            id: 12345,
+            user_name: "UserName".to_string(),
+            nick_name: None,
+            real_name: None,
+        };
+
+        // Act
+        let display_string = format!("{}", user);
+
+        // Assert
+        assert_eq!(
+            display_string,
+            "UserName has neither a nickname nor a real name"
+        );
+    }
+
+    #[test]
+    fn can_format_user_with_real_name_but_no_nickname() {
+        // Arrange
+        let user = User {
+            id: 12345,
+            user_name: "UserName".to_string(),
+            nick_name: None,
+            real_name: Some("RealName".to_string()),
+        };
+
+        // Act
+        let display_string = format!("{}", user);
+
+        // Assert
+        assert_eq!(display_string, "'UserName' is RealName");
     }
 }

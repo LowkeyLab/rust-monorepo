@@ -4,9 +4,12 @@
 //! trait using the Serenity Discord library.
 
 use crate::nicknamer::connectors::discord::Error::{
-    CannotFindChannel, CannotFindMembersOfChannel, CannotSendReply, NotInServerChannel,
+    CannotFindChannel, CannotFindMembersOfChannel, CannotFindRole, CannotGetGuild, CannotSendReply,
+    NotInServerChannel,
 };
-use crate::nicknamer::connectors::discord::{DiscordConnector, Error, ServerMember};
+use crate::nicknamer::connectors::discord::{
+    DiscordConnector, Error, Mentionable, Role, ServerMember,
+};
 use log::info;
 use poise::serenity_prelude as serenity;
 
@@ -54,7 +57,25 @@ impl DiscordConnector for SerenityDiscordConnector<'_> {
         };
         Ok(())
     }
+
+    async fn get_role_by_name(&self, name: &str) -> Result<Box<dyn Role>, Error> {
+        let Some(guild) = self.context.guild() else {
+            return Err(CannotGetGuild);
+        };
+        let Some(role) = guild.role_by_name(name) else {
+            return Err(CannotFindRole);
+        };
+        Ok(Box::new(role.clone()))
+    }
 }
+
+impl Mentionable for serenity::Role {
+    fn mention(&self) -> String {
+        <Self as serenity::Mentionable>::mention(&self).to_string()
+    }
+}
+
+impl Role for serenity::Role {}
 
 impl From<serenity::Member> for ServerMember {
     fn from(member: serenity::Member) -> Self {

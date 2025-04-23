@@ -13,6 +13,10 @@ pub enum Error {
     CannotFindMembersOfChannel,
     #[error("Cannot send reply")]
     CannotSendReply,
+    #[error("Cannot get guild")]
+    CannotGetGuild,
+    #[error("Cannot find role")]
+    CannotFindRole,
 }
 
 /// Trait for abstracting Discord server interactions.
@@ -27,7 +31,9 @@ pub trait DiscordConnector {
     ///
     /// * `Result<Vec<ServerMember>, Error>` - List of server members on success, or Discord error
     async fn get_members_of_current_channel(&self) -> Result<Vec<ServerMember>, Error>;
+    /// Sends a reply to the person that invoked the prefix command
     async fn send_reply(&self, message: &str) -> Result<(), Error>;
+    async fn get_role_by_name(&self, name: &str) -> Result<Box<dyn Role>, Error>;
 }
 
 /// Represents a member of a Discord server.
@@ -43,3 +49,9 @@ pub struct ServerMember {
     /// Discord username of the member
     pub(crate) user_name: String,
 }
+
+pub trait Mentionable: Send + Sync + 'static {
+    fn mention(&self) -> String;
+}
+
+pub trait Role: Mentionable {}
