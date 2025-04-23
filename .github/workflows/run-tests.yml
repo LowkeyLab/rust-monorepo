@@ -1,5 +1,7 @@
 name: Rust Tests
-
+permissions:
+  contents: read
+  pull-requests: write
 on:
   push:
     branches: [ main ]
