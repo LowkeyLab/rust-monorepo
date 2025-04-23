@@ -91,17 +91,7 @@ fn create_reply_for(user: &User) -> Result<Reply, Error> {
 }
 
 fn create_reply_for_all(users: &[User]) -> Result<Reply, Error> {
-    let users = users
-        .into_iter()
-        .filter(|user| user.real_name.is_some())
-        .filter_map(|user| match create_reply_for(user) {
-            Ok(reply) => Some(reply),
-            Err(err) => {
-                info!("Error creating reply for user: {}", err);
-                None
-            }
-        })
-        .collect::<Vec<String>>();
+    let users = create_reply_for_users_with_real_names(users);
     if users.is_empty() {
         return Ok("Y'all a bunch of unimportant, good fer nothing no-names".to_string());
     }
@@ -112,6 +102,20 @@ fn create_reply_for_all(users: &[User]) -> Result<Reply, Error> {
         config::REVEAL_INSULT,
         users.join("\n")
     ))
+}
+
+fn create_reply_for_users_with_real_names(users: &[User]) -> Vec<String> {
+    users
+        .into_iter()
+        .filter(|user| user.real_name.is_some())
+        .filter_map(|user| match create_reply_for(user) {
+            Ok(reply) => Some(reply),
+            Err(err) => {
+                info!("Error creating reply for user: {}", err);
+                None
+            }
+        })
+        .collect::<Vec<String>>()
 }
 
 #[cfg(test)]
