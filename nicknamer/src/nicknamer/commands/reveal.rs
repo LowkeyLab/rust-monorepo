@@ -62,8 +62,8 @@ impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> RevealerImpl<'a, REPO
     ) -> Result<(), Error> {
         self.reveal_users_with_real_name(members, real_names)
             .await?;
-        // self.reveal_users_without_real_name(members, real_names)
-        //     .await?;
+        self.reveal_users_without_real_name(members, real_names)
+            .await?;
         Ok(())
     }
 
@@ -146,7 +146,7 @@ fn create_reply_for_users_with_real_names(users: &[User]) -> Reply {
         return "Y'all a bunch of unimportant, good fer nothing no-names".to_string();
     }
 
-    let reply_for_users_with_real_names = users
+    let reply = users
         .into_iter()
         .map(|user| user.to_string())
         .collect::<Vec<String>>();
@@ -155,7 +155,7 @@ fn create_reply_for_users_with_real_names(users: &[User]) -> Reply {
         "Here are people's real names, {}:
 {}",
         config::REVEAL_INSULT,
-        reply_for_users_with_real_names.join("\n")
+        reply.join("\n")
     )
 }
 
@@ -163,7 +163,12 @@ fn create_reply_for_users_without_real_names(users: &[User]) -> Reply {
     if users.is_empty() {
         return "".into();
     }
-    todo!()
+    let reply = users
+        .into_iter()
+        .map(|user| user.to_string())
+        .collect::<Vec<String>>();
+
+    format!("Hey {}", config::CODE_MONKEYS_ROLE_NAME)
 }
 
 #[cfg(test)]
