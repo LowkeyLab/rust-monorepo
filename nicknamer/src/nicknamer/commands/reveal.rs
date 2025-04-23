@@ -60,7 +60,11 @@ fn reveal_member(server_member: &ServerMember, real_names: &Names) -> Reply {
     let mut user: User = server_member.into();
     let real_name = real_names.names.get(&user_id).cloned();
     user.real_name = real_name;
-    create_reply_for_user_with_real_name(&user)
+    assert!(
+        user.real_name.is_some(),
+        "You can't create a reply for a user without a real name"
+    );
+    user.to_string()
 }
 
 fn reveal_all_members(members: &[ServerMember], real_names: &Names) -> Result<Reply, Error> {
@@ -80,49 +84,19 @@ fn reveal_all_members(members: &[ServerMember], real_names: &Names) -> Result<Re
     create_reply_for_all(&users)
 }
 
-/// Creates a `Reply` for a user, ensuring the user has a real name.
-///
-/// # Arguments
-///
-/// * `user` - A reference to a `User` object for whom the reply will be created.
-///
-/// # Returns
-///
-/// A `Reply` object based on the provided user's information.
-///
-/// # Panics
-///
-/// This function will panic if the user does not have a real name (i.e.,
-/// `user.real_name` is `None`). The panic message is:
-/// `"You can't create a reply for a user without a real name"`.
-///
-/// # Behavior
-///
-/// This function assumes that the `to_string` method has been implemented
-/// for the `User` type, and it is used to generate the content of the reply.
-///
-/// # Example
-///
-/// ```
-/// let user = User {
-///     real_name: Some(String::from("Alice")),
-///     // Other fields...
-/// };
-/// let reply = create_reply_for_user_with_real_name(&user);
-/// ```
-fn create_reply_for_user_with_real_name(user: &User) -> Reply {
-    assert!(
-        user.real_name.is_some(),
-        "You can't create a reply for a user without a real name"
-    );
-    user.to_string()
-}
-
 fn create_reply_for_all(users: &[User]) -> Result<Reply, Error> {
-    let reply_for_users_with_real_names = create_reply_for_users_with_real_names(users);
-    if reply_for_users_with_real_names.is_empty() {
+    let users_with_real_names = users
+        .into_iter()
+        .filter(|user| user.real_name.is_some())
+        .collect::<Vec<&User>>();
+    if users_with_real_names.is_empty() {
         return Ok("Y'all a bunch of unimportant, good fer nothing no-names".to_string());
     }
+
+    let reply_for_users_with_real_names = users
+        .into_iter()
+        .map(|user| user.to_string())
+        .collect::<Vec<String>>();
 
     Ok(format!(
         "Here are people's real names, {}:
@@ -130,14 +104,6 @@ fn create_reply_for_all(users: &[User]) -> Result<Reply, Error> {
         config::REVEAL_INSULT,
         reply_for_users_with_real_names.join("\n")
     ))
-}
-
-fn create_reply_for_users_with_real_names(users: &[User]) -> Vec<String> {
-    users
-        .into_iter()
-        .filter(|user| user.real_name.is_some())
-        .map(|user| create_reply_for_user_with_real_name(user))
-        .collect::<Vec<String>>()
 }
 
 #[cfg(test)]
