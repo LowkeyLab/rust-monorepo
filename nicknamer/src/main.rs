@@ -51,7 +51,7 @@ async fn nick(
 ///
 /// Specifically, I'll reveal the names of members that can access this channel
 ///
-/// You can also tag another member and I'll only reveal the real name of that person
+/// You can also tag another member and I'll reveal the name of that person, regardless of whether they can access this channel or not
 #[poise::command(prefix_command)]
 async fn reveal(
     ctx: Context<'_>,
