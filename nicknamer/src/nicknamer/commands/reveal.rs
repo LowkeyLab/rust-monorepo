@@ -310,5 +310,60 @@ mod tests {
                 "Error should be a DiscordError"
             );
         }
+
+        #[tokio::test]
+        async fn displays_correct_message_when_no_members_have_real_names() {
+            // Setup mock objects
+            let mut mock_repo = MockNamesRepository::new();
+            let mut mock_discord = MockDiscordConnector::new();
+
+            // Define test data - channel members with IDs not in the real names database
+            let members = vec![
+                ServerMember {
+                    id: 111111111, // ID not in real_names database
+                    nick_name: Some("UnknownNick1".to_string()),
+                    user_name: "UnknownUser1".to_string(),
+                },
+                ServerMember {
+                    id: 222222222, // ID not in real_names database
+                    nick_name: Some("UnknownNick2".to_string()),
+                    user_name: "UnknownUser2".to_string(),
+                },
+            ];
+
+            // Empty real names database
+            let names = Names {
+                names: HashMap::new(),
+            };
+
+            // Set up expectations
+            mock_discord
+                .expect_get_members_of_current_channel()
+                .times(1)
+                .returning(move || Ok(members.clone()));
+
+            mock_repo
+                .expect_load_real_names()
+                .times(1)
+                .returning(move || Ok(names.clone()));
+
+            // Expect the correct message to be sent
+            mock_discord
+                .expect_send_reply()
+                .with(eq(
+                    "Y'all a bunch of unimportant, good fer nothing no-names",
+                ))
+                .times(1)
+                .returning(|_| Ok(()));
+
+            // Create revealer with mock objects
+            let revealer = RevealerImpl::new(&mock_repo, &mock_discord);
+
+            // Execute the method under test
+            let result = revealer.reveal_all().await;
+
+            // Verify results
+            assert!(result.is_ok(), "reveal_all should succeed");
+        }
     }
 }
