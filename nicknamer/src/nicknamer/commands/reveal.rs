@@ -119,8 +119,8 @@ fn create_reply_for_user_with_real_name(user: &User) -> Reply {
 }
 
 fn create_reply_for_all(users: &[User]) -> Result<Reply, Error> {
-    let users_with_real_names = create_reply_for_users_with_real_names(users);
-    if users_with_real_names.is_empty() {
+    let reply_for_users_with_real_names = create_reply_for_users_with_real_names(users);
+    if reply_for_users_with_real_names.is_empty() {
         return Ok("Y'all a bunch of unimportant, good fer nothing no-names".to_string());
     }
 
@@ -128,7 +128,7 @@ fn create_reply_for_all(users: &[User]) -> Result<Reply, Error> {
         "Here are people's real names, {}:
 {}",
         config::REVEAL_INSULT,
-        users_with_real_names.join("\n")
+        reply_for_users_with_real_names.join("\n")
     ))
 }
 
