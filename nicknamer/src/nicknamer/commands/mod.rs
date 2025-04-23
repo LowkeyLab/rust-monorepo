@@ -39,17 +39,31 @@ impl From<&discord::ServerMember> for User {
 impl Display for User {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         if let Some(real_name) = &self.real_name {
-            if let Some(nick_name) = &self.nick_name {
-                write!(f, "'{}' is {}", nick_name, real_name)
-            } else {
-                Ok(())
-            }
+            self.display_user_with_real_name(f, real_name)
         } else {
-            if let Some(nick_name) = &self.nick_name {
-                write!(f, "{} aka '{}'", self.user_name, nick_name)
-            } else {
-                Ok(())
-            }
+            self.display_user_without_real_name(f)
+        }
+    }
+}
+
+impl User {
+    fn display_user_with_real_name(
+        &self,
+        f: &mut Formatter,
+        real_name: &String,
+    ) -> std::fmt::Result {
+        if let Some(nick_name) = &self.nick_name {
+            write!(f, "'{}' is {}", nick_name, real_name)
+        } else {
+            Ok(())
+        }
+    }
+
+    fn display_user_without_real_name(&self, f: &mut Formatter) -> std::fmt::Result {
+        if let Some(nick_name) = &self.nick_name {
+            write!(f, "{} aka '{}'", self.user_name, nick_name)
+        } else {
+            Ok(())
         }
     }
 }
