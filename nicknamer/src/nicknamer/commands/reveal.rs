@@ -2,7 +2,7 @@ use crate::nicknamer::commands::names::{Names, NamesRepository};
 use crate::nicknamer::commands::{Reply, User, names};
 use crate::nicknamer::config;
 use crate::nicknamer::connectors::discord;
-use crate::nicknamer::connectors::discord::{DiscordConnector, ServerMember};
+use crate::nicknamer::connectors::discord::{DiscordConnector, Mentionable, Role, ServerMember};
 use log::info;
 use thiserror::Error;
 
@@ -22,8 +22,8 @@ pub struct RevealerImpl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> {
     discord_connector: &'a DISCORD,
 }
 
-impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> RevealerImpl<'a, REPO, DISCORD> {
-    pub fn new(names_repository: &'a REPO, discord_connector: &'a DISCORD) -> Self {
+impl<'a, NAMES: NamesRepository, DISCORD: DiscordConnector> RevealerImpl<'a, NAMES, DISCORD> {
+    pub fn new(names_repository: &'a NAMES, discord_connector: &'a DISCORD) -> Self {
         Self {
             names_repository,
             discord_connector,
@@ -62,8 +62,8 @@ impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> RevealerImpl<'a, REPO
     ) -> Result<(), Error> {
         self.reveal_users_with_real_name(members, real_names)
             .await?;
-        self.reveal_users_without_real_name(members, real_names)
-            .await?;
+        // self.reveal_users_without_real_name(members, real_names)
+        //     .await?;
         Ok(())
     }
 
@@ -92,7 +92,11 @@ impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> RevealerImpl<'a, REPO
     ) -> Result<(), Error> {
         let users: Vec<User> = get_users_without_real_names(members, real_names);
         info!("Found {} users without real names", users.len());
-        let reply = create_reply_for_users_without_real_names(&users);
+        let role_to_mention = self
+            .discord_connector
+            .get_role_by_name(config::CODE_MONKEYS_ROLE_NAME)
+            .await?;
+        let reply = create_reply_for_users_without_real_names(&users, &*role_to_mention);
         if reply.is_empty() {
             return Ok(());
         }
@@ -159,7 +163,7 @@ fn create_reply_for_users_with_real_names(users: &[User]) -> Reply {
     )
 }
 
-fn create_reply_for_users_without_real_names(users: &[User]) -> Reply {
+fn create_reply_for_users_without_real_names(users: &[User], mention: &dyn Role) -> Reply {
     if users.is_empty() {
         return "".into();
     }
