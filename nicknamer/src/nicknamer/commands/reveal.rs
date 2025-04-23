@@ -2,7 +2,7 @@ use crate::nicknamer::commands::names::{Names, NamesRepository};
 use crate::nicknamer::commands::{Reply, User, names};
 use crate::nicknamer::config;
 use crate::nicknamer::connectors::discord;
-use crate::nicknamer::connectors::discord::{DiscordConnector, Mentionable, Role, ServerMember};
+use crate::nicknamer::connectors::discord::{DiscordConnector, Role, ServerMember};
 use log::info;
 use thiserror::Error;
 
@@ -62,8 +62,8 @@ impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> RevealerImpl<'a, REPO
     ) -> Result<(), Error> {
         self.reveal_users_with_real_name(members, real_names)
             .await?;
-        // self.reveal_users_without_real_name(members, real_names)
-        //     .await?;
+        self.reveal_users_without_real_name(members, real_names)
+            .await?;
         Ok(())
     }
 
@@ -72,13 +72,12 @@ impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> RevealerImpl<'a, REPO
         members: &[ServerMember],
         real_names: &Names,
     ) -> Result<(), Error> {
-        let users_with_real_names: Vec<User> = get_users_with_real_names(&members, &real_names);
-        info!(
-            "Found {} users with real names",
-            users_with_real_names.len()
-        );
-        let reply_for_users_with_real_name =
-            create_reply_for_users_with_real_names(&users_with_real_names);
+        let users: Vec<User> = get_users_with_real_names(&members, &real_names);
+        info!("Found {} users with real names", users.len());
+        if users.is_empty() {
+            return Ok(());
+        }
+        let reply_for_users_with_real_name = create_reply_for_users_with_real_names(&users);
         self.discord_connector
             .send_reply(&reply_for_users_with_real_name)
             .await?;
@@ -92,6 +91,9 @@ impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> RevealerImpl<'a, REPO
     ) -> Result<(), Error> {
         let users: Vec<User> = get_users_without_real_names(members, real_names);
         info!("Found {} users without real names", users.len());
+        if users.is_empty() {
+            return Ok(());
+        }
         let role_to_mention = self
             .discord_connector
             .get_role_by_name(config::CODE_MONKEYS_ROLE_NAME)
@@ -146,10 +148,10 @@ fn get_users_without_real_names(members: &[ServerMember], real_names: &Names) ->
 }
 
 fn create_reply_for_users_with_real_names(users: &[User]) -> Reply {
-    if users.is_empty() {
-        return "Y'all a bunch of unimportant, good fer nothing no-names".to_string();
-    }
-
+    assert!(
+        !users.is_empty(),
+        "You can't create a reply for an empty list of users"
+    );
     let reply = users
         .into_iter()
         .map(|user| user.to_string())
@@ -157,28 +159,54 @@ fn create_reply_for_users_with_real_names(users: &[User]) -> Reply {
 
     format!(
         "Here are people's real names, {}:
-{}",
+\t{}",
         config::REVEAL_INSULT,
-        reply.join("\n")
+        reply.join("\n\t")
     )
 }
 
 fn create_reply_for_users_without_real_names(users: &[User], mention: &dyn Role) -> Reply {
-    if users.is_empty() {
-        return "".into();
-    }
+    assert!(
+        !users.is_empty(),
+        "You can't create a reply for an empty list of users"
+    );
     let reply = users
         .into_iter()
         .map(|user| user.to_string())
         .collect::<Vec<String>>();
 
-    format!("Hey {}", config::CODE_MONKEYS_ROLE_NAME)
+    format!(
+        "Hey {}, these members are unrecognized:
+\t{}
+One of y'all should improve real name management and/or add them to the config",
+        mention.mention(),
+        reply.join("\n\t")
+    )
 }
 
 #[cfg(test)]
 mod tests {
     // Tests for RevealerImpl using MockDiscordConnector and MockNamesRepository
+    // Mock Role implementation for tests
+    #[derive(Default)]
+    struct MockRole {}
+
+    impl MockRole {
+        fn new() -> Self {
+            Self::default()
+        }
+    }
+
+    impl crate::nicknamer::connectors::discord::Mentionable for MockRole {
+        fn mention(&self) -> String {
+            "@CodeMonkeys".to_string()
+        }
+    }
+
+    impl crate::nicknamer::connectors::discord::Role for MockRole {}
+
     mod revealer_impl_tests {
+        use super::MockRole;
         use crate::nicknamer::commands::names::{MockNamesRepository, Names};
         use crate::nicknamer::commands::reveal::{Error, Revealer, RevealerImpl};
         use crate::nicknamer::connectors::discord::{MockDiscordConnector, ServerMember};
@@ -382,12 +410,20 @@ mod tests {
                 .times(1)
                 .returning(move || Ok(names.clone()));
 
-            // Expect the correct message to be sent
+            // Mock the role request
+            mock_discord
+                .expect_get_role_by_name()
+                .with(eq("Code Monkeys"))
+                .times(1)
+                .returning(|_| Ok(Box::new(MockRole::new())));
+
+            // Then expect a reply for users without real names
             mock_discord
                 .expect_send_reply()
-                .with(eq(
-                    "Y'all a bunch of unimportant, good fer nothing no-names",
-                ))
+                .with(eq("Hey @CodeMonkeys, these members are unrecognized:
+\tUnknownUser1 aka 'UnknownNick1'
+\tUnknownUser2 aka 'UnknownNick2'
+One of y'all should improve real name management and/or add them to the config"))
                 .times(1)
                 .returning(|_| Ok(()));
 
