@@ -78,6 +78,8 @@ pub struct ServerMember {
     pub(crate) nick_name: Option<String>,
     /// Discord username of the member
     pub(crate) user_name: String,
+    /// Whether the member is a bot
+    pub(crate) is_bot: bool,
 }
 
 /// Represents an entity that can be mentioned in Discord messages.

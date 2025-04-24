@@ -225,11 +225,13 @@ mod tests {
                     id: 123456789,
                     nick_name: Some("AliceNickname".to_string()),
                     user_name: "AliceUsername".to_string(),
+                    is_bot: false,
                 },
                 ServerMember {
                     id: 987654321,
                     nick_name: Some("BobNickname".to_string()),
                     user_name: "BobUsername".to_string(),
+                    is_bot: false,
                 },
             ];
 
@@ -304,6 +306,7 @@ mod tests {
                 id: 123456789,
                 nick_name: Some("AliceNickname".to_string()),
                 user_name: "AliceUsername".to_string(),
+                is_bot: false,
             };
 
             let mut names_map = HashMap::new();
@@ -343,6 +346,7 @@ mod tests {
                 id: 123456789,
                 nick_name: Some("AliceNickname".to_string()),
                 user_name: "AliceUsername".to_string(),
+                is_bot: false,
             };
 
             let mut names_map = HashMap::new();
@@ -386,11 +390,13 @@ mod tests {
                     id: 111111111, // ID not in real_names database
                     nick_name: Some("UnknownNick1".to_string()),
                     user_name: "UnknownUser1".to_string(),
+                    is_bot: false,
                 },
                 ServerMember {
                     id: 222222222, // ID not in real_names database
                     nick_name: Some("UnknownNick2".to_string()),
                     user_name: "UnknownUser2".to_string(),
+                    is_bot: false,
                 },
             ];
 
