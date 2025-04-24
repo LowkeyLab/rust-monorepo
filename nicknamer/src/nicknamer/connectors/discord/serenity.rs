@@ -83,6 +83,7 @@ impl From<serenity::Member> for ServerMember {
             id: member.user.id.get(),
             nick_name: member.nick.clone(),
             user_name: member.user.name.clone(),
+            is_bot: member.user.bot,
         }
     }
 }

@@ -87,6 +87,7 @@ mod tests {
             id: 12345,
             nick_name: Some("NickName".to_string()),
             user_name: "UserName".to_string(),
+            is_bot: false,
         };
         let real_name = Some("Real Name".to_string());
 
@@ -107,6 +108,7 @@ mod tests {
             id: 67890,
             nick_name: None,
             user_name: "UserName".to_string(),
+            is_bot: false,
         };
         let real_name = Some("Real Name".to_string());
 
@@ -127,6 +129,7 @@ mod tests {
             id: 13579,
             nick_name: Some("".to_string()), // Empty nickname
             user_name: "UserName".to_string(),
+            is_bot: false,
         };
         let real_name = Some("Real Name".to_string());
 
@@ -147,6 +150,7 @@ mod tests {
             id: 24680,
             nick_name: Some("SameName".to_string()),
             user_name: "SameName".to_string(),
+            is_bot: false,
         };
         let real_name = Some("Real Name".to_string());
 
