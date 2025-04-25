@@ -169,4 +169,106 @@ mod tests {
         // Assert
         assert!(result.is_ok());
     }
+
+    #[tokio::test]
+    async fn nick_service_handles_member_without_previous_nickname() {
+        // Arrange
+        let mut mock_discord = MockDiscordConnector::new();
+        mock_discord
+            .expect_change_member_nick_name()
+            .with(eq(123456789), eq("FirstNick"))
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        // Verify the correct christening message is sent
+        mock_discord
+            .expect_send_reply()
+            .with(eq("UserName has been christened with the name FirstNick!"))
+            .times(1)
+            .returning(|_| Ok(()));
+
+        let service = NickServiceImpl::new(&mock_discord);
+
+        let member = ServerMember {
+            id: 123456789,
+            nick_name: None, // No previous nickname
+            user_name: "UserName".to_string(),
+            is_bot: false,
+        };
+
+        // Act
+        let result = service.nick(&member, "FirstNick").await;
+
+        // Assert
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn nick_service_handles_send_reply_error() {
+        // Arrange
+        let mut mock_discord = MockDiscordConnector::new();
+        mock_discord
+            .expect_change_member_nick_name()
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        // Simulate error when sending reply
+        mock_discord
+            .expect_send_reply()
+            .times(1)
+            .returning(|_| Err(DiscordError::CannotSendReply));
+
+        let service = NickServiceImpl::new(&mock_discord);
+
+        let member = ServerMember {
+            id: 123456789,
+            nick_name: Some("OldNick".to_string()),
+            user_name: "UserName".to_string(),
+            is_bot: false,
+        };
+
+        // Act
+        let result = service.nick(&member, "NewNick").await;
+
+        // Assert
+        assert!(result.is_err());
+        match result {
+            Err(Error::DiscordError(DiscordError::CannotSendReply)) => (),
+            _ => panic!("Expected CannotSendReply error, got different error type"),
+        }
+    }
+
+    #[tokio::test]
+    async fn nick_service_sends_correct_message_for_nickname_change() {
+        // Arrange
+        let mut mock_discord = MockDiscordConnector::new();
+        mock_discord
+            .expect_change_member_nick_name()
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        // Verify the exact message format for existing nickname
+        mock_discord
+            .expect_send_reply()
+            .with(eq(
+                "Changed UserName's nickname from 'OldNick' to 'NewNick'",
+            ))
+            .times(1)
+            .returning(|_| Ok(()));
+
+        let service = NickServiceImpl::new(&mock_discord);
+
+        let member = ServerMember {
+            id: 123456789,
+            nick_name: Some("OldNick".to_string()),
+            user_name: "UserName".to_string(),
+            is_bot: false,
+        };
+
+        // Act
+        let result = service.nick(&member, "NewNick").await;
+
+        // Assert
+        assert!(result.is_ok());
+    }
 }
