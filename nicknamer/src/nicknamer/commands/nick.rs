@@ -318,6 +318,91 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn nick_service_handles_permission_error_successfully() {
+        // Arrange
+        let mut mock_discord = MockDiscordConnector::new();
+        mock_discord
+            .expect_get_guild_owner_id()
+            .times(1)
+            .returning(|| Ok(GUILD_OWNER_ID)); // Different from member ID
+
+        mock_discord
+            .expect_change_member_nick_name()
+            .times(1)
+            .returning(|_, _| Err(DiscordError::NotEnoughPermissions));
+
+        // Expect get_role_by_name to be called with the Code Monkeys role name
+        mock_discord
+            .expect_get_role_by_name()
+            .with(eq(config::CODE_MONKEYS_ROLE_NAME))
+            .times(1)
+            .returning(|_| Ok(Box::new(TestRole)));
+
+        // Expect send_reply to succeed with the proper message
+        mock_discord
+            .expect_send_reply()
+            .with(eq("Some devilry restricts my power. @Code Monkeys please investigate the rogue member"))
+            .times(1)
+            .returning(|_| Ok(()));
+
+        let service = NickServiceImpl::new(&mock_discord);
+
+        let member = ServerMember {
+            id: 123456789,
+            nick_name: Some("OldNick".to_string()),
+            user_name: "UserName".to_string(),
+            is_bot: false,
+        };
+
+        // Act
+        let result = service.nick(&member, "NewNick").await;
+
+        // Assert
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn nick_service_handles_error_when_fetching_role() {
+        // Arrange
+        let mut mock_discord = MockDiscordConnector::new();
+        mock_discord
+            .expect_get_guild_owner_id()
+            .times(1)
+            .returning(|| Ok(GUILD_OWNER_ID)); // Different from member ID
+
+        mock_discord
+            .expect_change_member_nick_name()
+            .times(1)
+            .returning(|_, _| Err(DiscordError::NotEnoughPermissions));
+
+        // Simulate failure to get the Code Monkeys role
+        mock_discord
+            .expect_get_role_by_name()
+            .with(eq(config::CODE_MONKEYS_ROLE_NAME))
+            .times(1)
+            .returning(|_| Err(DiscordError::CannotFindRole));
+
+        let service = NickServiceImpl::new(&mock_discord);
+
+        let member = ServerMember {
+            id: 123456789,
+            nick_name: Some("OldNick".to_string()),
+            user_name: "UserName".to_string(),
+            is_bot: false,
+        };
+
+        // Act
+        let result = service.nick(&member, "NewNick").await;
+
+        // Assert
+        assert!(result.is_err());
+        match result {
+            Err(Error::DiscordError(DiscordError::CannotFindRole)) => (),
+            _ => panic!("Expected DiscordError::CannotFindRole error, got different error type"),
+        }
+    }
+
+    #[tokio::test]
     async fn nick_service_handles_empty_nickname() {
         // Arrange
         let mut mock_discord = MockDiscordConnector::new();
@@ -488,6 +573,44 @@ mod tests {
             .with(eq(
                 "Changed UserName's nickname from 'OldNick' to 'NewNick'",
             ))
+            .times(1)
+            .returning(|_| Ok(()));
+
+        let service = NickServiceImpl::new(&mock_discord);
+
+        let member = ServerMember {
+            id: 123456789,
+            nick_name: Some("OldNick".to_string()),
+            user_name: "UserName".to_string(),
+            is_bot: false,
+        };
+
+        // Act
+        let result = service.nick(&member, "NewNick").await;
+
+        // Assert
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn nick_service_handles_other_discord_errors() {
+        // Arrange
+        let mut mock_discord = MockDiscordConnector::new();
+        mock_discord
+            .expect_get_guild_owner_id()
+            .times(1)
+            .returning(|| Ok(GUILD_OWNER_ID)); // Different from member ID
+
+        // Return a different Discord error than NotEnoughPermissions
+        mock_discord
+            .expect_change_member_nick_name()
+            .times(1)
+            .returning(|_, _| Err(DiscordError::CannotGetGuild));
+
+        // Check that the generic error message is used
+        mock_discord
+            .expect_send_reply()
+            .with(eq("You fool! You messed it up!: Cannot get guild"))
             .times(1)
             .returning(|_| Ok(()));
 
