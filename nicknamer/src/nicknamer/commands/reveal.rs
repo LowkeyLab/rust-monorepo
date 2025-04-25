@@ -1,18 +1,9 @@
 use crate::nicknamer::commands::names::{Names, NamesRepository};
-use crate::nicknamer::commands::{Reply, User, names};
+use crate::nicknamer::commands::{Error, Reply, User};
 use crate::nicknamer::config;
-use crate::nicknamer::connectors::discord;
 use crate::nicknamer::connectors::discord::{DiscordConnector, Role, ServerMember};
 use log::info;
-use thiserror::Error;
 
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("Something went wrong with Discord")]
-    DiscordError(#[from] discord::Error),
-    #[error("Something went wrong getting people's names")]
-    NamesAccessError(#[from] names::Error),
-}
 pub trait Revealer {
     async fn reveal_all(&self) -> Result<(), Error>;
     async fn reveal_member(&self, member: &ServerMember) -> Result<(), Error>;

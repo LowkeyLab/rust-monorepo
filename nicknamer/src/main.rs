@@ -3,7 +3,7 @@ mod nicknamer;
 use self::nicknamer::commands::names::EmbeddedNamesRepository;
 use self::nicknamer::connectors::discord;
 use self::nicknamer::connectors::discord::serenity::{Context, SerenityDiscordConnector};
-use crate::nicknamer::commands;
+use crate::nicknamer::commands::nick::{NickService, NickServiceImpl};
 use crate::nicknamer::commands::reveal::{Revealer, RevealerImpl};
 use crate::nicknamer::connectors::discord::ServerMember;
 use log::{LevelFilter, info};
@@ -37,13 +37,16 @@ Type ~help command for more info on a command.",
     Ok(())
 }
 
-/// Routine responsible for 'nick' discord command.
+/// Changes the nickname for a member into a new one
 #[poise::command(prefix_command)]
 async fn nick(
-    _ctx: discord::serenity::Context<'_>,
-    member: serenity::Member,
+    ctx: Context<'_>,
+    #[description = "The specific member to reveal the name of"] member: Member,
+    #[description = "The new nickname to set"] nickname: String,
 ) -> anyhow::Result<()> {
-    commands::nick(member.user.id);
+    let connector = SerenityDiscordConnector::new(ctx);
+    let nick_service = NickServiceImpl::new(&connector);
+    nick_service.nick(&member.into(), &nickname).await?;
     Ok(())
 }
 
@@ -95,7 +98,7 @@ async fn main() {
 
     let framework = poise::Framework::<discord::serenity::Data, anyhow::Error>::builder()
         .options(poise::FrameworkOptions {
-            commands: vec![help(), ping(), reveal()],
+            commands: vec![help(), ping(), reveal(), nick()],
             prefix_options: poise::PrefixFrameworkOptions {
                 prefix: Some("~".into()),
                 ..Default::default()

@@ -5,13 +5,14 @@
 
 use crate::nicknamer::connectors::discord::Error::{
     CannotFindChannel, CannotFindMembersOfChannel, CannotFindRole, CannotGetGuild, CannotSendReply,
-    NotInServerChannel,
+    NotEnoughPermissions, NotInServerChannel,
 };
 use crate::nicknamer::connectors::discord::{
     DiscordConnector, Error, Mentionable, Role, ServerMember,
 };
 use log::info;
 use poise::serenity_prelude as serenity;
+use poise::serenity_prelude::EditMember;
 
 /// Discord connector implementation using Serenity library.
 ///
@@ -66,6 +67,21 @@ impl DiscordConnector for SerenityDiscordConnector<'_> {
             return Err(CannotFindRole);
         };
         Ok(Box::new(role.clone()))
+    }
+
+    async fn change_member_nick_name(
+        &self,
+        member_id: u64,
+        new_nick_name: &str,
+    ) -> Result<(), Error> {
+        let Some(guild) = self.context.guild_id() else {
+            return Err(CannotGetGuild);
+        };
+        let builder = EditMember::new().nickname(new_nick_name);
+        let Ok(_member) = guild.edit_member(self.context, member_id, builder).await else {
+            return Err(NotEnoughPermissions);
+        };
+        Ok(())
     }
 }
 
