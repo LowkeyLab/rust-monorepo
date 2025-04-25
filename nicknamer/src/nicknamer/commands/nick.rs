@@ -1,4 +1,6 @@
 use crate::nicknamer::commands::Error;
+use crate::nicknamer::config;
+use crate::nicknamer::connectors::discord;
 use crate::nicknamer::connectors::discord::{DiscordConnector, ServerMember};
 
 pub trait NickService {
@@ -41,17 +43,36 @@ impl<'a, DISCORD: DiscordConnector> NickServiceImpl<'a, DISCORD> {
         member: &ServerMember,
         new_nick_name: &str,
     ) -> Result<(), Error> {
-        self.discord_connector
+        match self
+            .discord_connector
             .change_member_nick_name(member.id, new_nick_name)
-            .await?;
-        match &member.nick_name {
-            Some(nick_name) => {
-                self.send_reply_for_member_with_nick_name(member, new_nick_name, nick_name)
-                    .await?
-            }
-            None => {
-                self.send_reply_for_member_without_nick_name(member, new_nick_name)
-                    .await?
+            .await
+        {
+            Ok(()) => match &member.nick_name {
+                Some(nick_name) => {
+                    self.send_reply_for_member_with_nick_name(member, new_nick_name, nick_name)
+                        .await?
+                }
+                None => {
+                    self.send_reply_for_member_without_nick_name(member, new_nick_name)
+                        .await?
+                }
+            },
+            Err(err) => {
+                let reply = match err {
+                    discord::Error::NotEnoughPermissions => {
+                        let role_to_mention = self
+                            .discord_connector
+                            .get_role_by_name(config::CODE_MONKEYS_ROLE_NAME)
+                            .await?;
+                        format!(
+                            "Some devilry restricts my power. {} please investigate the rogue member",
+                            role_to_mention.mention()
+                        )
+                    }
+                    err => format!("You fool! You messed it up!: {}", err),
+                };
+                self.discord_connector.send_reply(&reply).await?;
             }
         }
         Ok(())
@@ -92,8 +113,8 @@ impl<'a, DISCORD: DiscordConnector> NickServiceImpl<'a, DISCORD> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::nicknamer::connectors::discord::Error as DiscordError;
     use crate::nicknamer::connectors::discord::MockDiscordConnector;
+    use crate::nicknamer::connectors::discord::{Error as DiscordError, Mentionable, Role};
     use mockall::predicate::*;
 
     // Guild owner ID constant for tests
@@ -238,6 +259,17 @@ mod tests {
         }
     }
 
+    // Mock implementation of Role for testing
+    struct TestRole;
+
+    impl Mentionable for TestRole {
+        fn mention(&self) -> String {
+            "@Code Monkeys".to_string()
+        }
+    }
+
+    impl Role for TestRole {}
+
     #[tokio::test]
     async fn nick_service_handles_discord_error() {
         // Arrange
@@ -251,6 +283,19 @@ mod tests {
             .expect_change_member_nick_name()
             .times(1)
             .returning(|_, _| Err(DiscordError::NotEnoughPermissions));
+
+        // Add the missing expectation for get_role_by_name
+        mock_discord
+            .expect_get_role_by_name()
+            .with(eq(config::CODE_MONKEYS_ROLE_NAME))
+            .times(1)
+            .returning(|_| Ok(Box::new(TestRole)));
+
+        // Make send_reply fail to propagate the error
+        mock_discord
+            .expect_send_reply()
+            .times(1)
+            .returning(|_| Err(DiscordError::CannotSendReply));
 
         let service = NickServiceImpl::new(&mock_discord);
 
@@ -267,8 +312,8 @@ mod tests {
         // Assert
         assert!(result.is_err());
         match result {
-            Err(Error::DiscordError(_)) => (),
-            _ => panic!("Expected DiscordError, got different error type"),
+            Err(Error::DiscordError(DiscordError::CannotSendReply)) => (),
+            _ => panic!("Expected DiscordError::CannotSendReply error, got different error type"),
         }
     }
 
