@@ -1,8 +1,8 @@
 use crate::nicknamer::commands::Error;
-use crate::nicknamer::connectors::discord::DiscordConnector;
+use crate::nicknamer::connectors::discord::{DiscordConnector, ServerMember};
 
 pub trait NickService {
-    async fn nick(&self, user_id: u64, new_nick_name: &str) -> Result<(), Error>;
+    async fn nick(&self, member: &ServerMember, new_nick_name: &str) -> Result<(), Error>;
 }
 
 pub struct NickServiceImpl<'a, DISCORD: DiscordConnector> {
@@ -16,10 +16,26 @@ impl<'a, DISCORD: DiscordConnector> NickServiceImpl<'a, DISCORD> {
 }
 
 impl<'a, DISCORD: DiscordConnector> NickService for NickServiceImpl<'a, DISCORD> {
-    async fn nick(&self, user_id: u64, new_nick_name: &str) -> Result<(), Error> {
+    async fn nick(&self, member: &ServerMember, new_nick_name: &str) -> Result<(), Error> {
         self.discord_connector
-            .change_member_nick_name(user_id, new_nick_name)
+            .change_member_nick_name(member.id, new_nick_name)
             .await?;
+        match &member.nick_name {
+            Some(nick_name) => {
+                let reply = format!(
+                    "Changed {}'s nickname from '{}' to '{}'",
+                    member.user_name, nick_name, new_nick_name
+                );
+                self.discord_connector.send_reply(&reply).await?;
+            }
+            None => {
+                let reply = format!(
+                    "{} has been christened with the name {}!",
+                    member.user_name, new_nick_name
+                );
+                self.discord_connector.send_reply(&reply).await?;
+            }
+        }
         Ok(())
     }
 }

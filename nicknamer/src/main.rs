@@ -46,8 +46,7 @@ async fn nick(
 ) -> anyhow::Result<()> {
     let connector = SerenityDiscordConnector::new(ctx);
     let nick_service = NickServiceImpl::new(&connector);
-    let user: ServerMember = member.into();
-    nick_service.nick(user.id, &nickname).await?;
+    nick_service.nick(&member.into(), &nickname).await?;
     Ok(())
 }
 
