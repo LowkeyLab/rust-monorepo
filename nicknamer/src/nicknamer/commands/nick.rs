@@ -57,10 +57,22 @@ mod tests {
             .times(1)
             .returning(|_, _| Ok(()));
 
+        mock_discord
+            .expect_send_reply()
+            .times(1)
+            .returning(|_| Ok(()));
+
         let service = NickServiceImpl::new(&mock_discord);
 
+        let member = ServerMember {
+            id: 123456789,
+            nick_name: Some("OldNick".to_string()),
+            user_name: "UserName".to_string(),
+            is_bot: false,
+        };
+
         // Act
-        let result = service.nick(123456789, "NewNick").await;
+        let result = service.nick(&member, "NewNick").await;
 
         // Assert
         assert!(result.is_ok());
@@ -77,8 +89,15 @@ mod tests {
 
         let service = NickServiceImpl::new(&mock_discord);
 
+        let member = ServerMember {
+            id: 123456789,
+            nick_name: Some("OldNick".to_string()),
+            user_name: "UserName".to_string(),
+            is_bot: false,
+        };
+
         // Act
-        let result = service.nick(123456789, "NewNick").await;
+        let result = service.nick(&member, "NewNick").await;
 
         // Assert
         assert!(result.is_err());
@@ -98,10 +117,22 @@ mod tests {
             .times(1)
             .returning(|_, _| Ok(()));
 
+        mock_discord
+            .expect_send_reply()
+            .times(1)
+            .returning(|_| Ok(()));
+
         let service = NickServiceImpl::new(&mock_discord);
 
+        let member = ServerMember {
+            id: 123456789,
+            nick_name: Some("OldNick".to_string()),
+            user_name: "UserName".to_string(),
+            is_bot: false,
+        };
+
         // Act
-        let result = service.nick(123456789, "").await;
+        let result = service.nick(&member, "").await;
 
         // Assert
         assert!(result.is_ok());
@@ -118,10 +149,22 @@ mod tests {
             .times(1)
             .returning(|_, _| Ok(()));
 
+        mock_discord
+            .expect_send_reply()
+            .times(1)
+            .returning(|_| Ok(()));
+
         let service = NickServiceImpl::new(&mock_discord);
 
+        let member = ServerMember {
+            id: 123456789,
+            nick_name: Some("OldNick".to_string()),
+            user_name: "UserName".to_string(),
+            is_bot: false,
+        };
+
         // Act
-        let result = service.nick(123456789, &long_nickname).await;
+        let result = service.nick(&member, &long_nickname).await;
 
         // Assert
         assert!(result.is_ok());
