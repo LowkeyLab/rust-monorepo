@@ -67,10 +67,10 @@ pub trait DiscordConnector {
     /// * `Result<Box<dyn Role>, Error>` - The role if found, or an error otherwise
     async fn get_role_by_name(&self, name: &str) -> Result<Box<dyn Role>, Error>;
 
-    async fn change_member_nick_name(
-        &self,
+    async fn change_member_nick_name<'connector, 'name>(
+        &'connector self,
         member_id: u64,
-        new_nick_name: &str,
+        new_nick_name: &'name str,
     ) -> Result<(), Error>;
 }
 
