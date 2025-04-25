@@ -47,8 +47,31 @@ impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> Revealer
 
     async fn reveal_member(&self, member: &ServerMember) -> Result<(), Error> {
         info!("Revealing real name for {}", member.user_name);
+        if member.is_bot {
+            self.reveal_bot_member(member).await?;
+        } else {
+            self.reveal_human_member(member).await?;
+        }
+        Ok(())
+    }
+}
+
+impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> RevealerImpl<'a, REPO, DISCORD> {
+    async fn reveal_human_member(&self, member: &ServerMember) -> Result<(), Error> {
         let names = self.names_repository.load_real_names().await?;
         let reply = reveal_member(member, &names);
+        self.discord_connector.send_reply(&reply).await?;
+        Ok(())
+    }
+}
+
+impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> RevealerImpl<'a, REPO, DISCORD> {
+    async fn reveal_bot_member(&self, member: &ServerMember) -> Result<(), Error> {
+        let name_to_show = match &member.nick_name {
+            Some(nick_name) => nick_name,
+            None => &member.user_name,
+        };
+        let reply = format!("{} is a bot, {}!", name_to_show, config::REVEAL_INSULT);
         self.discord_connector.send_reply(&reply).await?;
         Ok(())
     }
@@ -108,14 +131,6 @@ impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> RevealerImpl<'a, REPO
 }
 
 fn reveal_member(server_member: &ServerMember, real_names: &Names) -> Reply {
-    if server_member.is_bot {
-        let name_to_show = match &server_member.nick_name {
-            Some(nick_name) => nick_name,
-            None => &server_member.user_name,
-        };
-
-        return format!("{} is a bot, {}!", name_to_show, config::REVEAL_INSULT);
-    }
     let user_id = server_member.id;
     let mut user: User = server_member.into();
     let real_name = real_names.names.get(&user_id).cloned();
@@ -424,7 +439,7 @@ mod tests {
         #[tokio::test]
         async fn reveal_member_should_handle_bot_with_nickname() {
             // Setup mock objects
-            let mut mock_repo = MockNamesRepository::new();
+            let mock_repo = MockNamesRepository::new();
             let mut mock_discord = MockDiscordConnector::new();
 
             // Define test data - a bot user with nickname
@@ -434,13 +449,6 @@ mod tests {
                 user_name: "BotUser".to_string(),
                 is_bot: true,
             };
-
-            // Set up expectations
-            mock_repo.expect_load_real_names().times(1).returning(|| {
-                Ok(Names {
-                    names: HashMap::new(),
-                })
-            });
 
             // Check that the correct message is sent via Discord
             mock_discord
@@ -465,7 +473,7 @@ mod tests {
         #[tokio::test]
         async fn reveal_member_should_handle_bot_without_nickname() {
             // Setup mock objects
-            let mut mock_repo = MockNamesRepository::new();
+            let mock_repo = MockNamesRepository::new();
             let mut mock_discord = MockDiscordConnector::new();
 
             // Define test data - a bot user without nickname
@@ -475,13 +483,6 @@ mod tests {
                 user_name: "BotUserName".to_string(),
                 is_bot: true,
             };
-
-            // Set up expectations
-            mock_repo.expect_load_real_names().times(1).returning(|| {
-                Ok(Names {
-                    names: HashMap::new(),
-                })
-            });
 
             // Check that the correct message is sent via Discord
             mock_discord
@@ -509,7 +510,7 @@ mod tests {
         #[tokio::test]
         async fn reveal_member_should_handle_discord_error_for_bot() {
             // Setup mock objects
-            let mut mock_repo = MockNamesRepository::new();
+            let mock_repo = MockNamesRepository::new();
             let mut mock_discord = MockDiscordConnector::new();
 
             // Define test data - a bot user
@@ -519,13 +520,6 @@ mod tests {
                 user_name: "ErrorBot".to_string(),
                 is_bot: true,
             };
-
-            // Set up expectations
-            mock_repo.expect_load_real_names().times(1).returning(|| {
-                Ok(Names {
-                    names: HashMap::new(),
-                })
-            });
 
             // Discord connector returns an error when trying to send reply
             mock_discord
