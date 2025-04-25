@@ -38,7 +38,7 @@ impl<'a, DISCORD: DiscordConnector> NickServiceImpl<'a, DISCORD> {
 impl<'a, DISCORD: DiscordConnector> NickServiceImpl<'a, DISCORD> {
     async fn change_member_nick_name(
         &self,
-        member: &&ServerMember,
+        member: &ServerMember,
         new_nick_name: &str,
     ) -> Result<(), Error> {
         self.discord_connector
