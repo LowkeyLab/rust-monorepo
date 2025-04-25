@@ -22,20 +22,45 @@ impl<'a, DISCORD: DiscordConnector> NickService for NickServiceImpl<'a, DISCORD>
             .await?;
         match &member.nick_name {
             Some(nick_name) => {
-                let reply = format!(
-                    "Changed {}'s nickname from '{}' to '{}'",
-                    member.user_name, nick_name, new_nick_name
-                );
-                self.discord_connector.send_reply(&reply).await?;
+                self.send_reply_for_member_with_nick_name(member, new_nick_name, nick_name)
+                    .await?
             }
             None => {
-                let reply = format!(
-                    "{} has been christened with the name {}!",
-                    member.user_name, new_nick_name
-                );
-                self.discord_connector.send_reply(&reply).await?;
+                self.send_reply_for_member_without_nick_name(member, new_nick_name)
+                    .await?
             }
         }
+        Ok(())
+    }
+}
+
+impl<'a, DISCORD: DiscordConnector> NickServiceImpl<'a, DISCORD> {
+    async fn send_reply_for_member_without_nick_name(
+        &self,
+        member: &ServerMember,
+        new_nick_name: &str,
+    ) -> Result<(), Error> {
+        let reply = format!(
+            "{} has been christened with the name {}!",
+            member.user_name, new_nick_name
+        );
+        self.discord_connector.send_reply(&reply).await?;
+        Ok(())
+    }
+}
+
+impl<'a, DISCORD: DiscordConnector> NickServiceImpl<'a, DISCORD> {
+    async fn send_reply_for_member_with_nick_name(
+        &self,
+        member: &ServerMember,
+        new_nick_name: &str,
+        nick_name: &String,
+    ) -> Result<(), Error> {
+        let reply = format!(
+            "Changed {}'s nickname from '{}' to '{}'",
+            member.user_name, nick_name, new_nick_name
+        );
+        self.discord_connector.send_reply(&reply).await?;
         Ok(())
     }
 }

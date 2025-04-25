@@ -72,6 +72,8 @@ pub trait DiscordConnector {
         member_id: u64,
         new_nick_name: &'name str,
     ) -> Result<(), Error>;
+
+    async fn get_guild_owner_id(&self) -> Result<u64, Error>;
 }
 
 /// Represents a member of a Discord server.

@@ -83,6 +83,10 @@ impl DiscordConnector for SerenityDiscordConnector<'_> {
         };
         Ok(())
     }
+
+    async fn get_guild_owner_id(&self) -> Result<u64, Error> {
+        todo!()
+    }
 }
 
 impl Mentionable for serenity::Role {
