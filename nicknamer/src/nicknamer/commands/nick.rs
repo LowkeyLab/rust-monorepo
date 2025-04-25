@@ -96,6 +96,9 @@ mod tests {
     use crate::nicknamer::connectors::discord::MockDiscordConnector;
     use mockall::predicate::*;
 
+    // Guild owner ID constant for tests
+    const GUILD_OWNER_ID: u64 = 987654321;
+
     #[tokio::test]
     async fn nick_service_calls_discord_connector() {
         // Arrange
@@ -103,7 +106,7 @@ mod tests {
         mock_discord
             .expect_get_guild_owner_id()
             .times(1)
-            .returning(|| Ok(987654321)); // Different from member ID
+            .returning(|| Ok(GUILD_OWNER_ID)); // Different from member ID
 
         mock_discord
             .expect_change_member_nick_name()
@@ -135,13 +138,12 @@ mod tests {
     #[tokio::test]
     async fn nick_service_prevents_renaming_server_owner() {
         // Arrange
-        let owner_id = 123456789;
         let mut mock_discord = MockDiscordConnector::new();
 
         mock_discord
             .expect_get_guild_owner_id()
             .times(1)
-            .returning(move || Ok(owner_id));
+            .returning(|| Ok(GUILD_OWNER_ID));
 
         // Expect admonish message to be sent
         mock_discord
@@ -158,7 +160,7 @@ mod tests {
         let service = NickServiceImpl::new(&mock_discord);
 
         let member = ServerMember {
-            id: owner_id, // Same as owner_id
+            id: GUILD_OWNER_ID, // Same as owner_id
             nick_name: Some("OwnerNick".to_string()),
             user_name: "OwnerName".to_string(),
             is_bot: false,
@@ -203,13 +205,12 @@ mod tests {
     #[tokio::test]
     async fn nick_service_handles_admonish_error() {
         // Arrange
-        let owner_id = 123456789;
         let mut mock_discord = MockDiscordConnector::new();
 
         mock_discord
             .expect_get_guild_owner_id()
             .times(1)
-            .returning(move || Ok(owner_id));
+            .returning(|| Ok(GUILD_OWNER_ID));
 
         // Simulate error when sending admonishment
         mock_discord
@@ -220,7 +221,7 @@ mod tests {
         let service = NickServiceImpl::new(&mock_discord);
 
         let member = ServerMember {
-            id: owner_id,
+            id: GUILD_OWNER_ID,
             nick_name: Some("OwnerNick".to_string()),
             user_name: "OwnerName".to_string(),
             is_bot: false,
@@ -244,7 +245,7 @@ mod tests {
         mock_discord
             .expect_get_guild_owner_id()
             .times(1)
-            .returning(|| Ok(987654321)); // Different from member ID
+            .returning(|| Ok(GUILD_OWNER_ID)); // Different from member ID
 
         mock_discord
             .expect_change_member_nick_name()
@@ -278,7 +279,7 @@ mod tests {
         mock_discord
             .expect_get_guild_owner_id()
             .times(1)
-            .returning(|| Ok(987654321)); // Different from member ID
+            .returning(|| Ok(GUILD_OWNER_ID)); // Different from member ID
 
         mock_discord
             .expect_change_member_nick_name()
@@ -315,7 +316,7 @@ mod tests {
         mock_discord
             .expect_get_guild_owner_id()
             .times(1)
-            .returning(|| Ok(987654321)); // Different from member ID
+            .returning(|| Ok(GUILD_OWNER_ID)); // Different from member ID
 
         mock_discord
             .expect_change_member_nick_name()
@@ -351,7 +352,7 @@ mod tests {
         mock_discord
             .expect_get_guild_owner_id()
             .times(1)
-            .returning(|| Ok(987654321)); // Different from member ID
+            .returning(|| Ok(GUILD_OWNER_ID)); // Different from member ID
 
         mock_discord
             .expect_change_member_nick_name()
@@ -389,7 +390,7 @@ mod tests {
         mock_discord
             .expect_get_guild_owner_id()
             .times(1)
-            .returning(|| Ok(987654321)); // Different from member ID
+            .returning(|| Ok(GUILD_OWNER_ID)); // Different from member ID
 
         mock_discord
             .expect_change_member_nick_name()
@@ -429,7 +430,7 @@ mod tests {
         mock_discord
             .expect_get_guild_owner_id()
             .times(1)
-            .returning(|| Ok(987654321)); // Different from member ID
+            .returning(|| Ok(GUILD_OWNER_ID)); // Different from member ID
 
         mock_discord
             .expect_change_member_nick_name()
