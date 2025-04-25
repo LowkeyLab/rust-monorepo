@@ -48,7 +48,7 @@ impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> Revealer
     async fn reveal_member(&self, member: &ServerMember) -> Result<(), Error> {
         info!("Revealing real name for {}", member.user_name);
         if member.is_bot {
-            self.reveal_bot_member(&member).await?;
+            self.reveal_bot_member(member).await?;
         } else {
             self.reveal_human_member(member).await?;
         }
@@ -66,7 +66,7 @@ impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> RevealerImpl<'a, REPO
 }
 
 impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> RevealerImpl<'a, REPO, DISCORD> {
-    async fn reveal_bot_member(&self, member: &&ServerMember) -> Result<(), Error> {
+    async fn reveal_bot_member(&self, member: &ServerMember) -> Result<(), Error> {
         let name_to_show = match &member.nick_name {
             Some(nick_name) => nick_name,
             None => &member.user_name,
