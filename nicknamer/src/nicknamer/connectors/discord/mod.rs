@@ -38,6 +38,8 @@ pub enum Error {
     /// Unable to find the specified role
     #[error("Cannot find role")]
     CannotFindRole,
+    #[error("Not enough permissions")]
+    NotEnoughPermissions,
 }
 
 /// Trait for abstracting Discord server interactions.
@@ -64,6 +66,12 @@ pub trait DiscordConnector {
     ///
     /// * `Result<Box<dyn Role>, Error>` - The role if found, or an error otherwise
     async fn get_role_by_name(&self, name: &str) -> Result<Box<dyn Role>, Error>;
+
+    async fn change_member_nick_name(
+        &self,
+        member_id: u64,
+        new_nick_name: &str,
+    ) -> Result<(), Error>;
 }
 
 /// Represents a member of a Discord server.

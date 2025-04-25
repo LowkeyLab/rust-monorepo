@@ -1,5 +1,4 @@
 use crate::nicknamer::connectors::discord;
-use poise::serenity_prelude as serenity;
 use std::fmt::{Display, Formatter};
 use thiserror::Error;
 
@@ -74,9 +73,6 @@ impl User {
         }
     }
 }
-
-#[allow(dead_code)]
-pub fn nick(_user_id: serenity::UserId) {}
 
 #[cfg(test)]
 mod tests {
