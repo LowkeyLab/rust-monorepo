@@ -1,9 +1,12 @@
 use crate::nicknamer::connectors::discord;
 use poise::serenity_prelude as serenity;
 use std::fmt::{Display, Formatter};
+use thiserror::Error;
 
 pub(crate) mod names;
 pub mod reveal;
+
+pub mod nick;
 
 pub(crate) type Reply = String;
 
@@ -288,4 +291,12 @@ mod tests {
         // Assert
         assert_eq!(display_string, "'UserName' is RealName");
     }
+}
+
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("Something went wrong with Discord")]
+    DiscordError(#[from] discord::Error),
+    #[error("Something went wrong getting people's names")]
+    NamesAccessError(#[from] names::Error),
 }
