@@ -17,6 +17,30 @@ impl<'a, DISCORD: DiscordConnector> NickServiceImpl<'a, DISCORD> {
 
 impl<'a, DISCORD: DiscordConnector> NickService for NickServiceImpl<'a, DISCORD> {
     async fn nick(&self, member: &ServerMember, new_nick_name: &str) -> Result<(), Error> {
+        let owner_id = self.discord_connector.get_guild_owner_id().await?;
+        if member.id == owner_id {
+            self.admonish_for_violating_party_guidelines().await?;
+        } else {
+            self.change_member_nick_name(&member, new_nick_name).await?;
+        }
+        Ok(())
+    }
+}
+
+impl<'a, DISCORD: DiscordConnector> NickServiceImpl<'a, DISCORD> {
+    async fn admonish_for_violating_party_guidelines(&self) -> Result<(), Error> {
+        let reply = "You dare to rename our great General Secretary??? Away with your impudence!";
+        self.discord_connector.send_reply(&reply).await?;
+        Ok(())
+    }
+}
+
+impl<'a, DISCORD: DiscordConnector> NickServiceImpl<'a, DISCORD> {
+    async fn change_member_nick_name(
+        &self,
+        member: &&ServerMember,
+        new_nick_name: &str,
+    ) -> Result<(), Error> {
         self.discord_connector
             .change_member_nick_name(member.id, new_nick_name)
             .await?;
@@ -77,6 +101,11 @@ mod tests {
         // Arrange
         let mut mock_discord = MockDiscordConnector::new();
         mock_discord
+            .expect_get_guild_owner_id()
+            .times(1)
+            .returning(|| Ok(987654321)); // Different from member ID
+
+        mock_discord
             .expect_change_member_nick_name()
             .with(eq(123456789), eq("NewNick"))
             .times(1)
@@ -104,9 +133,119 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn nick_service_prevents_renaming_server_owner() {
+        // Arrange
+        let owner_id = 123456789;
+        let mut mock_discord = MockDiscordConnector::new();
+
+        mock_discord
+            .expect_get_guild_owner_id()
+            .times(1)
+            .returning(move || Ok(owner_id));
+
+        // Expect admonish message to be sent
+        mock_discord
+            .expect_send_reply()
+            .with(eq(
+                "You dare to rename our great General Secretary??? Away with your impudence!",
+            ))
+            .times(1)
+            .returning(|_| Ok(()));
+
+        // Should NOT call change_member_nick_name for server owner
+        mock_discord.expect_change_member_nick_name().times(0);
+
+        let service = NickServiceImpl::new(&mock_discord);
+
+        let member = ServerMember {
+            id: owner_id, // Same as owner_id
+            nick_name: Some("OwnerNick".to_string()),
+            user_name: "OwnerName".to_string(),
+            is_bot: false,
+        };
+
+        // Act
+        let result = service.nick(&member, "NewNick").await;
+
+        // Assert
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn nick_service_handles_guild_owner_id_error() {
+        // Arrange
+        let mut mock_discord = MockDiscordConnector::new();
+        mock_discord
+            .expect_get_guild_owner_id()
+            .times(1)
+            .returning(|| Err(DiscordError::CannotGetGuild));
+
+        let service = NickServiceImpl::new(&mock_discord);
+
+        let member = ServerMember {
+            id: 123456789,
+            nick_name: Some("OldNick".to_string()),
+            user_name: "UserName".to_string(),
+            is_bot: false,
+        };
+
+        // Act
+        let result = service.nick(&member, "NewNick").await;
+
+        // Assert
+        assert!(result.is_err());
+        match result {
+            Err(Error::DiscordError(DiscordError::CannotGetGuild)) => (),
+            _ => panic!("Expected CannotGetGuild error, got different error type"),
+        }
+    }
+
+    #[tokio::test]
+    async fn nick_service_handles_admonish_error() {
+        // Arrange
+        let owner_id = 123456789;
+        let mut mock_discord = MockDiscordConnector::new();
+
+        mock_discord
+            .expect_get_guild_owner_id()
+            .times(1)
+            .returning(move || Ok(owner_id));
+
+        // Simulate error when sending admonishment
+        mock_discord
+            .expect_send_reply()
+            .times(1)
+            .returning(|_| Err(DiscordError::CannotSendReply));
+
+        let service = NickServiceImpl::new(&mock_discord);
+
+        let member = ServerMember {
+            id: owner_id,
+            nick_name: Some("OwnerNick".to_string()),
+            user_name: "OwnerName".to_string(),
+            is_bot: false,
+        };
+
+        // Act
+        let result = service.nick(&member, "NewNick").await;
+
+        // Assert
+        assert!(result.is_err());
+        match result {
+            Err(Error::DiscordError(DiscordError::CannotSendReply)) => (),
+            _ => panic!("Expected CannotSendReply error, got different error type"),
+        }
+    }
+
+    #[tokio::test]
     async fn nick_service_handles_discord_error() {
         // Arrange
         let mut mock_discord = MockDiscordConnector::new();
+        mock_discord
+            .expect_get_guild_owner_id()
+            .times(1)
+            .returning(|| Ok(987654321)); // Different from member ID
+
         mock_discord
             .expect_change_member_nick_name()
             .times(1)
@@ -136,6 +275,11 @@ mod tests {
     async fn nick_service_handles_empty_nickname() {
         // Arrange
         let mut mock_discord = MockDiscordConnector::new();
+        mock_discord
+            .expect_get_guild_owner_id()
+            .times(1)
+            .returning(|| Ok(987654321)); // Different from member ID
+
         mock_discord
             .expect_change_member_nick_name()
             .with(eq(123456789), eq(""))
@@ -169,6 +313,11 @@ mod tests {
         let long_nickname = "A".repeat(100); // Some very long nickname
         let mut mock_discord = MockDiscordConnector::new();
         mock_discord
+            .expect_get_guild_owner_id()
+            .times(1)
+            .returning(|| Ok(987654321)); // Different from member ID
+
+        mock_discord
             .expect_change_member_nick_name()
             .with(eq(123456789), eq(String::from(long_nickname.as_str())))
             .times(1)
@@ -199,6 +348,11 @@ mod tests {
     async fn nick_service_handles_member_without_previous_nickname() {
         // Arrange
         let mut mock_discord = MockDiscordConnector::new();
+        mock_discord
+            .expect_get_guild_owner_id()
+            .times(1)
+            .returning(|| Ok(987654321)); // Different from member ID
+
         mock_discord
             .expect_change_member_nick_name()
             .with(eq(123456789), eq("FirstNick"))
@@ -232,6 +386,11 @@ mod tests {
     async fn nick_service_handles_send_reply_error() {
         // Arrange
         let mut mock_discord = MockDiscordConnector::new();
+        mock_discord
+            .expect_get_guild_owner_id()
+            .times(1)
+            .returning(|| Ok(987654321)); // Different from member ID
+
         mock_discord
             .expect_change_member_nick_name()
             .times(1)
@@ -267,6 +426,11 @@ mod tests {
     async fn nick_service_sends_correct_message_for_nickname_change() {
         // Arrange
         let mut mock_discord = MockDiscordConnector::new();
+        mock_discord
+            .expect_get_guild_owner_id()
+            .times(1)
+            .returning(|| Ok(987654321)); // Different from member ID
+
         mock_discord
             .expect_change_member_nick_name()
             .times(1)

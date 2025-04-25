@@ -85,7 +85,10 @@ impl DiscordConnector for SerenityDiscordConnector<'_> {
     }
 
     async fn get_guild_owner_id(&self) -> Result<u64, Error> {
-        todo!()
+        let Some(guild) = self.context.guild() else {
+            return Err(CannotGetGuild);
+        };
+        Ok(guild.owner_id.get())
     }
 }
 
