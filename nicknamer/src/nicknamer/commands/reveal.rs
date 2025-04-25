@@ -109,11 +109,12 @@ impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> RevealerImpl<'a, REPO
 
 fn reveal_member(server_member: &ServerMember, real_names: &Names) -> Reply {
     if server_member.is_bot {
-        return format!(
-            "User {} is a bot, {}!",
-            server_member.user_name,
-            config::REVEAL_INSULT
-        );
+        let name_to_show = match &server_member.nick_name {
+            Some(nick_name) => nick_name,
+            None => &server_member.user_name,
+        };
+
+        return format!("{} is a bot, {}!", name_to_show, config::REVEAL_INSULT);
     }
     let user_id = server_member.id;
     let mut user: User = server_member.into();
@@ -421,15 +422,15 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn reveal_member_should_handle_bot_member() {
+        async fn reveal_member_should_handle_bot_with_nickname() {
             // Setup mock objects
             let mut mock_repo = MockNamesRepository::new();
             let mut mock_discord = MockDiscordConnector::new();
 
-            // Define test data - a bot user
+            // Define test data - a bot user with nickname
             let bot_member = ServerMember {
                 id: 111111111,
-                nick_name: Some("BotUser".to_string()),
+                nick_name: Some("BotNick".to_string()),
                 user_name: "BotUser".to_string(),
                 is_bot: true,
             };
@@ -441,12 +442,52 @@ mod tests {
                 })
             });
 
-            // The message should indicate it's a bot
+            // Check that the correct message is sent via Discord
+            mock_discord
+                .expect_send_reply()
+                .with(eq(format!("BotNick is a bot, {}!", config::REVEAL_INSULT)))
+                .times(1)
+                .returning(|_| Ok(()));
+
+            // Create revealer with mock objects
+            let revealer = RevealerImpl::new(&mock_repo, &mock_discord);
+
+            // Execute the method under test
+            let result = revealer.reveal_member(&bot_member).await;
+
+            // Verify results
+            assert!(
+                result.is_ok(),
+                "reveal_member should succeed for a bot with nickname"
+            );
+        }
+
+        #[tokio::test]
+        async fn reveal_member_should_handle_bot_without_nickname() {
+            // Setup mock objects
+            let mut mock_repo = MockNamesRepository::new();
+            let mut mock_discord = MockDiscordConnector::new();
+
+            // Define test data - a bot user without nickname
+            let bot_member = ServerMember {
+                id: 222222222,
+                nick_name: None,
+                user_name: "BotUserName".to_string(),
+                is_bot: true,
+            };
+
+            // Set up expectations
+            mock_repo.expect_load_real_names().times(1).returning(|| {
+                Ok(Names {
+                    names: HashMap::new(),
+                })
+            });
+
+            // Check that the correct message is sent via Discord
             mock_discord
                 .expect_send_reply()
                 .with(eq(format!(
-                    "User {} is a bot, {}!",
-                    bot_member.user_name,
+                    "BotUserName is a bot, {}!",
                     config::REVEAL_INSULT
                 )))
                 .times(1)
@@ -459,7 +500,54 @@ mod tests {
             let result = revealer.reveal_member(&bot_member).await;
 
             // Verify results
-            assert!(result.is_ok(), "reveal_member should succeed for a bot");
+            assert!(
+                result.is_ok(),
+                "reveal_member should succeed for a bot without nickname"
+            );
+        }
+
+        #[tokio::test]
+        async fn reveal_member_should_handle_discord_error_for_bot() {
+            // Setup mock objects
+            let mut mock_repo = MockNamesRepository::new();
+            let mut mock_discord = MockDiscordConnector::new();
+
+            // Define test data - a bot user
+            let bot_member = ServerMember {
+                id: 333333333,
+                nick_name: Some("ErrorBot".to_string()),
+                user_name: "ErrorBot".to_string(),
+                is_bot: true,
+            };
+
+            // Set up expectations
+            mock_repo.expect_load_real_names().times(1).returning(|| {
+                Ok(Names {
+                    names: HashMap::new(),
+                })
+            });
+
+            // Discord connector returns an error when trying to send reply
+            mock_discord
+                .expect_send_reply()
+                .times(1)
+                .returning(|_| Err(crate::nicknamer::connectors::discord::Error::CannotSendReply));
+
+            // Create revealer with mock objects
+            let revealer = RevealerImpl::new(&mock_repo, &mock_discord);
+
+            // Execute the method under test
+            let result = revealer.reveal_member(&bot_member).await;
+
+            // Verify results
+            assert!(
+                result.is_err(),
+                "reveal_member should fail when Discord errors"
+            );
+            match result {
+                Err(Error::DiscordError(_)) => (),
+                _ => panic!("Expected DiscordError, got different error type"),
+            }
         }
 
         #[tokio::test]
