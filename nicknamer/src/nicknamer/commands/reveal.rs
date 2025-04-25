@@ -48,17 +48,31 @@ impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> Revealer
     async fn reveal_member(&self, member: &ServerMember) -> Result<(), Error> {
         info!("Revealing real name for {}", member.user_name);
         if member.is_bot {
-            let name_to_show = match &member.nick_name {
-                Some(nick_name) => nick_name,
-                None => &member.user_name,
-            };
-            let reply = format!("{} is a bot, {}!", name_to_show, config::REVEAL_INSULT);
-            self.discord_connector.send_reply(&reply).await?;
+            self.reveal_bot_member(&member).await?;
         } else {
-            let names = self.names_repository.load_real_names().await?;
-            let reply = reveal_member(member, &names);
-            self.discord_connector.send_reply(&reply).await?;
+            self.reveal_human_member(member).await?;
         }
+        Ok(())
+    }
+}
+
+impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> RevealerImpl<'a, REPO, DISCORD> {
+    async fn reveal_human_member(&self, member: &ServerMember) -> Result<(), Error> {
+        let names = self.names_repository.load_real_names().await?;
+        let reply = reveal_member(member, &names);
+        self.discord_connector.send_reply(&reply).await?;
+        Ok(())
+    }
+}
+
+impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> RevealerImpl<'a, REPO, DISCORD> {
+    async fn reveal_bot_member(&self, member: &&ServerMember) -> Result<(), Error> {
+        let name_to_show = match &member.nick_name {
+            Some(nick_name) => nick_name,
+            None => &member.user_name,
+        };
+        let reply = format!("{} is a bot, {}!", name_to_show, config::REVEAL_INSULT);
+        self.discord_connector.send_reply(&reply).await?;
         Ok(())
     }
 }
