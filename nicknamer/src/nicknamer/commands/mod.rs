@@ -87,6 +87,7 @@ mod tests {
             nick_name: Some("NickName".to_string()),
             user_name: "UserName".to_string(),
             is_bot: false,
+            mention: "<@12345>".to_string(),
         };
         let real_name = Some("Real Name".to_string());
 
@@ -108,6 +109,7 @@ mod tests {
             nick_name: None,
             user_name: "UserName".to_string(),
             is_bot: false,
+            mention: "<@67890>".to_string(),
         };
         let real_name = Some("Real Name".to_string());
 
@@ -129,6 +131,7 @@ mod tests {
             nick_name: Some("".to_string()), // Empty nickname
             user_name: "UserName".to_string(),
             is_bot: false,
+            mention: "<@13579>".to_string(),
         };
         let real_name = Some("Real Name".to_string());
 
@@ -150,6 +153,7 @@ mod tests {
             nick_name: Some("SameName".to_string()),
             user_name: "SameName".to_string(),
             is_bot: false,
+            mention: "<@24680>".to_string(),
         };
         let real_name = Some("Real Name".to_string());
 

@@ -66,8 +66,9 @@ impl<'a, DISCORD: DiscordConnector> NickServiceImpl<'a, DISCORD> {
                             .get_role_by_name(config::CODE_MONKEYS_ROLE_NAME)
                             .await?;
                         format!(
-                            "Some devilry restricts my power. {} please investigate the rogue member",
-                            role_to_mention.mention()
+                            "Some devilry restricts my power. {} please investigate the rogue member {}",
+                            role_to_mention.mention(),
+                            member.mention
                         )
                     }
                     err => format!("You fool! You messed it up!: {}", err),
@@ -147,6 +148,7 @@ mod tests {
             nick_name: Some("OldNick".to_string()),
             user_name: "UserName".to_string(),
             is_bot: false,
+            mention: "<@123456789>".to_string(),
         };
 
         // Act
@@ -185,6 +187,7 @@ mod tests {
             nick_name: Some("OwnerNick".to_string()),
             user_name: "OwnerName".to_string(),
             is_bot: false,
+            mention: format!("<@{}>", GUILD_OWNER_ID),
         };
 
         // Act
@@ -210,6 +213,7 @@ mod tests {
             nick_name: Some("OldNick".to_string()),
             user_name: "UserName".to_string(),
             is_bot: false,
+            mention: format!("<@{}>", GUILD_OWNER_ID),
         };
 
         // Act
@@ -246,6 +250,7 @@ mod tests {
             nick_name: Some("OwnerNick".to_string()),
             user_name: "OwnerName".to_string(),
             is_bot: false,
+            mention: format!("<@{}>", GUILD_OWNER_ID),
         };
 
         // Act
@@ -304,6 +309,7 @@ mod tests {
             nick_name: Some("OldNick".to_string()),
             user_name: "UserName".to_string(),
             is_bot: false,
+            mention: "<@123456789>".to_string(),
         };
 
         // Act
@@ -338,10 +344,10 @@ mod tests {
             .times(1)
             .returning(|_| Ok(Box::new(TestRole)));
 
-        // Expect send_reply to succeed with the proper message
+        // Expect send_reply to succeed with the proper message including member mention
         mock_discord
             .expect_send_reply()
-            .with(eq("Some devilry restricts my power. @Code Monkeys please investigate the rogue member"))
+            .with(eq("Some devilry restricts my power. @Code Monkeys please investigate the rogue member <@123456789>"))
             .times(1)
             .returning(|_| Ok(()));
 
@@ -352,6 +358,7 @@ mod tests {
             nick_name: Some("OldNick".to_string()),
             user_name: "UserName".to_string(),
             is_bot: false,
+            mention: "<@123456789>".to_string(),
         };
 
         // Act
@@ -389,6 +396,7 @@ mod tests {
             nick_name: Some("OldNick".to_string()),
             user_name: "UserName".to_string(),
             is_bot: false,
+            mention: "<@123456789>".to_string(),
         };
 
         // Act
@@ -429,6 +437,7 @@ mod tests {
             nick_name: Some("OldNick".to_string()),
             user_name: "UserName".to_string(),
             is_bot: false,
+            mention: "<@123456789>".to_string(),
         };
 
         // Act
@@ -466,6 +475,7 @@ mod tests {
             nick_name: Some("OldNick".to_string()),
             user_name: "UserName".to_string(),
             is_bot: false,
+            mention: "<@123456789>".to_string(),
         };
 
         // Act
@@ -504,6 +514,7 @@ mod tests {
             nick_name: None, // No previous nickname
             user_name: "UserName".to_string(),
             is_bot: false,
+            mention: "<@123456789>".to_string(),
         };
 
         // Act
@@ -540,6 +551,7 @@ mod tests {
             nick_name: Some("OldNick".to_string()),
             user_name: "UserName".to_string(),
             is_bot: false,
+            mention: "<@123456789>".to_string(),
         };
 
         // Act
@@ -583,6 +595,7 @@ mod tests {
             nick_name: Some("OldNick".to_string()),
             user_name: "UserName".to_string(),
             is_bot: false,
+            mention: "<@123456789>".to_string(),
         };
 
         // Act
@@ -621,6 +634,7 @@ mod tests {
             nick_name: Some("OldNick".to_string()),
             user_name: "UserName".to_string(),
             is_bot: false,
+            mention: format!("<@{}>", 123456789),
         };
 
         // Act

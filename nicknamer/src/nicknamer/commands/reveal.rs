@@ -240,12 +240,14 @@ mod tests {
                     nick_name: Some("AliceNickname".to_string()),
                     user_name: "AliceUsername".to_string(),
                     is_bot: false,
+                    mention: "<@123456789>".to_string(),
                 },
                 ServerMember {
                     id: 987654321,
                     nick_name: Some("BobNickname".to_string()),
                     user_name: "BobUsername".to_string(),
                     is_bot: false,
+                    mention: "<@987654321>".to_string(),
                 },
             ];
 
@@ -322,12 +324,14 @@ mod tests {
                     nick_name: Some("HumanUser".to_string()),
                     user_name: "HumanUser".to_string(),
                     is_bot: false,
+                    mention: "<@111111111>".to_string(),
                 },
                 ServerMember {
                     id: 222222222,
                     nick_name: Some("BotUser".to_string()),
                     user_name: "BotUser".to_string(),
                     is_bot: true, // This is a bot
+                    mention: "<@222222222>".to_string(),
                 },
             ];
 
@@ -389,12 +393,14 @@ mod tests {
                     nick_name: Some("BotUser1".to_string()),
                     user_name: "BotUser1".to_string(),
                     is_bot: true,
+                    mention: "<@111111111>".to_string(),
                 },
                 ServerMember {
                     id: 222222222,
                     nick_name: Some("BotUser2".to_string()),
                     user_name: "BotUser2".to_string(),
                     is_bot: true,
+                    mention: "<@222222222>".to_string(),
                 },
             ];
 
@@ -439,6 +445,7 @@ mod tests {
                 nick_name: Some("BotNick".to_string()),
                 user_name: "BotUser".to_string(),
                 is_bot: true,
+                mention: "<@111111111>".to_string(),
             };
 
             // Check that the correct message is sent via Discord
@@ -473,6 +480,7 @@ mod tests {
                 nick_name: None,
                 user_name: "BotUserName".to_string(),
                 is_bot: true,
+                mention: "<@222222222>".to_string(),
             };
 
             // Check that the correct message is sent via Discord
@@ -510,6 +518,7 @@ mod tests {
                 nick_name: Some("ErrorBot".to_string()),
                 user_name: "ErrorBot".to_string(),
                 is_bot: true,
+                mention: "<@333333333>".to_string(),
             };
 
             // Discord connector returns an error when trying to send reply
@@ -547,6 +556,7 @@ mod tests {
                 nick_name: Some("NickName".to_string()),
                 user_name: "UserName".to_string(),
                 is_bot: false,
+                mention: "<@111111111>".to_string(),
             };
 
             // Empty names database
@@ -592,6 +602,7 @@ mod tests {
                 nick_name: Some("NickName".to_string()),
                 user_name: "UserName".to_string(),
                 is_bot: false,
+                mention: "<@111111111>".to_string(),
             };
 
             // Names database with the user's real name
@@ -637,6 +648,7 @@ mod tests {
                 nick_name: Some("NickName".to_string()),
                 user_name: "UserName".to_string(),
                 is_bot: false,
+                mention: format!("<@{}>", 111111111),
             };
 
             // Set up expectations - repository returns an error
