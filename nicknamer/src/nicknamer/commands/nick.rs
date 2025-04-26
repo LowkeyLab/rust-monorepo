@@ -1,7 +1,8 @@
 use crate::nicknamer::commands::Error;
 use crate::nicknamer::config;
 use crate::nicknamer::connectors::discord;
-use crate::nicknamer::connectors::discord::{DiscordConnector, ServerMember};
+use crate::nicknamer::connectors::discord::DiscordConnector;
+use crate::nicknamer::connectors::discord::server_member::ServerMember;
 
 pub trait NickService {
     async fn nick(&self, member: &ServerMember, new_nick_name: &str) -> Result<(), Error>;
@@ -114,8 +115,9 @@ impl<'a, DISCORD: DiscordConnector> NickServiceImpl<'a, DISCORD> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::nicknamer::connectors::discord::MockDiscordConnector;
+    use crate::nicknamer::connectors::discord::server_member::ServerMemberBuilder;
     use crate::nicknamer::connectors::discord::{Error as DiscordError, Mentionable, Role};
-    use crate::nicknamer::connectors::discord::{MockDiscordConnector, ServerMemberBuilder};
     use mockall::predicate::*;
 
     // Guild owner ID constant for tests

@@ -1,4 +1,5 @@
 use crate::nicknamer::connectors::discord;
+use crate::nicknamer::connectors::discord::server_member;
 use std::fmt::{Display, Formatter};
 use thiserror::Error;
 
@@ -16,8 +17,8 @@ pub struct User {
     pub nick_name: Option<String>,
     pub real_name: Option<String>,
 }
-impl From<discord::ServerMember> for User {
-    fn from(discord_member: discord::ServerMember) -> Self {
+impl From<server_member::ServerMember> for User {
+    fn from(discord_member: server_member::ServerMember) -> Self {
         Self {
             id: discord_member.id,
             user_name: discord_member.user_name.clone(),
@@ -27,8 +28,8 @@ impl From<discord::ServerMember> for User {
     }
 }
 
-impl From<&discord::ServerMember> for User {
-    fn from(discord_member: &discord::ServerMember) -> Self {
+impl From<&server_member::ServerMember> for User {
+    fn from(discord_member: &server_member::ServerMember) -> Self {
         Self {
             id: discord_member.id,
             user_name: discord_member.user_name.clone(),
@@ -77,7 +78,7 @@ impl User {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::nicknamer::connectors::discord::ServerMemberBuilder;
+    use crate::nicknamer::connectors::discord::server_member::ServerMemberBuilder;
 
     #[test]
     fn can_convert_server_member_with_nickname_to_user() {

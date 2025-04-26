@@ -1,7 +1,8 @@
 use crate::nicknamer::commands::names::{Names, NamesRepository};
 use crate::nicknamer::commands::{Error, Reply, User};
 use crate::nicknamer::config;
-use crate::nicknamer::connectors::discord::{DiscordConnector, Role, ServerMember};
+use crate::nicknamer::connectors::discord::server_member::ServerMember;
+use crate::nicknamer::connectors::discord::{DiscordConnector, Role};
 use log::info;
 
 pub trait Revealer {
@@ -223,7 +224,8 @@ mod tests {
         use crate::nicknamer::commands::names::{MockNamesRepository, Names};
         use crate::nicknamer::commands::reveal::{Error, Revealer, RevealerImpl};
         use crate::nicknamer::config;
-        use crate::nicknamer::connectors::discord::{MockDiscordConnector, ServerMemberBuilder};
+        use crate::nicknamer::connectors::discord::MockDiscordConnector;
+        use crate::nicknamer::connectors::discord::server_member::ServerMemberBuilder;
         use mockall::predicate::*;
         use std::collections::HashMap;
 

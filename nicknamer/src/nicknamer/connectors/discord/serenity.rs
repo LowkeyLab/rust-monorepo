@@ -7,9 +7,8 @@ use crate::nicknamer::connectors::discord::Error::{
     CannotFindChannel, CannotFindMembersOfChannel, CannotFindRole, CannotGetGuild, CannotSendReply,
     NotEnoughPermissions, NotInServerChannel,
 };
-use crate::nicknamer::connectors::discord::{
-    DiscordConnector, Error, Mentionable, Role, ServerMember,
-};
+use crate::nicknamer::connectors::discord::server_member::ServerMember;
+use crate::nicknamer::connectors::discord::{DiscordConnector, Error, Mentionable, Role};
 use log::info;
 use poise::serenity_prelude as serenity;
 use poise::serenity_prelude::EditMember;
