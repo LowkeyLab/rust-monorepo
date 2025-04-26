@@ -147,6 +147,7 @@ mod tests {
             nick_name: Some("OldNick".to_string()),
             user_name: "UserName".to_string(),
             is_bot: false,
+            mention: "<@123456789>".to_string(),
         };
 
         // Act
@@ -185,6 +186,7 @@ mod tests {
             nick_name: Some("OwnerNick".to_string()),
             user_name: "OwnerName".to_string(),
             is_bot: false,
+            mention: format!("<@{}>", GUILD_OWNER_ID),
         };
 
         // Act
@@ -210,6 +212,7 @@ mod tests {
             nick_name: Some("OldNick".to_string()),
             user_name: "UserName".to_string(),
             is_bot: false,
+            mention: format!("<@{}>", GUILD_OWNER_ID),
         };
 
         // Act
@@ -246,6 +249,7 @@ mod tests {
             nick_name: Some("OwnerNick".to_string()),
             user_name: "OwnerName".to_string(),
             is_bot: false,
+            mention: format!("<@{}>", GUILD_OWNER_ID),
         };
 
         // Act
@@ -304,6 +308,7 @@ mod tests {
             nick_name: Some("OldNick".to_string()),
             user_name: "UserName".to_string(),
             is_bot: false,
+            mention: "<@123456789>".to_string(),
         };
 
         // Act
@@ -352,6 +357,7 @@ mod tests {
             nick_name: Some("OldNick".to_string()),
             user_name: "UserName".to_string(),
             is_bot: false,
+            mention: "<@123456789>".to_string(),
         };
 
         // Act
@@ -389,6 +395,7 @@ mod tests {
             nick_name: Some("OldNick".to_string()),
             user_name: "UserName".to_string(),
             is_bot: false,
+            mention: "<@123456789>".to_string(),
         };
 
         // Act
@@ -429,6 +436,7 @@ mod tests {
             nick_name: Some("OldNick".to_string()),
             user_name: "UserName".to_string(),
             is_bot: false,
+            mention: "<@123456789>".to_string(),
         };
 
         // Act
@@ -466,6 +474,7 @@ mod tests {
             nick_name: Some("OldNick".to_string()),
             user_name: "UserName".to_string(),
             is_bot: false,
+            mention: "<@123456789>".to_string(),
         };
 
         // Act
@@ -504,6 +513,7 @@ mod tests {
             nick_name: None, // No previous nickname
             user_name: "UserName".to_string(),
             is_bot: false,
+            mention: "<@123456789>".to_string(),
         };
 
         // Act
@@ -540,6 +550,7 @@ mod tests {
             nick_name: Some("OldNick".to_string()),
             user_name: "UserName".to_string(),
             is_bot: false,
+            mention: "<@123456789>".to_string(),
         };
 
         // Act
@@ -583,6 +594,7 @@ mod tests {
             nick_name: Some("OldNick".to_string()),
             user_name: "UserName".to_string(),
             is_bot: false,
+            mention: "<@123456789>".to_string(),
         };
 
         // Act
@@ -621,6 +633,7 @@ mod tests {
             nick_name: Some("OldNick".to_string()),
             user_name: "UserName".to_string(),
             is_bot: false,
+            mention: format!("<@{}>", 123456789),
         };
 
         // Act

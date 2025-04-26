@@ -90,6 +90,7 @@ pub struct ServerMember {
     pub(crate) user_name: String,
     /// Whether the member is a bot
     pub(crate) is_bot: bool,
+    pub(crate) mention: String,
 }
 
 /// Represents an entity that can be mentioned in Discord messages.

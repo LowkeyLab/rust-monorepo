@@ -13,6 +13,7 @@ use crate::nicknamer::connectors::discord::{
 use log::info;
 use poise::serenity_prelude as serenity;
 use poise::serenity_prelude::EditMember;
+use poise::serenity_prelude::Mentionable as poise_Mentionable;
 
 /// Discord connector implementation using Serenity library.
 ///
@@ -107,6 +108,7 @@ impl From<serenity::Member> for ServerMember {
             nick_name: member.nick.clone(),
             user_name: member.user.name.clone(),
             is_bot: member.user.bot,
+            mention: member.mention().to_string(),
         }
     }
 }
