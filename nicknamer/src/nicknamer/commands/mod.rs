@@ -1,4 +1,5 @@
 use crate::nicknamer::connectors::discord;
+use crate::nicknamer::connectors::discord::server_member;
 use std::fmt::{Display, Formatter};
 use thiserror::Error;
 
@@ -16,8 +17,8 @@ pub struct User {
     pub nick_name: Option<String>,
     pub real_name: Option<String>,
 }
-impl From<discord::ServerMember> for User {
-    fn from(discord_member: discord::ServerMember) -> Self {
+impl From<server_member::ServerMember> for User {
+    fn from(discord_member: server_member::ServerMember) -> Self {
         Self {
             id: discord_member.id,
             user_name: discord_member.user_name.clone(),
@@ -27,8 +28,8 @@ impl From<discord::ServerMember> for User {
     }
 }
 
-impl From<&discord::ServerMember> for User {
-    fn from(discord_member: &discord::ServerMember) -> Self {
+impl From<&server_member::ServerMember> for User {
+    fn from(discord_member: &server_member::ServerMember) -> Self {
         Self {
             id: discord_member.id,
             user_name: discord_member.user_name.clone(),
@@ -77,18 +78,17 @@ impl User {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::nicknamer::connectors::discord::ServerMember;
+    use crate::nicknamer::connectors::discord::server_member::ServerMemberBuilder;
 
     #[test]
     fn can_convert_server_member_with_nickname_to_user() {
         // Arrange
-        let member = ServerMember {
-            id: 12345,
-            nick_name: Some("NickName".to_string()),
-            user_name: "UserName".to_string(),
-            is_bot: false,
-            mention: "<@12345>".to_string(),
-        };
+        let member = ServerMemberBuilder::new()
+            .id(12345)
+            .nick_name("NickName")
+            .user_name("UserName")
+            .is_bot(false)
+            .build();
         let real_name = Some("Real Name".to_string());
 
         // Act
@@ -104,13 +104,11 @@ mod tests {
     #[test]
     fn can_convert_server_member_without_nickname_using_username_fallback() {
         // Arrange
-        let member = ServerMember {
-            id: 67890,
-            nick_name: None,
-            user_name: "UserName".to_string(),
-            is_bot: false,
-            mention: "<@67890>".to_string(),
-        };
+        let member = ServerMemberBuilder::new()
+            .id(67890)
+            .user_name("UserName")
+            .is_bot(false)
+            .build();
         let real_name = Some("Real Name".to_string());
 
         // Act
@@ -126,13 +124,12 @@ mod tests {
     #[test]
     fn can_handle_empty_nickname_when_converting_server_member() {
         // Arrange
-        let member = ServerMember {
-            id: 13579,
-            nick_name: Some("".to_string()), // Empty nickname
-            user_name: "UserName".to_string(),
-            is_bot: false,
-            mention: "<@13579>".to_string(),
-        };
+        let member = ServerMemberBuilder::new()
+            .id(13579)
+            .nick_name("") // Empty nickname
+            .user_name("UserName")
+            .is_bot(false)
+            .build();
         let real_name = Some("Real Name".to_string());
 
         // Act
@@ -148,13 +145,12 @@ mod tests {
     #[test]
     fn can_convert_server_member_when_nickname_matches_username() {
         // Arrange - when nickname matches username
-        let member = ServerMember {
-            id: 24680,
-            nick_name: Some("SameName".to_string()),
-            user_name: "SameName".to_string(),
-            is_bot: false,
-            mention: "<@24680>".to_string(),
-        };
+        let member = ServerMemberBuilder::new()
+            .id(24680)
+            .nick_name("SameName")
+            .user_name("SameName")
+            .is_bot(false)
+            .build();
         let real_name = Some("Real Name".to_string());
 
         // Act

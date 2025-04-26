@@ -1,7 +1,8 @@
 use crate::nicknamer::commands::names::{Names, NamesRepository};
 use crate::nicknamer::commands::{Error, Reply, User};
 use crate::nicknamer::config;
-use crate::nicknamer::connectors::discord::{DiscordConnector, Role, ServerMember};
+use crate::nicknamer::connectors::discord::server_member::ServerMember;
+use crate::nicknamer::connectors::discord::{DiscordConnector, Role};
 use log::info;
 
 pub trait Revealer {
@@ -223,7 +224,8 @@ mod tests {
         use crate::nicknamer::commands::names::{MockNamesRepository, Names};
         use crate::nicknamer::commands::reveal::{Error, Revealer, RevealerImpl};
         use crate::nicknamer::config;
-        use crate::nicknamer::connectors::discord::{MockDiscordConnector, ServerMember};
+        use crate::nicknamer::connectors::discord::MockDiscordConnector;
+        use crate::nicknamer::connectors::discord::server_member::ServerMemberBuilder;
         use mockall::predicate::*;
         use std::collections::HashMap;
 
@@ -235,20 +237,18 @@ mod tests {
 
             // Define test data
             let members = vec![
-                ServerMember {
-                    id: 123456789,
-                    nick_name: Some("AliceNickname".to_string()),
-                    user_name: "AliceUsername".to_string(),
-                    is_bot: false,
-                    mention: "<@123456789>".to_string(),
-                },
-                ServerMember {
-                    id: 987654321,
-                    nick_name: Some("BobNickname".to_string()),
-                    user_name: "BobUsername".to_string(),
-                    is_bot: false,
-                    mention: "<@987654321>".to_string(),
-                },
+                ServerMemberBuilder::new()
+                    .id(123456789)
+                    .nick_name("AliceNickname")
+                    .user_name("AliceUsername")
+                    .is_bot(false)
+                    .build(),
+                ServerMemberBuilder::new()
+                    .id(987654321)
+                    .nick_name("BobNickname")
+                    .user_name("BobUsername")
+                    .is_bot(false)
+                    .build(),
             ];
 
             let mut names_map = HashMap::new();
@@ -319,20 +319,18 @@ mod tests {
 
             // Define test data - one normal user and one bot user
             let members = vec![
-                ServerMember {
-                    id: 111111111,
-                    nick_name: Some("HumanUser".to_string()),
-                    user_name: "HumanUser".to_string(),
-                    is_bot: false,
-                    mention: "<@111111111>".to_string(),
-                },
-                ServerMember {
-                    id: 222222222,
-                    nick_name: Some("BotUser".to_string()),
-                    user_name: "BotUser".to_string(),
-                    is_bot: true, // This is a bot
-                    mention: "<@222222222>".to_string(),
-                },
+                ServerMemberBuilder::new()
+                    .id(111111111)
+                    .nick_name("HumanUser")
+                    .user_name("HumanUser")
+                    .is_bot(false)
+                    .build(),
+                ServerMemberBuilder::new()
+                    .id(222222222)
+                    .nick_name("BotUser")
+                    .user_name("BotUser")
+                    .is_bot(true) // This is a bot
+                    .build(),
             ];
 
             // Empty real names database
@@ -388,20 +386,18 @@ mod tests {
 
             // Define test data - only bot users
             let members = vec![
-                ServerMember {
-                    id: 111111111,
-                    nick_name: Some("BotUser1".to_string()),
-                    user_name: "BotUser1".to_string(),
-                    is_bot: true,
-                    mention: "<@111111111>".to_string(),
-                },
-                ServerMember {
-                    id: 222222222,
-                    nick_name: Some("BotUser2".to_string()),
-                    user_name: "BotUser2".to_string(),
-                    is_bot: true,
-                    mention: "<@222222222>".to_string(),
-                },
+                ServerMemberBuilder::new()
+                    .id(111111111)
+                    .nick_name("BotUser1")
+                    .user_name("BotUser1")
+                    .is_bot(true)
+                    .build(),
+                ServerMemberBuilder::new()
+                    .id(222222222)
+                    .nick_name("BotUser2")
+                    .user_name("BotUser2")
+                    .is_bot(true)
+                    .build(),
             ];
 
             // Empty real names database
@@ -440,13 +436,12 @@ mod tests {
             let mut mock_discord = MockDiscordConnector::new();
 
             // Define test data - a bot user with nickname
-            let bot_member = ServerMember {
-                id: 111111111,
-                nick_name: Some("BotNick".to_string()),
-                user_name: "BotUser".to_string(),
-                is_bot: true,
-                mention: "<@111111111>".to_string(),
-            };
+            let bot_member = ServerMemberBuilder::new()
+                .id(111111111)
+                .nick_name("BotNick")
+                .user_name("BotUser")
+                .is_bot(true)
+                .build();
 
             // Check that the correct message is sent via Discord
             mock_discord
@@ -475,13 +470,11 @@ mod tests {
             let mut mock_discord = MockDiscordConnector::new();
 
             // Define test data - a bot user without nickname
-            let bot_member = ServerMember {
-                id: 222222222,
-                nick_name: None,
-                user_name: "BotUserName".to_string(),
-                is_bot: true,
-                mention: "<@222222222>".to_string(),
-            };
+            let bot_member = ServerMemberBuilder::new()
+                .id(222222222)
+                .user_name("BotUserName")
+                .is_bot(true)
+                .build();
 
             // Check that the correct message is sent via Discord
             mock_discord
@@ -513,13 +506,12 @@ mod tests {
             let mut mock_discord = MockDiscordConnector::new();
 
             // Define test data - a bot user
-            let bot_member = ServerMember {
-                id: 333333333,
-                nick_name: Some("ErrorBot".to_string()),
-                user_name: "ErrorBot".to_string(),
-                is_bot: true,
-                mention: "<@333333333>".to_string(),
-            };
+            let bot_member = ServerMemberBuilder::new()
+                .id(333333333)
+                .nick_name("ErrorBot")
+                .user_name("ErrorBot")
+                .is_bot(true)
+                .build();
 
             // Discord connector returns an error when trying to send reply
             mock_discord
@@ -551,13 +543,12 @@ mod tests {
             let mut mock_discord = MockDiscordConnector::new();
 
             // Define test data - a user without a real name in the database
-            let member = ServerMember {
-                id: 111111111,
-                nick_name: Some("NickName".to_string()),
-                user_name: "UserName".to_string(),
-                is_bot: false,
-                mention: "<@111111111>".to_string(),
-            };
+            let member = ServerMemberBuilder::new()
+                .id(111111111)
+                .nick_name("NickName")
+                .user_name("UserName")
+                .is_bot(false)
+                .build();
 
             // Empty names database
             let names = Names {
@@ -597,13 +588,12 @@ mod tests {
             let mut mock_discord = MockDiscordConnector::new();
 
             // Define test data - a user with a real name in the database
-            let member = ServerMember {
-                id: 111111111,
-                nick_name: Some("NickName".to_string()),
-                user_name: "UserName".to_string(),
-                is_bot: false,
-                mention: "<@111111111>".to_string(),
-            };
+            let member = ServerMemberBuilder::new()
+                .id(111111111)
+                .nick_name("NickName")
+                .user_name("UserName")
+                .is_bot(false)
+                .build();
 
             // Names database with the user's real name
             let mut names_map = HashMap::new();
@@ -643,13 +633,12 @@ mod tests {
             let mock_discord = MockDiscordConnector::new();
 
             // Define test data
-            let member = ServerMember {
-                id: 111111111,
-                nick_name: Some("NickName".to_string()),
-                user_name: "UserName".to_string(),
-                is_bot: false,
-                mention: format!("<@{}>", 111111111),
-            };
+            let member = ServerMemberBuilder::new()
+                .id(111111111)
+                .nick_name("NickName")
+                .user_name("UserName")
+                .is_bot(false)
+                .build();
 
             // Set up expectations - repository returns an error
             mock_repo

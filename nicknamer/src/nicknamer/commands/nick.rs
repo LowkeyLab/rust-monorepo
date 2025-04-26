@@ -1,7 +1,8 @@
 use crate::nicknamer::commands::Error;
 use crate::nicknamer::config;
 use crate::nicknamer::connectors::discord;
-use crate::nicknamer::connectors::discord::{DiscordConnector, ServerMember};
+use crate::nicknamer::connectors::discord::DiscordConnector;
+use crate::nicknamer::connectors::discord::server_member::ServerMember;
 
 pub trait NickService {
     async fn nick(&self, member: &ServerMember, new_nick_name: &str) -> Result<(), Error>;
@@ -115,6 +116,7 @@ impl<'a, DISCORD: DiscordConnector> NickServiceImpl<'a, DISCORD> {
 mod tests {
     use super::*;
     use crate::nicknamer::connectors::discord::MockDiscordConnector;
+    use crate::nicknamer::connectors::discord::server_member::ServerMemberBuilder;
     use crate::nicknamer::connectors::discord::{Error as DiscordError, Mentionable, Role};
     use mockall::predicate::*;
 
@@ -143,13 +145,12 @@ mod tests {
 
         let service = NickServiceImpl::new(&mock_discord);
 
-        let member = ServerMember {
-            id: 123456789,
-            nick_name: Some("OldNick".to_string()),
-            user_name: "UserName".to_string(),
-            is_bot: false,
-            mention: "<@123456789>".to_string(),
-        };
+        let member = ServerMemberBuilder::new()
+            .id(123456789)
+            .nick_name("OldNick")
+            .user_name("UserName")
+            .is_bot(false)
+            .build();
 
         // Act
         let result = service.nick(&member, "NewNick").await;
@@ -182,13 +183,13 @@ mod tests {
 
         let service = NickServiceImpl::new(&mock_discord);
 
-        let member = ServerMember {
-            id: GUILD_OWNER_ID, // Same as owner_id
-            nick_name: Some("OwnerNick".to_string()),
-            user_name: "OwnerName".to_string(),
-            is_bot: false,
-            mention: format!("<@{}>", GUILD_OWNER_ID),
-        };
+        let member = ServerMemberBuilder::new()
+            .id(GUILD_OWNER_ID) // Same as owner_id
+            .nick_name("OwnerNick")
+            .user_name("OwnerName")
+            .is_bot(false)
+            .mention(format!("<@{}>", GUILD_OWNER_ID))
+            .build();
 
         // Act
         let result = service.nick(&member, "NewNick").await;
@@ -208,13 +209,13 @@ mod tests {
 
         let service = NickServiceImpl::new(&mock_discord);
 
-        let member = ServerMember {
-            id: 123456789,
-            nick_name: Some("OldNick".to_string()),
-            user_name: "UserName".to_string(),
-            is_bot: false,
-            mention: format!("<@{}>", GUILD_OWNER_ID),
-        };
+        let member = ServerMemberBuilder::new()
+            .id(123456789)
+            .nick_name("OldNick")
+            .user_name("UserName")
+            .is_bot(false)
+            .mention(format!("<@{}>", GUILD_OWNER_ID))
+            .build();
 
         // Act
         let result = service.nick(&member, "NewNick").await;
@@ -245,13 +246,13 @@ mod tests {
 
         let service = NickServiceImpl::new(&mock_discord);
 
-        let member = ServerMember {
-            id: GUILD_OWNER_ID,
-            nick_name: Some("OwnerNick".to_string()),
-            user_name: "OwnerName".to_string(),
-            is_bot: false,
-            mention: format!("<@{}>", GUILD_OWNER_ID),
-        };
+        let member = ServerMemberBuilder::new()
+            .id(GUILD_OWNER_ID)
+            .nick_name("OwnerNick")
+            .user_name("OwnerName")
+            .is_bot(false)
+            .mention(format!("<@{}>", GUILD_OWNER_ID))
+            .build();
 
         // Act
         let result = service.nick(&member, "NewNick").await;
@@ -304,13 +305,12 @@ mod tests {
 
         let service = NickServiceImpl::new(&mock_discord);
 
-        let member = ServerMember {
-            id: 123456789,
-            nick_name: Some("OldNick".to_string()),
-            user_name: "UserName".to_string(),
-            is_bot: false,
-            mention: "<@123456789>".to_string(),
-        };
+        let member = ServerMemberBuilder::new()
+            .id(123456789)
+            .nick_name("OldNick")
+            .user_name("UserName")
+            .is_bot(false)
+            .build();
 
         // Act
         let result = service.nick(&member, "NewNick").await;
@@ -353,13 +353,12 @@ mod tests {
 
         let service = NickServiceImpl::new(&mock_discord);
 
-        let member = ServerMember {
-            id: 123456789,
-            nick_name: Some("OldNick".to_string()),
-            user_name: "UserName".to_string(),
-            is_bot: false,
-            mention: "<@123456789>".to_string(),
-        };
+        let member = ServerMemberBuilder::new()
+            .id(123456789)
+            .nick_name("OldNick")
+            .user_name("UserName")
+            .is_bot(false)
+            .build();
 
         // Act
         let result = service.nick(&member, "NewNick").await;
@@ -391,13 +390,12 @@ mod tests {
 
         let service = NickServiceImpl::new(&mock_discord);
 
-        let member = ServerMember {
-            id: 123456789,
-            nick_name: Some("OldNick".to_string()),
-            user_name: "UserName".to_string(),
-            is_bot: false,
-            mention: "<@123456789>".to_string(),
-        };
+        let member = ServerMemberBuilder::new()
+            .id(123456789)
+            .nick_name("OldNick")
+            .user_name("UserName")
+            .is_bot(false)
+            .build();
 
         // Act
         let result = service.nick(&member, "NewNick").await;
@@ -432,13 +430,12 @@ mod tests {
 
         let service = NickServiceImpl::new(&mock_discord);
 
-        let member = ServerMember {
-            id: 123456789,
-            nick_name: Some("OldNick".to_string()),
-            user_name: "UserName".to_string(),
-            is_bot: false,
-            mention: "<@123456789>".to_string(),
-        };
+        let member = ServerMemberBuilder::new()
+            .id(123456789)
+            .nick_name("OldNick")
+            .user_name("UserName")
+            .is_bot(false)
+            .build();
 
         // Act
         let result = service.nick(&member, "").await;
@@ -470,13 +467,12 @@ mod tests {
 
         let service = NickServiceImpl::new(&mock_discord);
 
-        let member = ServerMember {
-            id: 123456789,
-            nick_name: Some("OldNick".to_string()),
-            user_name: "UserName".to_string(),
-            is_bot: false,
-            mention: "<@123456789>".to_string(),
-        };
+        let member = ServerMemberBuilder::new()
+            .id(123456789)
+            .nick_name("OldNick")
+            .user_name("UserName")
+            .is_bot(false)
+            .build();
 
         // Act
         let result = service.nick(&member, &long_nickname).await;
@@ -509,13 +505,11 @@ mod tests {
 
         let service = NickServiceImpl::new(&mock_discord);
 
-        let member = ServerMember {
-            id: 123456789,
-            nick_name: None, // No previous nickname
-            user_name: "UserName".to_string(),
-            is_bot: false,
-            mention: "<@123456789>".to_string(),
-        };
+        let member = ServerMemberBuilder::new()
+            .id(123456789)
+            .user_name("UserName")
+            .is_bot(false)
+            .build();
 
         // Act
         let result = service.nick(&member, "FirstNick").await;
