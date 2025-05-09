@@ -345,6 +345,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f46ad14479a25103f283c0f10005961cf086d8dc42205bb44c46ac563475dca6"
 
 [[package]]
+name = "clearurls"
+version = "0.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e291c00af89ac0a5b400d9ba46a682e38015ae3cd8926dbbe85b3b864d550be3"
+dependencies = [
+ "percent-encoding",
+ "regex",
+ "serde",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "colorchoice"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1160,6 +1173,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "linkify"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f1dfa36d52c581e9ec783a7ce2a5e0143da6237be5811a0b3153fedfdbe9f780"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "linux-raw-sys"
 version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1312,6 +1334,8 @@ name = "nicknamer"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "clearurls",
+ "linkify",
  "log",
  "log4rs",
  "mockall",

@@ -13,3 +13,5 @@ tokio = { version = "1.45.0", features = ["rt-multi-thread"] }
 anyhow = "1.0.98"
 thiserror = "2.0.12"
 mockall = "0.13.1"
+linkify = "0.10.0"
+clearurls = "0.0.4"

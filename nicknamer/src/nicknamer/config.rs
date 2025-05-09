@@ -1,10 +1,9 @@
 pub const REVEAL_INSULT: &str = "ya dingus";
-#[allow(dead_code)]
 pub const CODE_MONKEYS_ROLE_NAME: &str = "Code Monkeys";
 #[allow(dead_code)]
 pub const URL_LENGTH_VIOLATION_FACTOR: u32 = 2;
 #[allow(dead_code)]
-pub const JAR_JAR_EMOJI_ID: u64 = 1061775549065855079;
+pub const URL_SHAME_EMOJI: u64 = 1309253735351976016;
 #[allow(dead_code)]
 pub const ZACH_USER_ID: u64 = 894692357457469471;
 #[allow(dead_code)]
