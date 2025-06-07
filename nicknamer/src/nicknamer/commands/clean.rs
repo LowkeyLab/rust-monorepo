@@ -3,13 +3,39 @@ use linkify::LinkFinder;
 pub trait UrlCleaner {
     /// Cleans a message by removing tracking parameters from URLs within it.
     /// # Returns
-    /// The cleaned message.
-    fn clean_message(&mut self, msg: &str) -> String;
+    /// The cleaned message with original and cleaned URLs.
+    fn clean_message(&mut self, msg: &str) -> CleanedMessage;
 }
 
-struct CleanedMessage {
+#[derive(Debug, Clone, PartialEq)]
+pub struct CleanedMessage {
     message: String,
     cleaned_urls: Vec<(String, String)>,
+}
+
+impl CleanedMessage {
+    /// Creates a new CleanedMessage with the given message and no cleaned URLs.
+    pub fn new(message: String) -> Self {
+        Self {
+            message,
+            cleaned_urls: Vec::new(),
+        }
+    }
+
+    /// Adds a cleaned URL to the list of cleaned URLs.
+    pub fn add_cleaned_url(&mut self, original: String, cleaned: String) {
+        self.cleaned_urls.push((original, cleaned));
+    }
+
+    /// Returns the cleaned message.
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+
+    /// Returns the list of cleaned URLs.
+    pub fn cleaned_urls(&self) -> &[(String, String)] {
+        &self.cleaned_urls
+    }
 }
 
 pub struct UrlCleanerImpl {
@@ -27,15 +53,16 @@ impl UrlCleanerImpl {
 }
 
 impl UrlCleaner for UrlCleanerImpl {
-    fn clean_message(&mut self, msg: &str) -> String {
+    fn clean_message(&mut self, msg: &str) -> CleanedMessage {
         let mut result = msg.to_string();
+        let mut cleaned_message = CleanedMessage::new(msg.to_string());
 
         // Find all links in the message
         let links: Vec<_> = self.link_finder.links(msg).collect();
 
         // If no links found, return the original message
         if links.is_empty() {
-            return result;
+            return cleaned_message;
         }
 
         // Process each link
@@ -50,11 +77,17 @@ impl UrlCleaner for UrlCleanerImpl {
                 // Replace the original URL with the cleaned one if they differ
                 if original_url != cleaned_url_str {
                     result = result.replace(original_url, &cleaned_url_str);
+                    cleaned_message.add_cleaned_url(original_url.to_string(), cleaned_url_str);
                 }
             }
         }
 
-        result
+        // Create a new CleanedMessage with the updated message and the tracked URLs
+        let mut final_message = CleanedMessage::new(result);
+        for (original, cleaned) in cleaned_message.cleaned_urls() {
+            final_message.add_cleaned_url(original.clone(), cleaned.clone());
+        }
+        final_message
     }
 }
 
@@ -72,7 +105,8 @@ mod tests {
         let result = cleaner.clean_message(message);
 
         // Assert
-        assert_eq!(result, message);
+        assert_eq!(result.message(), message);
+        assert!(result.cleaned_urls().is_empty());
     }
 
     #[test]
@@ -85,27 +119,34 @@ mod tests {
         let result = cleaner.clean_message(message);
 
         // Assert
-        assert_eq!(result, message);
+        assert_eq!(result.message(), message);
+        assert!(result.cleaned_urls().is_empty());
     }
 
     #[test]
     fn test_clean_message_with_url_that_needs_cleaning() {
         // Arrange
         let mut cleaner = UrlCleanerImpl::new();
-        let message =
-            "Check out this link: https://example.com/page?utm_source=test&utm_medium=email";
-
-        // We'll mock the behavior of clear_single_url_str
-        // Since we can't easily mock the clearurls crate, we'll test the integration
-        // by verifying that the URL is different after cleaning
+        let original_url = "https://example.com/page?utm_source=test&utm_medium=email";
+        let message = format!("Check out this link: {}", original_url);
 
         // Act
-        let result = cleaner.clean_message(message);
+        let result = cleaner.clean_message(&message);
 
         // Assert
-        assert_ne!(result, message);
-        assert!(result.contains("https://example.com/page"));
-        assert!(!result.contains("utm_source=test"));
+        assert_ne!(result.message(), message);
+        assert!(result.message().contains("https://example.com/page"));
+        assert!(!result.message().contains("utm_source=test"));
+
+        // Check that cleaned_urls contains the original and cleaned URLs
+        assert!(!result.cleaned_urls().is_empty());
+        let has_cleaned_url = result.cleaned_urls().iter().any(|(orig, cleaned)| {
+            orig.contains("utm_source=test") && !cleaned.contains("utm_source=test")
+        });
+        assert!(
+            has_cleaned_url,
+            "Cleaned URLs should contain the original and cleaned URL"
+        );
     }
 
     #[test]
@@ -118,7 +159,8 @@ mod tests {
         let result = cleaner.clean_message(message);
 
         // Assert
-        assert_eq!(result, message);
+        assert_eq!(result.message(), message);
+        assert!(result.cleaned_urls().is_empty());
     }
 
     #[test]
@@ -131,9 +173,23 @@ mod tests {
         let result = cleaner.clean_message(message);
 
         // Assert
-        assert_ne!(result, message);
-        assert!(result.contains("https://example.com/page"));
-        assert!(!result.contains("utm_source=test"));
-        assert!(result.contains("https://another-example.com/page"));
+        assert_ne!(result.message(), message);
+        assert!(result.message().contains("https://example.com/page"));
+        assert!(!result.message().contains("utm_source=test"));
+        assert!(
+            result
+                .message()
+                .contains("https://another-example.com/page")
+        );
+
+        // Check that cleaned_urls contains the original and cleaned URLs
+        assert!(!result.cleaned_urls().is_empty());
+        let has_cleaned_url = result.cleaned_urls().iter().any(|(orig, cleaned)| {
+            orig.contains("utm_source=test") && !cleaned.contains("utm_source=test")
+        });
+        assert!(
+            has_cleaned_url,
+            "Cleaned URLs should contain the original and cleaned URL"
+        );
     }
 }
