@@ -7,6 +7,11 @@ pub trait UrlCleaner {
     fn clean_message(&mut self, msg: &str) -> String;
 }
 
+struct CleanedMessage {
+    message: String,
+    cleaned_urls: Vec<(String, String)>,
+}
+
 pub struct UrlCleanerImpl {
     link_finder: LinkFinder,
     cleaner: clearurls::UrlCleaner,
