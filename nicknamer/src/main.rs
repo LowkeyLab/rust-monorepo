@@ -11,7 +11,7 @@ use log4rs::Config;
 use log4rs::append::console::ConsoleAppender;
 use log4rs::config::{Appender, Logger, Root};
 use poise::serenity_prelude as serenity;
-use poise::serenity_prelude::Member;
+use poise::serenity_prelude::{FullEvent, Member};
 
 /// Ping command to test bot availability
 ///
@@ -82,6 +82,11 @@ async fn reveal_single_member<T: Revealer>(
     Ok(())
 }
 
+/// Logs message contents when a message is created
+async fn on_message_create(_ctx: &serenity::Context, new_message: &serenity::Message) {
+    info!("Message created: {}", new_message.content);
+}
+
 #[tokio::main]
 async fn main() {
     let stdout = ConsoleAppender::builder().build();
@@ -94,6 +99,7 @@ async fn main() {
     let token = std::env::var("DISCORD_TOKEN").expect("missing DISCORD_TOKEN");
     let intents = serenity::GatewayIntents::non_privileged()
         | serenity::GatewayIntents::MESSAGE_CONTENT
+        | serenity::GatewayIntents::GUILD_MESSAGES
         | serenity::GatewayIntents::GUILD_PRESENCES;
 
     let framework = poise::Framework::<discord::serenity::Data, anyhow::Error>::builder()
@@ -102,6 +108,17 @@ async fn main() {
             prefix_options: poise::PrefixFrameworkOptions {
                 prefix: Some("~".into()),
                 ..Default::default()
+            },
+            event_handler: |ctx, event, _framework, _data| {
+                Box::pin(async move {
+                    match event {
+                        FullEvent::Message { new_message } => {
+                            on_message_create(ctx, &new_message).await;
+                        }
+                        _ => {}
+                    }
+                    Ok(())
+                })
             },
             ..Default::default()
         })
