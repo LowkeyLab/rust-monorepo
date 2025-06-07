@@ -56,16 +56,6 @@ impl UrlCleaner for UrlCleanerImpl {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mockall::predicate::*;
-    use mockall::*;
-
-    // Create a mock for the UrlCleaner trait
-    mock! {
-        UrlCleaner {}
-        impl UrlCleaner for UrlCleaner {
-            fn clean_message(&mut self, msg: &str) -> String;
-        }
-    }
 
     #[test]
     fn test_clean_message_with_no_urls() {
