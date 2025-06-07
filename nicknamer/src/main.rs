@@ -6,7 +6,7 @@ use self::nicknamer::connectors::discord::serenity::{Context, SerenityDiscordCon
 use self::nicknamer::connectors::discord::server_member::ServerMember;
 use crate::nicknamer::commands::nick::{NickService, NickServiceImpl};
 use crate::nicknamer::commands::reveal::{Revealer, RevealerImpl};
-use log::{LevelFilter, info};
+use log::{LevelFilter, debug, info};
 use log4rs::Config;
 use log4rs::append::console::ConsoleAppender;
 use log4rs::config::{Appender, Logger, Root};
@@ -115,7 +115,7 @@ async fn main() {
                         FullEvent::Message { new_message } => {
                             on_message_create(ctx, &new_message).await;
                         }
-                        _ => {}
+                        _ => debug!("Unhandled event: {:?}", event),
                     }
                     Ok(())
                 })
