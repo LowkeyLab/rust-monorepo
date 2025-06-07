@@ -1,8 +1,10 @@
-use linkify::{LinkFinder, LinkKind};
-use log::error;
+use linkify::LinkFinder;
 
 pub trait UrlCleaner {
-    fn clean_url(&mut self, msg: &str) -> String;
+    /// Cleans a message by removing tracking parameters from URLs within it.
+    /// # Returns
+    /// The cleaned message.
+    fn clean_message(&mut self, msg: &str) -> String;
 }
 
 pub struct UrlCleanerImpl {
@@ -16,17 +18,5 @@ impl UrlCleanerImpl {
             link_finder: LinkFinder::new(),
             cleaner: clearurls::UrlCleaner::from_embedded_rules().unwrap(),
         }
-    }
-}
-
-impl UrlCleaner for UrlCleanerImpl {
-    fn clean_url(&mut self, msg: &str) -> String {
-        let finder = &mut self.link_finder;
-        for link in finder.kinds(&[LinkKind::Url]).links(msg) {
-            let Ok(cleaned) = self.cleaner.clear_single_url_str(link.as_str()) else {
-                error!("Failed to clean url: {}", link.as_str());
-            };
-        }
-        todo!();
     }
 }
