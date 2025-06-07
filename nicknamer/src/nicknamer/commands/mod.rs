@@ -6,6 +6,7 @@ use thiserror::Error;
 pub(crate) mod names;
 pub mod reveal;
 
+mod clean;
 pub mod nick;
 
 pub(crate) type Reply = String;
