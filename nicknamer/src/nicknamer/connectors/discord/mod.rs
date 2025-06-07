@@ -10,7 +10,7 @@
 //! A concrete implementation using the Serenity library is provided in the `serenity` submodule.
 
 use mockall::automock;
-use server_member::ServerMember;
+pub(crate) use server_member::ServerMember;
 use thiserror::Error;
 
 pub(crate) mod serenity;

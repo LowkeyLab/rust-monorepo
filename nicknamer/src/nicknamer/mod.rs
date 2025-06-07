@@ -3,6 +3,7 @@ mod config;
 
 pub(crate) mod connectors;
 
+use crate::nicknamer::connectors::discord;
 use commands::Error;
 use commands::names::NamesRepository;
 use commands::reveal::{Revealer, RevealerImpl};
@@ -10,6 +11,7 @@ use connectors::discord::DiscordConnector;
 
 trait Nicknamer {
     async fn reveal_all(&self) -> Result<(), Error>;
+    async fn reveal(&self, member: &discord::ServerMember) -> Result<(), Error>;
 }
 
 struct NicknamerImpl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> {
@@ -32,5 +34,10 @@ impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> Nicknamer
     async fn reveal_all(&self) -> Result<(), Error> {
         let revealer = RevealerImpl::new(self.names_repository, self.discord_connector);
         revealer.reveal_all().await
+    }
+
+    async fn reveal(&self, member: &discord::ServerMember) -> Result<(), Error> {
+        let revealer = RevealerImpl::new(self.names_repository, self.discord_connector);
+        revealer.reveal_member(member).await
     }
 }
