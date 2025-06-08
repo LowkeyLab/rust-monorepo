@@ -154,7 +154,7 @@ impl<REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Syn
 
             let formatted_reply = format!(
                 "Here are people's real names, {}:
-                \t{}",
+\t{}",
                 self.config.reveal.insult,
                 reply.join("\n\t")
             );
