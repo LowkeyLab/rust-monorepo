@@ -154,8 +154,8 @@ impl<REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Syn
 
             let formatted_reply = format!(
                 "Here are people's real names, {}:
-\t{}",
-                config::REVEAL_INSULT,
+                \t{}",
+                self.config.reveal().insult,
                 reply.join("\n\t")
             );
 
@@ -184,7 +184,7 @@ impl<REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Syn
         if !users_without_real_names.is_empty() {
             let role_to_mention = self
                 .discord_connector
-                .get_role_by_name(config::CODE_MONKEYS_ROLE_NAME)
+                .get_role_by_name(&self.config.reveal().role_to_mention)
                 .await?;
 
             let reply = users_without_real_names
@@ -523,7 +523,7 @@ mod nicknamer_impl_tests {
             // Expect get_role_by_name to be called
             mock_discord
                 .expect_get_role_by_name()
-                .with(eq(config::CODE_MONKEYS_ROLE_NAME))
+                .with(eq(create_mock_config().reveal().role_to_mention.clone()))
                 .times(1)
                 .returning(|_| Ok(Box::new(MockRole::new())));
 
@@ -864,7 +864,7 @@ mod nicknamer_impl_tests {
                     "Here are people's real names, {}:
 \t'AliceNickname' is Alice
 \t'BobNickname' is Bob",
-                    config::REVEAL_INSULT
+                    create_mock_config().reveal().insult
                 )))
                 .times(1)
                 .returning(|_| Ok(()));
@@ -1042,7 +1042,10 @@ mod nicknamer_impl_tests {
             // Check that the correct message is sent via Discord
             mock_discord
                 .expect_send_reply()
-                .with(eq(format!("BotNick is a bot, {}!", config::REVEAL_INSULT)))
+                .with(eq(format!(
+                    "BotNick is a bot, {}!",
+                    create_mock_config().reveal().insult
+                )))
                 .times(1)
                 .returning(|_| Ok(()));
 
@@ -1077,7 +1080,7 @@ mod nicknamer_impl_tests {
                 .expect_send_reply()
                 .with(eq(format!(
                     "BotUserName is a bot, {}!",
-                    config::REVEAL_INSULT
+                    create_mock_config().reveal().insult
                 )))
                 .times(1)
                 .returning(|_| Ok(()));

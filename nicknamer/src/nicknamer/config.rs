@@ -1,8 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-pub const REVEAL_INSULT: &str = "ya dingus";
-pub const CODE_MONKEYS_ROLE_NAME: &str = "Code Monkeys";
-
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
     pub nicknamer: NicknamerConfig,
