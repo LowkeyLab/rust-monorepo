@@ -1,16 +1,16 @@
-pub(crate) mod commands;
 mod config;
 
 pub(crate) mod connectors;
 pub(crate) mod names;
+pub(crate) mod user;
 
 use crate::nicknamer::connectors::discord;
 use async_trait::async_trait;
-use commands::Error;
-use commands::User;
 use connectors::discord::DiscordConnector;
 use log::info;
 use names::NamesRepository;
+use user::Error;
+use user::User;
 
 #[async_trait]
 pub trait Nicknamer {
@@ -261,11 +261,11 @@ mod nicknamer_impl_tests {
 
     mod change_nickname_tests {
         use super::MockRole;
-        use crate::nicknamer::commands::Error;
         use crate::nicknamer::config;
         use crate::nicknamer::connectors::discord::MockDiscordConnector;
         use crate::nicknamer::connectors::discord::server_member::ServerMemberBuilder;
         use crate::nicknamer::names::MockNamesRepository;
+        use crate::nicknamer::user::Error;
         use crate::nicknamer::{Nicknamer, NicknamerImpl};
         use mockall::predicate::*;
 
@@ -745,11 +745,11 @@ mod nicknamer_impl_tests {
 
     mod reveal_tests {
         use super::MockRole;
-        use crate::nicknamer::commands::Error;
         use crate::nicknamer::config;
         use crate::nicknamer::connectors::discord::MockDiscordConnector;
         use crate::nicknamer::connectors::discord::server_member::ServerMemberBuilder;
         use crate::nicknamer::names::{MockNamesRepository, Names};
+        use crate::nicknamer::user::Error;
         use crate::nicknamer::{Nicknamer, NicknamerImpl};
         use mockall::predicate::*;
         use std::collections::HashMap;
