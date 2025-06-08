@@ -142,21 +142,7 @@ impl<REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Syn
         if !users_with_real_names.is_empty() {
             let reply = users_with_real_names
                 .iter()
-                .map(|user| {
-                    if let Some(real_name) = &user.real_name {
-                        if let Some(nick_name) = &user.nick_name {
-                            format!("'{}' is {}", nick_name, real_name)
-                        } else {
-                            format!("'{}' is {}", user.user_name, real_name)
-                        }
-                    } else {
-                        if let Some(nick_name) = &user.nick_name {
-                            format!("{} aka '{}'", user.user_name, nick_name)
-                        } else {
-                            format!("{} has neither a nickname nor a real name", user.user_name)
-                        }
-                    }
-                })
+                .map(|user| Self::format_user(user))
                 .collect::<Vec<String>>();
 
             let formatted_reply = format!(
@@ -824,9 +810,15 @@ mod nicknamer_impl_tests {
                 .times(1)
                 .returning(move || Ok(names.clone()));
 
+            // Expect exact message content
             mock_discord
                 .expect_send_reply()
-                .with(always()) // We don't test exact message content here as that's tested separately
+                .with(eq(format!(
+                    "Here are people's real names, {}:
+                \t'AliceNickname' is Alice
+\t'BobNickname' is Bob",
+                    config::REVEAL_INSULT
+                )))
                 .times(1)
                 .returning(|_| Ok(()));
 
@@ -913,17 +905,16 @@ mod nicknamer_impl_tests {
                 .times(1)
                 .returning(|_| Ok(Box::new(MockRole::new())));
 
-            // Expect only one user (the human) in the message
+            // Expect exact message content
             mock_discord
                 .expect_send_reply()
-                .with(always())
+                .with(eq(format!(
+                    "Hey @CodeMonkeys, these members are unrecognized:
+                \tHumanUser aka 'HumanUser'
+                One of y'all should improve real name management and/or add them to the config"
+                )))
                 .times(1)
-                .returning(|message| {
-                    // The bot user should not be included in the message
-                    assert!(message.contains("HumanUser"));
-                    assert!(!message.contains("BotUser"));
-                    Ok(())
-                });
+                .returning(|_| Ok(()));
 
             // Create nicknamer with mock objects
             let nicknamer = NicknamerImpl::new(&mock_repo, &mock_discord);

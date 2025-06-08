@@ -2,15 +2,14 @@ mod nicknamer;
 
 use self::nicknamer::connectors::discord;
 use self::nicknamer::connectors::discord::serenity::{Context, SerenityDiscordConnector};
-use self::nicknamer::connectors::discord::server_member::ServerMember;
 use self::nicknamer::names::EmbeddedNamesRepository;
 use crate::nicknamer::{Nicknamer, NicknamerImpl};
 use log::{LevelFilter, debug, info};
 use log4rs::Config;
 use log4rs::append::console::ConsoleAppender;
 use log4rs::config::{Appender, Logger, Root};
+use poise::serenity_prelude as serenity;
 use poise::serenity_prelude::{FullEvent, Member, Message};
-use poise::{serenity_prelude as serenity, serenity_prelude};
 
 /// Ping command to test bot availability
 ///
