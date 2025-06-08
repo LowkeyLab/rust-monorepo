@@ -266,6 +266,18 @@ impl<REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Syn
 
 #[cfg(test)]
 mod nicknamer_impl_tests {
+    use crate::nicknamer::config;
+
+    // Helper function to create a test NicknamerConfig for tests
+    fn create_test_config() -> config::NicknamerConfig {
+        config::NicknamerConfig {
+            reveal: config::RevealConfig {
+                insult: "ya dingus".to_string(),
+                role_to_mention: "Code Monkeys".to_string(),
+            },
+        }
+    }
+
     // Common test utilities
     #[derive(Default)]
     struct MockRole {}
@@ -285,8 +297,7 @@ mod nicknamer_impl_tests {
     impl crate::nicknamer::connectors::discord::Role for MockRole {}
 
     mod change_nickname_tests {
-        use super::MockRole;
-        use crate::nicknamer::config;
+        use super::{MockRole, create_test_config};
         use crate::nicknamer::connectors::discord::MockDiscordConnector;
         use crate::nicknamer::connectors::discord::server_member::ServerMemberBuilder;
         use crate::nicknamer::names::MockNamesRepository;
@@ -294,22 +305,12 @@ mod nicknamer_impl_tests {
         use crate::nicknamer::{Nicknamer, NicknamerImpl};
         use mockall::predicate::*;
 
-        // Helper function to create a mock NicknamerConfig for tests
-        fn create_mock_config() -> config::NicknamerConfig {
-            config::NicknamerConfig {
-                reveal: config::RevealConfig {
-                    insult: "ya dingus".to_string(),
-                    role_to_mention: "Code Monkeys".to_string(),
-                },
-            }
-        }
-
         // Helper function to create a NicknamerImpl with mock objects
         fn create_nicknamer<'a>(
             repo: &'a MockNamesRepository,
             discord: &'a MockDiscordConnector,
         ) -> NicknamerImpl<'a, MockNamesRepository, MockDiscordConnector> {
-            NicknamerImpl::new(repo, discord, create_mock_config())
+            NicknamerImpl::new(repo, discord, create_test_config())
         }
 
         // Guild owner ID constant for tests
@@ -519,7 +520,7 @@ mod nicknamer_impl_tests {
             // Expect get_role_by_name to be called
             mock_discord
                 .expect_get_role_by_name()
-                .with(eq(create_mock_config().reveal.role_to_mention.clone()))
+                .with(eq(create_test_config().reveal.role_to_mention.clone()))
                 .times(1)
                 .returning(|_| Ok(Box::new(MockRole::new())));
 
@@ -787,8 +788,7 @@ mod nicknamer_impl_tests {
     }
 
     mod reveal_tests {
-        use super::MockRole;
-        use crate::nicknamer::config;
+        use super::{MockRole, create_test_config};
         use crate::nicknamer::connectors::discord::MockDiscordConnector;
         use crate::nicknamer::connectors::discord::server_member::ServerMemberBuilder;
         use crate::nicknamer::names::{MockNamesRepository, Names};
@@ -797,22 +797,12 @@ mod nicknamer_impl_tests {
         use mockall::predicate::*;
         use std::collections::HashMap;
 
-        // Helper function to create a mock NicknamerConfig for tests
-        fn create_mock_config() -> config::NicknamerConfig {
-            config::NicknamerConfig {
-                reveal: config::RevealConfig {
-                    insult: "ya dingus".to_string(),
-                    role_to_mention: "Code Monkeys".to_string(),
-                },
-            }
-        }
-
         // Helper function to create a NicknamerImpl with mock objects
         fn create_nicknamer<'a>(
             repo: &'a MockNamesRepository,
             discord: &'a MockDiscordConnector,
         ) -> NicknamerImpl<'a, MockNamesRepository, MockDiscordConnector> {
-            NicknamerImpl::new(repo, discord, create_mock_config())
+            NicknamerImpl::new(repo, discord, create_test_config())
         }
 
         #[tokio::test]
@@ -860,7 +850,7 @@ mod nicknamer_impl_tests {
                     "Here are people's real names, {}:
 \t'AliceNickname' is Alice
 \t'BobNickname' is Bob",
-                    create_mock_config().reveal.insult
+                    create_test_config().reveal.insult
                 )))
                 .times(1)
                 .returning(|_| Ok(()));
@@ -1040,7 +1030,7 @@ mod nicknamer_impl_tests {
                 .expect_send_reply()
                 .with(eq(format!(
                     "BotNick is a bot, {}!",
-                    create_mock_config().reveal.insult
+                    create_test_config().reveal.insult
                 )))
                 .times(1)
                 .returning(|_| Ok(()));
@@ -1076,7 +1066,7 @@ mod nicknamer_impl_tests {
                 .expect_send_reply()
                 .with(eq(format!(
                     "BotUserName is a bot, {}!",
-                    create_mock_config().reveal.insult
+                    create_test_config().reveal.insult
                 )))
                 .times(1)
                 .returning(|_| Ok(()));
