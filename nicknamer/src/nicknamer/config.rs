@@ -5,22 +5,28 @@ pub const CODE_MONKEYS_ROLE_NAME: &str = "Code Monkeys";
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
-    nicknamer: NicknamerConfig,
+    pub nicknamer: NicknamerConfig,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct RevealConfig {
     pub insult: String,
     pub role_to_mention: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct NicknamerConfig {
-    reveal: RevealConfig,
+    pub(crate) reveal: RevealConfig,
+}
+
+impl NicknamerConfig {
+    pub fn reveal(&self) -> &RevealConfig {
+        &self.reveal
+    }
 }
 
 impl Config {
-    fn new() -> anyhow::Result<Self> {
+    pub(crate) fn new() -> anyhow::Result<Self> {
         let s = config::Config::builder()
             .add_source(config::File::with_name("nicknamer/config"))
             .build()?;
