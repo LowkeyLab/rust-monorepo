@@ -61,9 +61,8 @@ impl<'a, REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send +
 }
 
 #[cfg(test)]
-mod change_nickname_tests {
-    // Tests for NicknamerImpl's change_nickname method
-    // Mock Role implementation for tests
+mod nicknamer_impl_tests {
+    // Common test utilities
     #[derive(Default)]
     struct MockRole {}
 
@@ -81,7 +80,7 @@ mod change_nickname_tests {
 
     impl crate::nicknamer::connectors::discord::Role for MockRole {}
 
-    mod nicknamer_impl_tests {
+    mod change_nickname_tests {
         use super::MockRole;
         use crate::nicknamer::commands::Error;
         use crate::nicknamer::commands::names::MockNamesRepository;
@@ -564,30 +563,8 @@ mod change_nickname_tests {
             );
         }
     }
-}
 
-#[cfg(test)]
-mod reveal_tests {
-    // Tests for NicknamerImpl using MockDiscordConnector and MockNamesRepository
-    // Mock Role implementation for tests
-    #[derive(Default)]
-    struct MockRole {}
-
-    impl MockRole {
-        fn new() -> Self {
-            Self::default()
-        }
-    }
-
-    impl crate::nicknamer::connectors::discord::Mentionable for MockRole {
-        fn mention(&self) -> String {
-            "@CodeMonkeys".to_string()
-        }
-    }
-
-    impl crate::nicknamer::connectors::discord::Role for MockRole {}
-
-    mod nicknamer_impl_tests {
+    mod reveal_tests {
         use super::MockRole;
         use crate::nicknamer::commands::Error;
         use crate::nicknamer::commands::names::{MockNamesRepository, Names};
