@@ -9,6 +9,8 @@ use crate::nicknamer::connectors::discord::Error::{
 };
 use crate::nicknamer::connectors::discord::server_member::ServerMember;
 use crate::nicknamer::connectors::discord::{DiscordConnector, Error, Mentionable, Role};
+use crate::nicknamer::names::{EmbeddedNamesRepository, NamesRepository};
+use async_trait::async_trait;
 use log::info;
 use poise::serenity_prelude as serenity;
 use poise::serenity_prelude::EditMember;
@@ -33,6 +35,7 @@ impl<'a> SerenityDiscordConnector<'a> {
     }
 }
 
+#[async_trait]
 impl DiscordConnector for SerenityDiscordConnector<'_> {
     async fn get_members_of_current_channel(&self) -> Result<Vec<ServerMember>, Error> {
         let ctx = &self.context;
@@ -113,7 +116,9 @@ impl From<serenity::Member> for ServerMember {
 }
 
 /// Empty data structure for Poise framework configuration
-pub struct Data {}
+pub struct Data<NamesRepo: NamesRepository> {
+    pub(crate) names_repository: NamesRepo,
+}
 
 /// Type alias for Poise command context
-pub type Context<'a> = poise::Context<'a, Data, anyhow::Error>;
+pub type Context<'a> = poise::Context<'a, Data<EmbeddedNamesRepository>, anyhow::Error>;

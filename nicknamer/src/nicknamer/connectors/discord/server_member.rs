@@ -65,12 +65,6 @@ impl ServerMemberBuilder {
         self
     }
 
-    /// Sets the mention string for this server member.
-    pub fn mention(mut self, mention: impl Into<String>) -> Self {
-        self.mention = mention.into();
-        self
-    }
-
     /// Builds a ServerMember instance with the configured values.
     pub fn build(self) -> ServerMember {
         ServerMember {

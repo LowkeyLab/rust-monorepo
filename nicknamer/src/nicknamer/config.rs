@@ -1,5 +1,4 @@
 pub const REVEAL_INSULT: &str = "ya dingus";
-#[allow(dead_code)]
 pub const CODE_MONKEYS_ROLE_NAME: &str = "Code Monkeys";
 #[allow(dead_code)]
 pub const URL_LENGTH_VIOLATION_FACTOR: u32 = 2;

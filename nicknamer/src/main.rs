@@ -1,11 +1,10 @@
 mod nicknamer;
 
-use self::nicknamer::commands::names::EmbeddedNamesRepository;
 use self::nicknamer::connectors::discord;
 use self::nicknamer::connectors::discord::serenity::{Context, SerenityDiscordConnector};
 use self::nicknamer::connectors::discord::server_member::ServerMember;
-use crate::nicknamer::commands::nick::{NickService, NickServiceImpl};
-use crate::nicknamer::commands::reveal::{Revealer, RevealerImpl};
+use self::nicknamer::names::EmbeddedNamesRepository;
+use crate::nicknamer::{Nicknamer, NicknamerImpl};
 use log::{LevelFilter, debug, info};
 use log4rs::Config;
 use log4rs::append::console::ConsoleAppender;
@@ -45,8 +44,8 @@ async fn nick(
     #[description = "The new nickname to set"] nickname: String,
 ) -> anyhow::Result<()> {
     let connector = SerenityDiscordConnector::new(ctx);
-    let nick_service = NickServiceImpl::new(&connector);
-    nick_service.nick(&member.into(), &nickname).await?;
+    let nicknamer = NicknamerImpl::new(&ctx.data().names_repository, &connector);
+    nicknamer.change_nickname(&member.into(), &nickname).await?;
     Ok(())
 }
 
@@ -60,25 +59,25 @@ async fn reveal(
     ctx: Context<'_>,
     #[description = "The specific member to reveal the name of"] member: Option<Member>,
 ) -> anyhow::Result<()> {
-    let name_repository = EmbeddedNamesRepository::new();
+    // Use the names_repository from the Data struct via the wrapper
     let connector = SerenityDiscordConnector::new(ctx);
-    let revealer = RevealerImpl::new(&name_repository, &connector);
+    let nicknamer = NicknamerImpl::new(&ctx.data().names_repository, &connector);
     match member {
-        Some(member) => reveal_single_member(&revealer, &member.into()).await,
-        None => reveal_all_members(&revealer).await,
+        Some(member) => reveal_single_member(&nicknamer, &member.into()).await,
+        None => reveal_all_members(&nicknamer).await,
     }
 }
 
-async fn reveal_all_members<T: Revealer>(revealer: &T) -> anyhow::Result<()> {
-    let _ = revealer.reveal_all().await?;
+async fn reveal_all_members<T: Nicknamer>(nicknamer: &T) -> anyhow::Result<()> {
+    let _ = nicknamer.reveal_all().await?;
     Ok(())
 }
 
-async fn reveal_single_member<T: Revealer>(
-    revealer: &T,
+async fn reveal_single_member<T: Nicknamer>(
+    nicknamer: &T,
     member: &ServerMember,
 ) -> anyhow::Result<()> {
-    let _ = revealer.reveal_member(member).await?;
+    let _ = nicknamer.reveal(member).await?;
     Ok(())
 }
 
@@ -102,33 +101,38 @@ async fn main() {
         | serenity::GatewayIntents::GUILD_MESSAGES
         | serenity::GatewayIntents::GUILD_PRESENCES;
 
-    let framework = poise::Framework::<discord::serenity::Data, anyhow::Error>::builder()
-        .options(poise::FrameworkOptions {
-            commands: vec![help(), ping(), reveal(), nick()],
-            prefix_options: poise::PrefixFrameworkOptions {
-                prefix: Some("~".into()),
-                ..Default::default()
-            },
-            event_handler: |ctx, event, _framework, _data| {
-                Box::pin(async move {
-                    match event {
-                        FullEvent::Message { new_message } => {
-                            on_message_create(ctx, &new_message).await;
-                        }
-                        _ => debug!("Unhandled event: {:?}", event),
-                    }
-                    Ok(())
-                })
-            },
+    let framework = poise::Framework::<
+        discord::serenity::Data<EmbeddedNamesRepository>,
+        anyhow::Error,
+    >::builder()
+    .options(poise::FrameworkOptions {
+        commands: vec![help(), ping(), reveal(), nick()],
+        prefix_options: poise::PrefixFrameworkOptions {
+            prefix: Some("~".into()),
             ..Default::default()
-        })
-        .setup(|ctx, _ready, framework| {
+        },
+        event_handler: |ctx, event, _framework, _data| {
             Box::pin(async move {
-                poise::builtins::register_globally(ctx, &framework.options().commands).await?;
-                Ok(discord::serenity::Data {})
+                match event {
+                    FullEvent::Message { new_message } => {
+                        on_message_create(ctx, &new_message).await;
+                    }
+                    _ => debug!("Unhandled event: {:?}", event),
+                }
+                Ok(())
+            })
+        },
+        ..Default::default()
+    })
+    .setup(|ctx, _ready, framework| {
+        Box::pin(async move {
+            poise::builtins::register_globally(ctx, &framework.options().commands).await?;
+            Ok(discord::serenity::Data {
+                names_repository: EmbeddedNamesRepository::new(),
             })
         })
-        .build();
+    })
+    .build();
 
     let client = serenity::ClientBuilder::new(token, intents)
         .framework(framework)

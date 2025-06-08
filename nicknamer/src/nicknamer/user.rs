@@ -1,14 +1,8 @@
 use crate::nicknamer::connectors::discord;
 use crate::nicknamer::connectors::discord::server_member;
+use crate::nicknamer::names;
 use std::fmt::{Display, Formatter};
 use thiserror::Error;
-
-pub(crate) mod names;
-pub mod reveal;
-
-pub mod nick;
-
-pub(crate) type Reply = String;
 
 #[derive(Debug, PartialEq, Default)]
 pub struct User {

@@ -9,8 +9,8 @@
 //! Discord client libraries to be used by implementing the `DiscordConnector` trait.
 //! A concrete implementation using the Serenity library is provided in the `serenity` submodule.
 
-use mockall::automock;
-use server_member::ServerMember;
+use async_trait::async_trait;
+pub(crate) use server_member::ServerMember;
 use thiserror::Error;
 
 pub(crate) mod serenity;
@@ -48,7 +48,8 @@ pub enum Error {
 ///
 /// This trait defines the required functionality for connecting to
 /// and retrieving information from Discord servers.
-#[automock]
+#[cfg_attr(test, mockall::automock)]
+#[async_trait]
 pub trait DiscordConnector {
     /// Retrieves all members present in the current Discord channel.
     ///

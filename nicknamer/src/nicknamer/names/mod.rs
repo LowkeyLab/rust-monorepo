@@ -9,9 +9,9 @@
 //! The module supports deserializing name data from YAML format and provides
 //! error handling for failed loading operations.
 
-use crate::nicknamer::commands::names::Error::CannotLoadNames;
+use crate::nicknamer::names::Error::CannotLoadNames;
+use async_trait::async_trait;
 use log::info;
-use mockall::automock;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -41,7 +41,8 @@ pub struct Names {
 ///
 /// Implementations of this trait provide mechanisms for loading
 /// real name data from various sources.
-#[automock]
+#[cfg_attr(test, mockall::automock)]
+#[async_trait]
 pub trait NamesRepository {
     /// Loads the real names collection from the repository.
     ///
@@ -76,6 +77,7 @@ impl EmbeddedNamesRepository {
     }
 }
 
+#[async_trait]
 impl NamesRepository for EmbeddedNamesRepository {
     /// Loads real names from the embedded YAML data.
     ///
