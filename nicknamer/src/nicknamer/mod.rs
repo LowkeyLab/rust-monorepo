@@ -7,6 +7,7 @@ use crate::nicknamer::connectors::discord;
 use async_trait::async_trait;
 use commands::Error;
 use commands::names::NamesRepository;
+use commands::nick::{NickService, NickServiceImpl};
 use commands::reveal::{Revealer, RevealerImpl};
 use connectors::discord::DiscordConnector;
 
@@ -54,7 +55,514 @@ impl<'a, REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send +
         member: &discord::ServerMember,
         new_nickname: &str,
     ) -> Result<(), Error> {
-        todo!()
+        let nick_service = NickServiceImpl::new(self.discord_connector);
+        nick_service.nick(member, new_nickname).await
+    }
+}
+
+#[cfg(test)]
+mod change_nickname_tests {
+    // Tests for NicknamerImpl's change_nickname method
+    // Mock Role implementation for tests
+    #[derive(Default)]
+    struct MockRole {}
+
+    impl MockRole {
+        fn new() -> Self {
+            Self::default()
+        }
+    }
+
+    impl crate::nicknamer::connectors::discord::Mentionable for MockRole {
+        fn mention(&self) -> String {
+            "@CodeMonkeys".to_string()
+        }
+    }
+
+    impl crate::nicknamer::connectors::discord::Role for MockRole {}
+
+    mod nicknamer_impl_tests {
+        use super::MockRole;
+        use crate::nicknamer::commands::Error;
+        use crate::nicknamer::commands::names::MockNamesRepository;
+        use crate::nicknamer::config;
+        use crate::nicknamer::connectors::discord::MockDiscordConnector;
+        use crate::nicknamer::connectors::discord::server_member::ServerMemberBuilder;
+        use crate::nicknamer::{Nicknamer, NicknamerImpl};
+        use mockall::predicate::*;
+
+        // Guild owner ID constant for tests
+        const GUILD_OWNER_ID: u64 = 987654321;
+
+        #[tokio::test]
+        async fn change_nickname_calls_discord_connector() {
+            // Arrange
+            let mock_repo = MockNamesRepository::new();
+            let mut mock_discord = MockDiscordConnector::new();
+
+            // Create a test member
+            let member = ServerMemberBuilder::new()
+                .id(123456789)
+                .nick_name("OldNickname")
+                .user_name("TestUser")
+                .is_bot(false)
+                .build();
+
+            // Set up expectations
+            mock_discord
+                .expect_get_guild_owner_id()
+                .times(1)
+                .returning(|| Ok(GUILD_OWNER_ID));
+
+            mock_discord
+                .expect_change_member_nick_name()
+                .with(eq(123456789), eq("NewNickname"))
+                .times(1)
+                .returning(|_, _| Ok(()));
+
+            mock_discord
+                .expect_send_reply()
+                .with(eq(
+                    "Changed TestUser's nickname from 'OldNickname' to 'NewNickname'",
+                ))
+                .times(1)
+                .returning(|_| Ok(()));
+
+            // Create nicknamer with mock objects
+            let nicknamer = NicknamerImpl::new(&mock_repo, &mock_discord);
+
+            // Act
+            let result = nicknamer.change_nickname(&member, "NewNickname").await;
+
+            // Assert
+            assert!(result.is_ok(), "change_nickname should succeed");
+        }
+
+        #[tokio::test]
+        async fn change_nickname_prevents_renaming_server_owner() {
+            // Arrange
+            let mock_repo = MockNamesRepository::new();
+            let mut mock_discord = MockDiscordConnector::new();
+
+            // Create a test member that is the server owner
+            let member = ServerMemberBuilder::new()
+                .id(GUILD_OWNER_ID)
+                .nick_name("OwnerNickname")
+                .user_name("OwnerUsername")
+                .is_bot(false)
+                .build();
+
+            // Set up expectations
+            mock_discord
+                .expect_get_guild_owner_id()
+                .times(1)
+                .returning(|| Ok(GUILD_OWNER_ID));
+
+            // Expect admonishment message
+            mock_discord
+                .expect_send_reply()
+                .with(eq(
+                    "You dare to rename our great General Secretary??? Away with your impudence!",
+                ))
+                .times(1)
+                .returning(|_| Ok(()));
+
+            // Create nicknamer with mock objects
+            let nicknamer = NicknamerImpl::new(&mock_repo, &mock_discord);
+
+            // Act
+            let result = nicknamer.change_nickname(&member, "NewOwnerNickname").await;
+
+            // Assert
+            assert!(
+                result.is_ok(),
+                "change_nickname should succeed but prevent renaming"
+            );
+        }
+
+        #[tokio::test]
+        async fn change_nickname_handles_guild_owner_id_error() {
+            // Arrange
+            let mock_repo = MockNamesRepository::new();
+            let mut mock_discord = MockDiscordConnector::new();
+
+            // Create a test member
+            let member = ServerMemberBuilder::new()
+                .id(123456789)
+                .nick_name("TestNickname")
+                .user_name("TestUsername")
+                .is_bot(false)
+                .build();
+
+            // Set up expectations - guild owner ID returns an error
+            mock_discord
+                .expect_get_guild_owner_id()
+                .times(1)
+                .returning(|| Err(crate::nicknamer::connectors::discord::Error::CannotGetGuild));
+
+            // Create nicknamer with mock objects
+            let nicknamer = NicknamerImpl::new(&mock_repo, &mock_discord);
+
+            // Act
+            let result = nicknamer.change_nickname(&member, "NewNickname").await;
+
+            // Assert
+            assert!(
+                result.is_err(),
+                "change_nickname should fail when guild owner ID cannot be retrieved"
+            );
+            match result {
+                Err(Error::DiscordError(_)) => (),
+                _ => panic!("Expected DiscordError, got different error type"),
+            }
+        }
+
+        #[tokio::test]
+        async fn change_nickname_handles_discord_error() {
+            // Arrange
+            let mock_repo = MockNamesRepository::new();
+            let mut mock_discord = MockDiscordConnector::new();
+
+            // Create a test member
+            let member = ServerMemberBuilder::new()
+                .id(123456789)
+                .nick_name("TestNickname")
+                .user_name("TestUsername")
+                .is_bot(false)
+                .build();
+
+            // Set up expectations
+            mock_discord
+                .expect_get_guild_owner_id()
+                .times(1)
+                .returning(|| Ok(GUILD_OWNER_ID));
+
+            // Discord connector returns an error when changing nickname
+            mock_discord
+                .expect_change_member_nick_name()
+                .with(eq(123456789), eq("NewNickname"))
+                .times(1)
+                .returning(|_, _| {
+                    Err(crate::nicknamer::connectors::discord::Error::CannotGetGuild)
+                });
+
+            // Expect error message
+            mock_discord
+                .expect_send_reply()
+                .with(eq("You fool! You messed it up!: Cannot get guild"))
+                .times(1)
+                .returning(|_| Ok(()));
+
+            // Create nicknamer with mock objects
+            let nicknamer = NicknamerImpl::new(&mock_repo, &mock_discord);
+
+            // Act
+            let result = nicknamer.change_nickname(&member, "NewNickname").await;
+
+            // Assert
+            assert!(
+                result.is_ok(),
+                "change_nickname should handle Discord errors gracefully"
+            );
+        }
+
+        #[tokio::test]
+        async fn change_nickname_handles_permission_error() {
+            // Arrange
+            let mock_repo = MockNamesRepository::new();
+            let mut mock_discord = MockDiscordConnector::new();
+
+            // Create a test member
+            let member = ServerMemberBuilder::new()
+                .id(123456789)
+                .nick_name("TestNickname")
+                .user_name("TestUsername")
+                .is_bot(false)
+                .build();
+
+            // Set up expectations
+            mock_discord
+                .expect_get_guild_owner_id()
+                .times(1)
+                .returning(|| Ok(GUILD_OWNER_ID));
+
+            // Discord connector returns a permission error
+            mock_discord
+                .expect_change_member_nick_name()
+                .with(eq(123456789), eq("NewNickname"))
+                .times(1)
+                .returning(|_, _| {
+                    Err(crate::nicknamer::connectors::discord::Error::NotEnoughPermissions)
+                });
+
+            // Expect get_role_by_name to be called
+            mock_discord
+                .expect_get_role_by_name()
+                .with(eq(config::CODE_MONKEYS_ROLE_NAME))
+                .times(1)
+                .returning(|_| Ok(Box::new(MockRole::new())));
+
+            // Expect special error message for permission errors
+            mock_discord
+                .expect_send_reply()
+                .with(eq("Some devilry restricts my power. @CodeMonkeys please investigate the rogue member <@123456789>"))
+                .times(1)
+                .returning(|_| Ok(()));
+
+            // Create nicknamer with mock objects
+            let nicknamer = NicknamerImpl::new(&mock_repo, &mock_discord);
+
+            // Act
+            let result = nicknamer.change_nickname(&member, "NewNickname").await;
+
+            // Assert
+            assert!(
+                result.is_ok(),
+                "change_nickname should handle permission errors gracefully"
+            );
+        }
+
+        #[tokio::test]
+        async fn change_nickname_handles_empty_nickname() {
+            // Arrange
+            let mock_repo = MockNamesRepository::new();
+            let mut mock_discord = MockDiscordConnector::new();
+
+            // Create a test member
+            let member = ServerMemberBuilder::new()
+                .id(123456789)
+                .nick_name("TestNickname")
+                .user_name("TestUsername")
+                .is_bot(false)
+                .build();
+
+            // Set up expectations
+            mock_discord
+                .expect_get_guild_owner_id()
+                .times(1)
+                .returning(|| Ok(GUILD_OWNER_ID));
+
+            // Discord connector accepts empty nickname
+            mock_discord
+                .expect_change_member_nick_name()
+                .with(eq(123456789), eq(""))
+                .times(1)
+                .returning(|_, _| Ok(()));
+
+            // Expect reply message
+            mock_discord
+                .expect_send_reply()
+                .times(1)
+                .returning(|_| Ok(()));
+
+            // Create nicknamer with mock objects
+            let nicknamer = NicknamerImpl::new(&mock_repo, &mock_discord);
+
+            // Act with empty nickname
+            let result = nicknamer.change_nickname(&member, "").await;
+
+            // Assert
+            assert!(
+                result.is_ok(),
+                "change_nickname should succeed with empty nickname"
+            );
+        }
+
+        #[tokio::test]
+        async fn change_nickname_handles_member_without_previous_nickname() {
+            // Arrange
+            let mock_repo = MockNamesRepository::new();
+            let mut mock_discord = MockDiscordConnector::new();
+
+            // Create a test member without a nickname
+            let member = ServerMemberBuilder::new()
+                .id(123456789)
+                .user_name("TestUsername")
+                .is_bot(false)
+                .build();
+
+            // Set up expectations
+            mock_discord
+                .expect_get_guild_owner_id()
+                .times(1)
+                .returning(|| Ok(GUILD_OWNER_ID));
+
+            // Discord connector changes nickname
+            mock_discord
+                .expect_change_member_nick_name()
+                .with(eq(123456789), eq("FirstNickname"))
+                .times(1)
+                .returning(|_, _| Ok(()));
+
+            // Expect christening message
+            mock_discord
+                .expect_send_reply()
+                .with(eq(
+                    "TestUsername has been christened with the name FirstNickname!",
+                ))
+                .times(1)
+                .returning(|_| Ok(()));
+
+            // Create nicknamer with mock objects
+            let nicknamer = NicknamerImpl::new(&mock_repo, &mock_discord);
+
+            // Act
+            let result = nicknamer.change_nickname(&member, "FirstNickname").await;
+
+            // Assert
+            assert!(
+                result.is_ok(),
+                "change_nickname should succeed for member without previous nickname"
+            );
+        }
+
+        #[tokio::test]
+        async fn change_nickname_handles_long_nickname() {
+            // Arrange
+            let mock_repo = MockNamesRepository::new();
+            let mut mock_discord = MockDiscordConnector::new();
+
+            // Create a test member
+            let member = ServerMemberBuilder::new()
+                .id(123456789)
+                .nick_name("OldNickname")
+                .user_name("TestUsername")
+                .is_bot(false)
+                .build();
+
+            // Create a very long nickname
+            let long_nickname = "A".repeat(100);
+
+            // Set up expectations
+            mock_discord
+                .expect_get_guild_owner_id()
+                .times(1)
+                .returning(|| Ok(GUILD_OWNER_ID));
+
+            // Discord connector accepts long nickname
+            mock_discord
+                .expect_change_member_nick_name()
+                .with(eq(123456789), eq(long_nickname.clone()))
+                .times(1)
+                .returning(|_, _| Ok(()));
+
+            // Expect reply message
+            mock_discord
+                .expect_send_reply()
+                .times(1)
+                .returning(|_| Ok(()));
+
+            // Create nicknamer with mock objects
+            let nicknamer = NicknamerImpl::new(&mock_repo, &mock_discord);
+
+            // Act
+            let result = nicknamer.change_nickname(&member, &long_nickname).await;
+
+            // Assert
+            assert!(
+                result.is_ok(),
+                "change_nickname should succeed with long nickname"
+            );
+        }
+
+        #[tokio::test]
+        async fn change_nickname_handles_send_reply_error() {
+            // Arrange
+            let mock_repo = MockNamesRepository::new();
+            let mut mock_discord = MockDiscordConnector::new();
+
+            // Create a test member
+            let member = ServerMemberBuilder::new()
+                .id(123456789)
+                .nick_name("OldNickname")
+                .user_name("TestUsername")
+                .is_bot(false)
+                .build();
+
+            // Set up expectations
+            mock_discord
+                .expect_get_guild_owner_id()
+                .times(1)
+                .returning(|| Ok(GUILD_OWNER_ID));
+
+            // Discord connector changes nickname
+            mock_discord
+                .expect_change_member_nick_name()
+                .with(eq(123456789), eq("NewNickname"))
+                .times(1)
+                .returning(|_, _| Ok(()));
+
+            // Expect send_reply to fail
+            mock_discord
+                .expect_send_reply()
+                .times(1)
+                .returning(|_| Err(crate::nicknamer::connectors::discord::Error::CannotSendReply));
+
+            // Create nicknamer with mock objects
+            let nicknamer = NicknamerImpl::new(&mock_repo, &mock_discord);
+
+            // Act
+            let result = nicknamer.change_nickname(&member, "NewNickname").await;
+
+            // Assert
+            assert!(
+                result.is_err(),
+                "change_nickname should fail when send_reply fails"
+            );
+            match result {
+                Err(Error::DiscordError(_)) => (),
+                _ => panic!("Expected DiscordError, got different error type"),
+            }
+        }
+
+        #[tokio::test]
+        async fn change_nickname_sends_correct_message_for_nickname_change() {
+            // Arrange
+            let mock_repo = MockNamesRepository::new();
+            let mut mock_discord = MockDiscordConnector::new();
+
+            // Create a test member
+            let member = ServerMemberBuilder::new()
+                .id(123456789)
+                .nick_name("OldNickname")
+                .user_name("TestUsername")
+                .is_bot(false)
+                .build();
+
+            // Set up expectations
+            mock_discord
+                .expect_get_guild_owner_id()
+                .times(1)
+                .returning(|| Ok(GUILD_OWNER_ID));
+
+            // Discord connector changes nickname
+            mock_discord
+                .expect_change_member_nick_name()
+                .with(eq(123456789), eq("NewNickname"))
+                .times(1)
+                .returning(|_, _| Ok(()));
+
+            // Verify the exact message format
+            mock_discord
+                .expect_send_reply()
+                .with(eq(
+                    "Changed TestUsername's nickname from 'OldNickname' to 'NewNickname'",
+                ))
+                .times(1)
+                .returning(|_| Ok(()));
+
+            // Create nicknamer with mock objects
+            let nicknamer = NicknamerImpl::new(&mock_repo, &mock_discord);
+
+            // Act
+            let result = nicknamer.change_nickname(&member, "NewNickname").await;
+
+            // Assert
+            assert!(
+                result.is_ok(),
+                "change_nickname should succeed and send correct message"
+            );
+        }
     }
 }
 
