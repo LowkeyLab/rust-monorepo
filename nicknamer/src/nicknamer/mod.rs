@@ -288,16 +288,6 @@ mod nicknamer_impl_tests {
 
     impl crate::nicknamer::connectors::discord::Role for MockRole {}
 
-    // Helper function to create a mock NicknamerConfig for tests
-    fn create_mock_config() -> crate::nicknamer::config::NicknamerConfig {
-        crate::nicknamer::config::NicknamerConfig {
-            reveal: crate::nicknamer::config::RevealConfig {
-                insult: "ya dingus".to_string(),
-                role_to_mention: "Code Monkeys".to_string(),
-            },
-        }
-    }
-
     mod change_nickname_tests {
         use super::MockRole;
         use crate::nicknamer::config;
