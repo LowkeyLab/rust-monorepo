@@ -142,7 +142,21 @@ impl<REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Syn
         if !users_with_real_names.is_empty() {
             let reply = users_with_real_names
                 .iter()
-                .map(|user| user.to_string())
+                .map(|user| {
+                    if let Some(real_name) = &user.real_name {
+                        if let Some(nick_name) = &user.nick_name {
+                            format!("'{}' is {}", nick_name, real_name)
+                        } else {
+                            format!("'{}' is {}", user.user_name, real_name)
+                        }
+                    } else {
+                        if let Some(nick_name) = &user.nick_name {
+                            format!("{} aka '{}'", user.user_name, nick_name)
+                        } else {
+                            format!("{} has neither a nickname nor a real name", user.user_name)
+                        }
+                    }
+                })
                 .collect::<Vec<String>>();
 
             let formatted_reply = format!(
@@ -182,7 +196,7 @@ impl<REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Syn
 
             let reply = users_without_real_names
                 .iter()
-                .map(|user| user.to_string())
+                .map(|user| Self::format_user(user))
                 .collect::<Vec<String>>();
 
             let formatted_reply = format!(
@@ -218,7 +232,7 @@ impl<REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Syn
             let mut user: User = member.into();
             let real_name = names.names.get(&user_id).cloned();
             user.real_name = real_name;
-            let reply = user.to_string();
+            let reply = Self::format_user(&user);
             self.discord_connector.send_reply(&reply).await?;
         }
         Ok(())
@@ -236,6 +250,24 @@ impl<REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Syn
             self.change_member_nick_name(member, new_nickname).await?;
         }
         Ok(())
+    }
+}
+
+impl<REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Sync>
+    NicknamerImpl<'_, REPO, DISCORD>
+{
+    fn format_user(user: &User) -> String {
+        if let Some(real_name) = &user.real_name {
+            if let Some(nick_name) = &user.nick_name {
+                format!("'{}' is {}", nick_name, real_name)
+            } else {
+                format!("'{}' is {}", user.user_name, real_name)
+            }
+        } else if let Some(nick_name) = &user.nick_name {
+            format!("{} aka '{}'", user.user_name, nick_name)
+        } else {
+            format!("{} has neither a nickname nor a real name", user.user_name)
+        }
     }
 }
 
