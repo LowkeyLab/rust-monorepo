@@ -60,9 +60,9 @@ async fn reveal(
     ctx: Context<'_>,
     #[description = "The specific member to reveal the name of"] member: Option<Member>,
 ) -> anyhow::Result<()> {
-    let name_repository = EmbeddedNamesRepository::new();
+    // Use the names_repository from the Data struct via the wrapper
     let connector = SerenityDiscordConnector::new(ctx);
-    let nicknamer = NicknamerImpl::new(&name_repository, &connector);
+    let nicknamer = NicknamerImpl::new(&ctx.data().names_repository, &connector);
     match member {
         Some(member) => reveal_single_member(&nicknamer, &member.into()).await,
         None => reveal_all_members(&nicknamer).await,
@@ -102,35 +102,38 @@ async fn main() {
         | serenity::GatewayIntents::GUILD_MESSAGES
         | serenity::GatewayIntents::GUILD_PRESENCES;
 
-    let framework = poise::Framework::<discord::serenity::Data, anyhow::Error>::builder()
-        .options(poise::FrameworkOptions {
-            commands: vec![help(), ping(), reveal(), nick()],
-            prefix_options: poise::PrefixFrameworkOptions {
-                prefix: Some("~".into()),
-                ..Default::default()
-            },
-            event_handler: |ctx, event, _framework, _data| {
-                Box::pin(async move {
-                    match event {
-                        FullEvent::Message { new_message } => {
-                            on_message_create(ctx, &new_message).await;
-                        }
-                        _ => debug!("Unhandled event: {:?}", event),
-                    }
-                    Ok(())
-                })
-            },
+    let framework = poise::Framework::<
+        discord::serenity::Data<EmbeddedNamesRepository>,
+        anyhow::Error,
+    >::builder()
+    .options(poise::FrameworkOptions {
+        commands: vec![help(), ping(), reveal(), nick()],
+        prefix_options: poise::PrefixFrameworkOptions {
+            prefix: Some("~".into()),
             ..Default::default()
-        })
-        .setup(|ctx, _ready, framework| {
+        },
+        event_handler: |ctx, event, _framework, _data| {
             Box::pin(async move {
-                poise::builtins::register_globally(ctx, &framework.options().commands).await?;
-                Ok(discord::serenity::Data {
-                    names_repository: Box::new(EmbeddedNamesRepository::new()),
-                })
+                match event {
+                    FullEvent::Message { new_message } => {
+                        on_message_create(ctx, &new_message).await;
+                    }
+                    _ => debug!("Unhandled event: {:?}", event),
+                }
+                Ok(())
+            })
+        },
+        ..Default::default()
+    })
+    .setup(|ctx, _ready, framework| {
+        Box::pin(async move {
+            poise::builtins::register_globally(ctx, &framework.options().commands).await?;
+            Ok(discord::serenity::Data {
+                names_repository: EmbeddedNamesRepository::new(),
             })
         })
-        .build();
+    })
+    .build();
 
     let client = serenity::ClientBuilder::new(token, intents)
         .framework(framework)

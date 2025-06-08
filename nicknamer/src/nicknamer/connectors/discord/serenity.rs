@@ -3,8 +3,7 @@
 //! This module provides the concrete implementation of the Discord connector
 //! trait using the Serenity Discord library.
 
-use crate::nicknamer::NicknamerImpl;
-use crate::nicknamer::commands::names::NamesRepository;
+use crate::nicknamer::commands::names::{EmbeddedNamesRepository, NamesRepository};
 use crate::nicknamer::connectors::discord::Error::{
     CannotFindChannel, CannotFindMembersOfChannel, CannotFindRole, CannotGetGuild, CannotSendReply,
     NotEnoughPermissions, NotInServerChannel,
@@ -117,9 +116,9 @@ impl From<serenity::Member> for ServerMember {
 }
 
 /// Empty data structure for Poise framework configuration
-pub struct Data {
-    pub(crate) names_repository: Box<dyn NamesRepository + Send + Sync>,
+pub struct Data<NamesRepo: NamesRepository> {
+    pub(crate) names_repository: NamesRepo,
 }
 
 /// Type alias for Poise command context
-pub type Context<'a> = poise::Context<'a, Data, anyhow::Error>;
+pub type Context<'a> = poise::Context<'a, Data<EmbeddedNamesRepository>, anyhow::Error>;
