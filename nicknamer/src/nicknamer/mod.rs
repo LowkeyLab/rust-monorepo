@@ -908,11 +908,12 @@ mod nicknamer_impl_tests {
             // Expect exact message content
             mock_discord
                 .expect_send_reply()
-                .with(eq(format!(
+                .with(eq(
                     "Hey @CodeMonkeys, these members are unrecognized:
                 \tHumanUser aka 'HumanUser'
                 One of y'all should improve real name management and/or add them to the config"
-                )))
+                        .to_string(),
+                ))
                 .times(1)
                 .returning(|_| Ok(()));
 
