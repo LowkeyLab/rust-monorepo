@@ -111,8 +111,8 @@ impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> NicknamerImpl<'a, REP
 }
 
 #[async_trait]
-impl<'a, REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Sync> Nicknamer
-    for NicknamerImpl<'a, REPO, DISCORD>
+impl<REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Sync> Nicknamer
+    for NicknamerImpl<'_, REPO, DISCORD>
 {
     async fn reveal_all(&self) -> Result<(), Error> {
         info!("Revealing real names for current channel members ...");
@@ -127,9 +127,7 @@ impl<'a, REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send +
             .iter()
             .filter_map(|member| {
                 // Only include users with real names in our database
-                let Some(real_name) = real_names.names.get(&member.id) else {
-                    return None;
-                };
+                let real_name = real_names.names.get(&member.id)?;
                 let mut user: User = member.into();
                 user.real_name = Some(real_name.clone());
                 Some(user)
