@@ -10,6 +10,7 @@
 //! error handling for failed loading operations.
 
 use crate::nicknamer::commands::names::Error::CannotLoadNames;
+use async_trait::async_trait;
 use log::info;
 use mockall::automock;
 use serde::{Deserialize, Serialize};
@@ -41,6 +42,7 @@ pub struct Names {
 ///
 /// Implementations of this trait provide mechanisms for loading
 /// real name data from various sources.
+#[async_trait]
 #[automock]
 pub trait NamesRepository {
     /// Loads the real names collection from the repository.
@@ -76,6 +78,7 @@ impl EmbeddedNamesRepository {
     }
 }
 
+#[async_trait]
 impl NamesRepository for EmbeddedNamesRepository {
     /// Loads real names from the embedded YAML data.
     ///

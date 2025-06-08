@@ -125,7 +125,9 @@ async fn main() {
         .setup(|ctx, _ready, framework| {
             Box::pin(async move {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
-                Ok(discord::serenity::Data {})
+                Ok(discord::serenity::Data {
+                    names_repository: Box::new(EmbeddedNamesRepository::new()),
+                })
             })
         })
         .build();
