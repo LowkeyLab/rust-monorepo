@@ -4,7 +4,6 @@ use self::nicknamer::commands::names::EmbeddedNamesRepository;
 use self::nicknamer::connectors::discord;
 use self::nicknamer::connectors::discord::serenity::{Context, SerenityDiscordConnector};
 use self::nicknamer::connectors::discord::server_member::ServerMember;
-use crate::nicknamer::commands::nick::{NickService, NickServiceImpl};
 use crate::nicknamer::{Nicknamer, NicknamerImpl};
 use log::{LevelFilter, debug, info};
 use log4rs::Config;
@@ -45,8 +44,8 @@ async fn nick(
     #[description = "The new nickname to set"] nickname: String,
 ) -> anyhow::Result<()> {
     let connector = SerenityDiscordConnector::new(ctx);
-    let nick_service = NickServiceImpl::new(&connector);
-    nick_service.nick(&member.into(), &nickname).await?;
+    let nicknamer = NicknamerImpl::new(&ctx.data().names_repository, &connector);
+    nicknamer.change_nickname(&member.into(), &nickname).await?;
     Ok(())
 }
 
