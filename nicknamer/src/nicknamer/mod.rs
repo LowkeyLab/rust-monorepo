@@ -14,6 +14,11 @@ use connectors::discord::DiscordConnector;
 pub trait Nicknamer {
     async fn reveal_all(&self) -> Result<(), Error>;
     async fn reveal(&self, member: &discord::ServerMember) -> Result<(), Error>;
+    async fn change_nickname(
+        &self,
+        member: &discord::ServerMember,
+        new_nickname: &str,
+    ) -> Result<(), Error>;
 }
 
 pub struct NicknamerImpl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> {
@@ -42,6 +47,14 @@ impl<'a, REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send +
     async fn reveal(&self, member: &discord::ServerMember) -> Result<(), Error> {
         let revealer = RevealerImpl::new(self.names_repository, self.discord_connector);
         revealer.reveal_member(member).await
+    }
+
+    async fn change_nickname(
+        &self,
+        member: &discord::ServerMember,
+        new_nickname: &str,
+    ) -> Result<(), Error> {
+        todo!()
     }
 }
 
