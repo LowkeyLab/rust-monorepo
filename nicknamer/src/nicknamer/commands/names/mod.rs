@@ -42,8 +42,8 @@ pub struct Names {
 ///
 /// Implementations of this trait provide mechanisms for loading
 /// real name data from various sources.
+#[cfg_attr(test, automock)]
 #[async_trait]
-#[automock]
 pub trait NamesRepository {
     /// Loads the real names collection from the repository.
     ///

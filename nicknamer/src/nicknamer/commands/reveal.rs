@@ -3,8 +3,10 @@ use crate::nicknamer::commands::{Error, Reply, User};
 use crate::nicknamer::config;
 use crate::nicknamer::connectors::discord::server_member::ServerMember;
 use crate::nicknamer::connectors::discord::{DiscordConnector, Role};
+use async_trait::async_trait;
 use log::info;
 
+#[async_trait]
 pub trait Revealer {
     async fn reveal_all(&self) -> Result<(), Error>;
     async fn reveal_member(&self, member: &ServerMember) -> Result<(), Error>;
@@ -14,16 +16,8 @@ pub struct RevealerImpl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> {
     discord_connector: &'a DISCORD,
 }
 
-impl<'a, NAMES: NamesRepository, DISCORD: DiscordConnector> RevealerImpl<'a, NAMES, DISCORD> {
-    pub fn new(names_repository: &'a NAMES, discord_connector: &'a DISCORD) -> Self {
-        Self {
-            names_repository,
-            discord_connector,
-        }
-    }
-}
-
-impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> Revealer
+#[async_trait]
+impl<'a, REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Sync> Revealer
     for RevealerImpl<'a, REPO, DISCORD>
 {
     async fn reveal_all(&self) -> Result<(), Error> {
@@ -49,15 +43,13 @@ impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> Revealer
 }
 
 impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> RevealerImpl<'a, REPO, DISCORD> {
-    async fn reveal_human_member(&self, member: &ServerMember) -> Result<(), Error> {
-        let names = self.names_repository.load_real_names().await?;
-        let reply = reveal_member(member, &names);
-        self.discord_connector.send_reply(&reply).await?;
-        Ok(())
+    pub fn new(names_repository: &'a REPO, discord_connector: &'a DISCORD) -> Self {
+        Self {
+            names_repository,
+            discord_connector,
+        }
     }
-}
 
-impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> RevealerImpl<'a, REPO, DISCORD> {
     async fn reveal_bot_member(&self, member: &ServerMember) -> Result<(), Error> {
         let name_to_show = match &member.nick_name {
             Some(nick_name) => nick_name,
@@ -67,9 +59,14 @@ impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> RevealerImpl<'a, REPO
         self.discord_connector.send_reply(&reply).await?;
         Ok(())
     }
-}
 
-impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> RevealerImpl<'a, REPO, DISCORD> {
+    async fn reveal_human_member(&self, member: &ServerMember) -> Result<(), Error> {
+        let names = self.names_repository.load_real_names().await?;
+        let reply = reveal_member(member, &names);
+        self.discord_connector.send_reply(&reply).await?;
+        Ok(())
+    }
+
     async fn reveal_all_members(
         &self,
         members: &[ServerMember],

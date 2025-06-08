@@ -4,11 +4,13 @@ mod config;
 pub(crate) mod connectors;
 
 use crate::nicknamer::connectors::discord;
+use async_trait::async_trait;
 use commands::Error;
 use commands::names::NamesRepository;
 use commands::reveal::{Revealer, RevealerImpl};
 use connectors::discord::DiscordConnector;
 
+#[async_trait]
 pub trait Nicknamer {
     async fn reveal_all(&self) -> Result<(), Error>;
     async fn reveal(&self, member: &discord::ServerMember) -> Result<(), Error>;
@@ -28,7 +30,8 @@ impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> NicknamerImpl<'a, REP
     }
 }
 
-impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> Nicknamer
+#[async_trait]
+impl<'a, REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Sync> Nicknamer
     for NicknamerImpl<'a, REPO, DISCORD>
 {
     async fn reveal_all(&self) -> Result<(), Error> {
