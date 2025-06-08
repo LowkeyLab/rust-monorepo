@@ -6,9 +6,10 @@ pub(crate) mod connectors;
 use crate::nicknamer::connectors::discord;
 use async_trait::async_trait;
 use commands::Error;
+use commands::User;
 use commands::names::NamesRepository;
-use commands::reveal::{Revealer, RevealerImpl};
 use connectors::discord::DiscordConnector;
+use log::info;
 
 #[async_trait]
 pub trait Nicknamer {
@@ -114,13 +115,114 @@ impl<'a, REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send +
     for NicknamerImpl<'a, REPO, DISCORD>
 {
     async fn reveal_all(&self) -> Result<(), Error> {
-        let revealer = RevealerImpl::new(self.names_repository, self.discord_connector);
-        revealer.reveal_all().await
+        info!("Revealing real names for current channel members ...");
+        let members = self
+            .discord_connector
+            .get_members_of_current_channel()
+            .await?;
+        let real_names = self.names_repository.load_real_names().await?;
+
+        // Reveal users with real names
+        let users_with_real_names: Vec<User> = members
+            .iter()
+            .filter_map(|member| {
+                // Only include users with real names in our database
+                let Some(real_name) = real_names.names.get(&member.id) else {
+                    return None;
+                };
+                let mut user: User = member.into();
+                user.real_name = Some(real_name.clone());
+                Some(user)
+            })
+            .collect();
+
+        info!(
+            "Found {} users with real names",
+            users_with_real_names.len()
+        );
+        if !users_with_real_names.is_empty() {
+            let reply = users_with_real_names
+                .iter()
+                .map(|user| user.to_string())
+                .collect::<Vec<String>>();
+
+            let formatted_reply = format!(
+                "Here are people's real names, {}:
+                \t{}",
+                config::REVEAL_INSULT,
+                reply.join("\n\t")
+            );
+
+            self.discord_connector.send_reply(&formatted_reply).await?;
+        }
+
+        // Reveal users without real names
+        let users_without_real_names: Vec<User> = members
+            .iter()
+            .filter_map(|member| {
+                let None = real_names.names.get(&member.id) else {
+                    return None;
+                };
+                if member.is_bot {
+                    return None;
+                }
+                let user: User = member.into();
+                Some(user)
+            })
+            .collect();
+
+        info!(
+            "Found {} users without real names",
+            users_without_real_names.len()
+        );
+        if !users_without_real_names.is_empty() {
+            let role_to_mention = self
+                .discord_connector
+                .get_role_by_name(config::CODE_MONKEYS_ROLE_NAME)
+                .await?;
+
+            let reply = users_without_real_names
+                .iter()
+                .map(|user| user.to_string())
+                .collect::<Vec<String>>();
+
+            let formatted_reply = format!(
+                "Hey {}, these members are unrecognized:
+                \t{}
+                One of y'all should improve real name management and/or add them to the config",
+                role_to_mention.mention(),
+                reply.join("\n\t")
+            );
+
+            if !formatted_reply.is_empty() {
+                self.discord_connector.send_reply(&formatted_reply).await?;
+            }
+        }
+
+        Ok(())
     }
 
     async fn reveal(&self, member: &discord::ServerMember) -> Result<(), Error> {
-        let revealer = RevealerImpl::new(self.names_repository, self.discord_connector);
-        revealer.reveal_member(member).await
+        info!("Revealing real name for {}", member.user_name);
+        if member.is_bot {
+            // Handle bot member
+            let name_to_show = match &member.nick_name {
+                Some(nick_name) => nick_name,
+                None => &member.user_name,
+            };
+            let reply = format!("{} is a bot, {}!", name_to_show, config::REVEAL_INSULT);
+            self.discord_connector.send_reply(&reply).await?;
+        } else {
+            // Handle human member
+            let names = self.names_repository.load_real_names().await?;
+            let user_id = member.id;
+            let mut user: User = member.into();
+            let real_name = names.names.get(&user_id).cloned();
+            user.real_name = real_name;
+            let reply = user.to_string();
+            self.discord_connector.send_reply(&reply).await?;
+        }
+        Ok(())
     }
 
     async fn change_nickname(

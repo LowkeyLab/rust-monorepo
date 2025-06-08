@@ -12,7 +12,6 @@
 use crate::nicknamer::commands::names::Error::CannotLoadNames;
 use async_trait::async_trait;
 use log::info;
-use mockall::automock;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -42,7 +41,7 @@ pub struct Names {
 ///
 /// Implementations of this trait provide mechanisms for loading
 /// real name data from various sources.
-#[cfg_attr(test, automock)]
+#[cfg_attr(test, mockall::automock)]
 #[async_trait]
 pub trait NamesRepository {
     /// Loads the real names collection from the repository.

@@ -4,9 +4,6 @@ use std::fmt::{Display, Formatter};
 use thiserror::Error;
 
 pub(crate) mod names;
-pub mod reveal;
-
-pub(crate) type Reply = String;
 
 #[derive(Debug, PartialEq, Default)]
 pub struct User {
