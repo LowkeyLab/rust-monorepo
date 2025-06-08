@@ -6,8 +6,6 @@ use thiserror::Error;
 pub(crate) mod names;
 pub mod reveal;
 
-pub mod nick;
-
 pub(crate) type Reply = String;
 
 #[derive(Debug, PartialEq, Default)]
