@@ -5,7 +5,7 @@ use self::nicknamer::connectors::discord;
 use self::nicknamer::connectors::discord::serenity::{Context, SerenityDiscordConnector};
 use self::nicknamer::connectors::discord::server_member::ServerMember;
 use crate::nicknamer::commands::nick::{NickService, NickServiceImpl};
-use crate::nicknamer::commands::reveal::{Revealer, RevealerImpl};
+use crate::nicknamer::{Nicknamer, NicknamerImpl};
 use log::{LevelFilter, debug, info};
 use log4rs::Config;
 use log4rs::append::console::ConsoleAppender;
@@ -62,23 +62,23 @@ async fn reveal(
 ) -> anyhow::Result<()> {
     let name_repository = EmbeddedNamesRepository::new();
     let connector = SerenityDiscordConnector::new(ctx);
-    let revealer = RevealerImpl::new(&name_repository, &connector);
+    let nicknamer = NicknamerImpl::new(&name_repository, &connector);
     match member {
-        Some(member) => reveal_single_member(&revealer, &member.into()).await,
-        None => reveal_all_members(&revealer).await,
+        Some(member) => reveal_single_member(&nicknamer, &member.into()).await,
+        None => reveal_all_members(&nicknamer).await,
     }
 }
 
-async fn reveal_all_members<T: Revealer>(revealer: &T) -> anyhow::Result<()> {
-    let _ = revealer.reveal_all().await?;
+async fn reveal_all_members<T: Nicknamer>(nicknamer: &T) -> anyhow::Result<()> {
+    let _ = nicknamer.reveal_all().await?;
     Ok(())
 }
 
-async fn reveal_single_member<T: Revealer>(
-    revealer: &T,
+async fn reveal_single_member<T: Nicknamer>(
+    nicknamer: &T,
     member: &ServerMember,
 ) -> anyhow::Result<()> {
-    let _ = revealer.reveal_member(member).await?;
+    let _ = nicknamer.reveal(member).await?;
     Ok(())
 }
 
