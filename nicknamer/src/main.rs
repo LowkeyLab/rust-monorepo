@@ -1,9 +1,9 @@
 mod nicknamer;
 
-use self::nicknamer::commands::names::EmbeddedNamesRepository;
 use self::nicknamer::connectors::discord;
 use self::nicknamer::connectors::discord::serenity::{Context, SerenityDiscordConnector};
 use self::nicknamer::connectors::discord::server_member::ServerMember;
+use self::nicknamer::names::EmbeddedNamesRepository;
 use crate::nicknamer::{Nicknamer, NicknamerImpl};
 use log::{LevelFilter, debug, info};
 use log4rs::Config;

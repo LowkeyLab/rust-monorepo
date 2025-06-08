@@ -3,13 +3,13 @@
 //! This module provides the concrete implementation of the Discord connector
 //! trait using the Serenity Discord library.
 
-use crate::nicknamer::commands::names::{EmbeddedNamesRepository, NamesRepository};
 use crate::nicknamer::connectors::discord::Error::{
     CannotFindChannel, CannotFindMembersOfChannel, CannotFindRole, CannotGetGuild, CannotSendReply,
     NotEnoughPermissions, NotInServerChannel,
 };
 use crate::nicknamer::connectors::discord::server_member::ServerMember;
 use crate::nicknamer::connectors::discord::{DiscordConnector, Error, Mentionable, Role};
+use crate::nicknamer::names::{EmbeddedNamesRepository, NamesRepository};
 use async_trait::async_trait;
 use log::info;
 use poise::serenity_prelude as serenity;

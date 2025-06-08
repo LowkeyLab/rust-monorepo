@@ -2,14 +2,15 @@ pub(crate) mod commands;
 mod config;
 
 pub(crate) mod connectors;
+pub(crate) mod names;
 
 use crate::nicknamer::connectors::discord;
 use async_trait::async_trait;
 use commands::Error;
 use commands::User;
-use commands::names::NamesRepository;
 use connectors::discord::DiscordConnector;
 use log::info;
+use names::NamesRepository;
 
 #[async_trait]
 pub trait Nicknamer {
@@ -261,10 +262,10 @@ mod nicknamer_impl_tests {
     mod change_nickname_tests {
         use super::MockRole;
         use crate::nicknamer::commands::Error;
-        use crate::nicknamer::commands::names::MockNamesRepository;
         use crate::nicknamer::config;
         use crate::nicknamer::connectors::discord::MockDiscordConnector;
         use crate::nicknamer::connectors::discord::server_member::ServerMemberBuilder;
+        use crate::nicknamer::names::MockNamesRepository;
         use crate::nicknamer::{Nicknamer, NicknamerImpl};
         use mockall::predicate::*;
 
@@ -745,10 +746,10 @@ mod nicknamer_impl_tests {
     mod reveal_tests {
         use super::MockRole;
         use crate::nicknamer::commands::Error;
-        use crate::nicknamer::commands::names::{MockNamesRepository, Names};
         use crate::nicknamer::config;
         use crate::nicknamer::connectors::discord::MockDiscordConnector;
         use crate::nicknamer::connectors::discord::server_member::ServerMemberBuilder;
+        use crate::nicknamer::names::{MockNamesRepository, Names};
         use crate::nicknamer::{Nicknamer, NicknamerImpl};
         use mockall::predicate::*;
         use std::collections::HashMap;
@@ -1165,7 +1166,7 @@ mod nicknamer_impl_tests {
             mock_repo
                 .expect_load_real_names()
                 .times(1)
-                .returning(|| Err(crate::nicknamer::commands::names::Error::CannotLoadNames));
+                .returning(|| Err(crate::nicknamer::names::Error::CannotLoadNames));
 
             // Create nicknamer with mock objects
             let nicknamer = NicknamerImpl::new(&mock_repo, &mock_discord);
