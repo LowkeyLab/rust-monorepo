@@ -351,10 +351,10 @@ mod nicknamer_impl_tests {
                 .returning(|_| Ok(()));
 
             // Create nicknamer with mock objects
-            let nicknamer = create_nicknamer(&mock_repo, &mock_discord);
+            let sut = create_nicknamer(&mock_repo, &mock_discord);
 
             // Act
-            let result = nicknamer.change_nickname(&member, "NewNickname").await;
+            let result = sut.change_nickname(&member, "NewNickname").await;
 
             // Assert
             assert!(result.is_ok(), "change_nickname should succeed");
@@ -390,10 +390,10 @@ mod nicknamer_impl_tests {
                 .returning(|_| Ok(()));
 
             // Create nicknamer with mock objects
-            let nicknamer = create_nicknamer(&mock_repo, &mock_discord);
+            let sut = create_nicknamer(&mock_repo, &mock_discord);
 
             // Act
-            let result = nicknamer.change_nickname(&member, "NewOwnerNickname").await;
+            let result = sut.change_nickname(&member, "NewOwnerNickname").await;
 
             // Assert
             assert!(
@@ -423,10 +423,10 @@ mod nicknamer_impl_tests {
                 .returning(|| Err(crate::nicknamer::connectors::discord::Error::CannotGetGuild));
 
             // Create nicknamer with mock objects
-            let nicknamer = create_nicknamer(&mock_repo, &mock_discord);
+            let sut = create_nicknamer(&mock_repo, &mock_discord);
 
             // Act
-            let result = nicknamer.change_nickname(&member, "NewNickname").await;
+            let result = sut.change_nickname(&member, "NewNickname").await;
 
             // Assert
             assert!(
@@ -476,10 +476,10 @@ mod nicknamer_impl_tests {
                 .returning(|_| Ok(()));
 
             // Create nicknamer with mock objects
-            let nicknamer = create_nicknamer(&mock_repo, &mock_discord);
+            let sut = create_nicknamer(&mock_repo, &mock_discord);
 
             // Act
-            let result = nicknamer.change_nickname(&member, "NewNickname").await;
+            let result = sut.change_nickname(&member, "NewNickname").await;
 
             // Assert
             assert!(
@@ -532,10 +532,10 @@ mod nicknamer_impl_tests {
                 .returning(|_| Ok(()));
 
             // Create nicknamer with mock objects
-            let nicknamer = create_nicknamer(&mock_repo, &mock_discord);
+            let sut = create_nicknamer(&mock_repo, &mock_discord);
 
             // Act
-            let result = nicknamer.change_nickname(&member, "NewNickname").await;
+            let result = sut.change_nickname(&member, "NewNickname").await;
 
             // Assert
             assert!(
@@ -578,10 +578,10 @@ mod nicknamer_impl_tests {
                 .returning(|_| Ok(()));
 
             // Create nicknamer with mock objects
-            let nicknamer = create_nicknamer(&mock_repo, &mock_discord);
+            let sut = create_nicknamer(&mock_repo, &mock_discord);
 
             // Act with empty nickname
-            let result = nicknamer.change_nickname(&member, "").await;
+            let result = sut.change_nickname(&member, "").await;
 
             // Assert
             assert!(
@@ -626,10 +626,10 @@ mod nicknamer_impl_tests {
                 .returning(|_| Ok(()));
 
             // Create nicknamer with mock objects
-            let nicknamer = create_nicknamer(&mock_repo, &mock_discord);
+            let sut = create_nicknamer(&mock_repo, &mock_discord);
 
             // Act
-            let result = nicknamer.change_nickname(&member, "FirstNickname").await;
+            let result = sut.change_nickname(&member, "FirstNickname").await;
 
             // Assert
             assert!(
@@ -675,10 +675,10 @@ mod nicknamer_impl_tests {
                 .returning(|_| Ok(()));
 
             // Create nicknamer with mock objects
-            let nicknamer = create_nicknamer(&mock_repo, &mock_discord);
+            let sut = create_nicknamer(&mock_repo, &mock_discord);
 
             // Act
-            let result = nicknamer.change_nickname(&member, &long_nickname).await;
+            let result = sut.change_nickname(&member, &long_nickname).await;
 
             // Assert
             assert!(
@@ -721,10 +721,10 @@ mod nicknamer_impl_tests {
                 .returning(|_| Err(crate::nicknamer::connectors::discord::Error::CannotSendReply));
 
             // Create nicknamer with mock objects
-            let nicknamer = create_nicknamer(&mock_repo, &mock_discord);
+            let sut = create_nicknamer(&mock_repo, &mock_discord);
 
             // Act
-            let result = nicknamer.change_nickname(&member, "NewNickname").await;
+            let result = sut.change_nickname(&member, "NewNickname").await;
 
             // Assert
             assert!(
@@ -774,10 +774,10 @@ mod nicknamer_impl_tests {
                 .returning(|_| Ok(()));
 
             // Create nicknamer with mock objects
-            let nicknamer = create_nicknamer(&mock_repo, &mock_discord);
+            let sut = create_nicknamer(&mock_repo, &mock_discord);
 
             // Act
-            let result = nicknamer.change_nickname(&member, "NewNickname").await;
+            let result = sut.change_nickname(&member, "NewNickname").await;
 
             // Assert
             assert!(
@@ -856,10 +856,10 @@ mod nicknamer_impl_tests {
                 .returning(|_| Ok(()));
 
             // Create nicknamer with mock objects
-            let nicknamer = create_nicknamer(&mock_repo, &mock_discord);
+            let sut = create_nicknamer(&mock_repo, &mock_discord);
 
             // Execute the method under test
-            let result = nicknamer.reveal_all().await;
+            let result = sut.reveal_all().await;
 
             // Verify results
             assert!(result.is_ok(), "reveal_all should succeed");
@@ -880,10 +880,10 @@ mod nicknamer_impl_tests {
                 });
 
             // Create nicknamer with mock objects
-            let nicknamer = create_nicknamer(&mock_repo, &mock_discord);
+            let sut = create_nicknamer(&mock_repo, &mock_discord);
 
             // Execute the method under test
-            let result = nicknamer.reveal_all().await;
+            let result = sut.reveal_all().await;
 
             // Verify results
             assert!(result.is_err(), "reveal_all should fail");
@@ -951,10 +951,10 @@ mod nicknamer_impl_tests {
                 .returning(|_| Ok(()));
 
             // Create nicknamer with mock objects
-            let nicknamer = create_nicknamer(&mock_repo, &mock_discord);
+            let sut = create_nicknamer(&mock_repo, &mock_discord);
 
             // Execute the method under test
-            let result = nicknamer.reveal_all().await;
+            let result = sut.reveal_all().await;
 
             // Verify results
             assert!(result.is_ok(), "reveal_all should succeed");
@@ -1002,10 +1002,10 @@ mod nicknamer_impl_tests {
             // So we don't expect any call to send_reply
 
             // Create nicknamer with mock objects
-            let nicknamer = create_nicknamer(&mock_repo, &mock_discord);
+            let sut = create_nicknamer(&mock_repo, &mock_discord);
 
             // Execute the method under test
-            let result = nicknamer.reveal_all().await;
+            let result = sut.reveal_all().await;
 
             // Verify results
             assert!(result.is_ok(), "reveal_all should succeed");
@@ -1036,10 +1036,10 @@ mod nicknamer_impl_tests {
                 .returning(|_| Ok(()));
 
             // Create nicknamer with mock objects
-            let nicknamer = create_nicknamer(&mock_repo, &mock_discord);
+            let sut = create_nicknamer(&mock_repo, &mock_discord);
 
             // Execute the method under test
-            let result = nicknamer.reveal(&bot_member).await;
+            let result = sut.reveal(&bot_member).await;
 
             // Verify results
             assert!(
@@ -1072,10 +1072,10 @@ mod nicknamer_impl_tests {
                 .returning(|_| Ok(()));
 
             // Create nicknamer with mock objects
-            let nicknamer = create_nicknamer(&mock_repo, &mock_discord);
+            let sut = create_nicknamer(&mock_repo, &mock_discord);
 
             // Execute the method under test
-            let result = nicknamer.reveal(&bot_member).await;
+            let result = sut.reveal(&bot_member).await;
 
             // Verify results
             assert!(
@@ -1105,10 +1105,10 @@ mod nicknamer_impl_tests {
                 .returning(|_| Err(crate::nicknamer::connectors::discord::Error::CannotSendReply));
 
             // Create nicknamer with mock objects
-            let nicknamer = create_nicknamer(&mock_repo, &mock_discord);
+            let sut = create_nicknamer(&mock_repo, &mock_discord);
 
             // Execute the method under test
-            let result = nicknamer.reveal(&bot_member).await;
+            let result = sut.reveal(&bot_member).await;
 
             // Verify results
             assert!(result.is_err(), "reveal should fail when Discord errors");
@@ -1151,10 +1151,10 @@ mod nicknamer_impl_tests {
                 .returning(|_| Ok(()));
 
             // Create nicknamer with mock objects
-            let nicknamer = create_nicknamer(&mock_repo, &mock_discord);
+            let sut = create_nicknamer(&mock_repo, &mock_discord);
 
             // Execute the method under test
-            let result = nicknamer.reveal(&member).await;
+            let result = sut.reveal(&member).await;
 
             // Verify results
             assert!(
@@ -1196,10 +1196,10 @@ mod nicknamer_impl_tests {
                 .returning(|_| Ok(()));
 
             // Create nicknamer with mock objects
-            let nicknamer = create_nicknamer(&mock_repo, &mock_discord);
+            let sut = create_nicknamer(&mock_repo, &mock_discord);
 
             // Execute the method under test
-            let result = nicknamer.reveal(&member).await;
+            let result = sut.reveal(&member).await;
 
             // Verify results
             assert!(
@@ -1240,10 +1240,10 @@ mod nicknamer_impl_tests {
                 .returning(|_| Ok(()));
 
             // Create nicknamer with mock objects
-            let nicknamer = create_nicknamer(&mock_repo, &mock_discord);
+            let sut = create_nicknamer(&mock_repo, &mock_discord);
 
             // Execute the method under test
-            let result = nicknamer.reveal(&member).await;
+            let result = sut.reveal(&member).await;
 
             // Verify results
             assert!(
@@ -1286,10 +1286,10 @@ mod nicknamer_impl_tests {
                 .returning(|_| Ok(()));
 
             // Create nicknamer with mock objects
-            let nicknamer = create_nicknamer(&mock_repo, &mock_discord);
+            let sut = create_nicknamer(&mock_repo, &mock_discord);
 
             // Execute the method under test
-            let result = nicknamer.reveal(&member).await;
+            let result = sut.reveal(&member).await;
 
             // Verify results
             assert!(
@@ -1319,10 +1319,10 @@ mod nicknamer_impl_tests {
                 .returning(|| Err(crate::nicknamer::names::Error::CannotLoadNames));
 
             // Create nicknamer with mock objects
-            let nicknamer = create_nicknamer(&mock_repo, &mock_discord);
+            let sut = create_nicknamer(&mock_repo, &mock_discord);
 
             // Execute the method under test
-            let result = nicknamer.reveal(&member).await;
+            let result = sut.reveal(&member).await;
 
             // Verify results
             assert!(result.is_err(), "reveal should fail when repository fails");
