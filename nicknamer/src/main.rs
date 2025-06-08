@@ -9,8 +9,8 @@ use log::{LevelFilter, debug, info};
 use log4rs::Config;
 use log4rs::append::console::ConsoleAppender;
 use log4rs::config::{Appender, Logger, Root};
-use poise::serenity_prelude as serenity;
-use poise::serenity_prelude::{FullEvent, Member};
+use poise::serenity_prelude::{FullEvent, Member, Message};
+use poise::{serenity_prelude as serenity, serenity_prelude};
 
 /// Ping command to test bot availability
 ///
@@ -75,7 +75,7 @@ async fn reveal(
 }
 
 /// Logs message contents when a message is created
-async fn on_message_create(_ctx: &serenity::Context, new_message: &serenity::Message) {
+async fn on_message_create(_ctx: &serenity::Context, new_message: &Message) {
     info!("Message created: {}", new_message.content);
 }
 
@@ -106,9 +106,9 @@ async fn main() {
         },
         event_handler: |ctx, event, _framework, _data| {
             Box::pin(async move {
-                match event {
+                match &event {
                     FullEvent::Message { new_message } => {
-                        on_message_create(ctx, &new_message).await;
+                        on_message_create(ctx, new_message).await;
                     }
                     _ => debug!("Unhandled event: {:?}", event),
                 }
