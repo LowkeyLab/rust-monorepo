@@ -63,22 +63,15 @@ async fn reveal(
     let connector = SerenityDiscordConnector::new(ctx);
     let nicknamer = NicknamerImpl::new(&ctx.data().names_repository, &connector);
     match member {
-        Some(member) => reveal_single_member(&nicknamer, &member.into()).await,
-        None => reveal_all_members(&nicknamer).await,
+        Some(member) => {
+            nicknamer.reveal(&member.into()).await?;
+            Ok(())
+        }
+        None => {
+            nicknamer.reveal_all().await?;
+            Ok(())
+        }
     }
-}
-
-async fn reveal_all_members<T: Nicknamer>(nicknamer: &T) -> anyhow::Result<()> {
-    let _ = nicknamer.reveal_all().await?;
-    Ok(())
-}
-
-async fn reveal_single_member<T: Nicknamer>(
-    nicknamer: &T,
-    member: &ServerMember,
-) -> anyhow::Result<()> {
-    let _ = nicknamer.reveal(member).await?;
-    Ok(())
 }
 
 /// Logs message contents when a message is created
