@@ -1173,6 +1173,96 @@ mod nicknamer_impl_tests {
         }
 
         #[tokio::test]
+        async fn reveal_member_should_handle_member_with_real_name_but_no_nickname() {
+            // Setup mock objects
+            let mut mock_repo = MockNamesRepository::new();
+            let mut mock_discord = MockDiscordConnector::new();
+
+            // Define test data - a user with a real name but no nickname
+            let member = ServerMemberBuilder::new()
+                .id(111111111)
+                .user_name("UserWithoutNickname")
+                .is_bot(false)
+                .build();
+
+            // Names database with the user's real name
+            let mut names_map = HashMap::new();
+            names_map.insert(111111111, "Real Person".to_string());
+            let names = Names { names: names_map };
+
+            // Set up expectations
+            mock_repo
+                .expect_load_real_names()
+                .times(1)
+                .returning(move || Ok(names.clone()));
+
+            // The message should include the real name but use username instead of nickname
+            mock_discord
+                .expect_send_reply()
+                .with(eq("'UserWithoutNickname' is Real Person"))
+                .times(1)
+                .returning(|_| Ok(()));
+
+            // Create nicknamer with mock objects
+            let nicknamer = NicknamerImpl::new(&mock_repo, &mock_discord);
+
+            // Execute the method under test
+            let result = nicknamer.reveal(&member).await;
+
+            // Verify results
+            assert!(
+                result.is_ok(),
+                "reveal should succeed for a member with real name but no nickname"
+            );
+        }
+
+        #[tokio::test]
+        async fn reveal_member_should_handle_member_with_neither_real_name_nor_nickname() {
+            // Setup mock objects
+            let mut mock_repo = MockNamesRepository::new();
+            let mut mock_discord = MockDiscordConnector::new();
+
+            // Define test data - a user with neither real name nor nickname
+            let member = ServerMemberBuilder::new()
+                .id(111111111)
+                .user_name("UserWithoutAnything")
+                .is_bot(false)
+                .build();
+
+            // Empty names database
+            let names = Names {
+                names: HashMap::new(),
+            };
+
+            // Set up expectations
+            mock_repo
+                .expect_load_real_names()
+                .times(1)
+                .returning(move || Ok(names.clone()));
+
+            // The message should indicate the user has neither a nickname nor a real name
+            mock_discord
+                .expect_send_reply()
+                .with(eq(
+                    "UserWithoutAnything has neither a nickname nor a real name",
+                ))
+                .times(1)
+                .returning(|_| Ok(()));
+
+            // Create nicknamer with mock objects
+            let nicknamer = NicknamerImpl::new(&mock_repo, &mock_discord);
+
+            // Execute the method under test
+            let result = nicknamer.reveal(&member).await;
+
+            // Verify results
+            assert!(
+                result.is_ok(),
+                "reveal should succeed for a member with neither real name nor nickname"
+            );
+        }
+
+        #[tokio::test]
         async fn reveal_member_should_handle_names_repository_error() {
             // Setup mock objects
             let mut mock_repo = MockNamesRepository::new();
