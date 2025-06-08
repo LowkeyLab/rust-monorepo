@@ -13,13 +13,7 @@ pub struct RevealConfig {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct NicknamerConfig {
-    pub(crate) reveal: RevealConfig,
-}
-
-impl NicknamerConfig {
-    pub fn reveal(&self) -> &RevealConfig {
-        &self.reveal
-    }
+    pub reveal: RevealConfig,
 }
 
 impl Config {

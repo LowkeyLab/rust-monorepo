@@ -74,7 +74,7 @@ impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> NicknamerImpl<'a, REP
                     discord::Error::NotEnoughPermissions => {
                         let role_to_mention = self
                             .discord_connector
-                            .get_role_by_name(&self.config.reveal().role_to_mention)
+                            .get_role_by_name(&self.config.reveal.role_to_mention)
                             .await?;
                         format!(
                             "Some devilry restricts my power. {} please investigate the rogue member {}",
@@ -155,7 +155,7 @@ impl<REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Syn
             let formatted_reply = format!(
                 "Here are people's real names, {}:
                 \t{}",
-                self.config.reveal().insult,
+                self.config.reveal.insult,
                 reply.join("\n\t")
             );
 
@@ -184,7 +184,7 @@ impl<REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Syn
         if !users_without_real_names.is_empty() {
             let role_to_mention = self
                 .discord_connector
-                .get_role_by_name(&self.config.reveal().role_to_mention)
+                .get_role_by_name(&self.config.reveal.role_to_mention)
                 .await?;
 
             let reply = users_without_real_names
@@ -216,11 +216,7 @@ impl<REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Syn
                 Some(nick_name) => nick_name,
                 None => &member.user_name,
             };
-            let reply = format!(
-                "{} is a bot, {}!",
-                name_to_show,
-                &self.config.reveal().insult
-            );
+            let reply = format!("{} is a bot, {}!", name_to_show, &self.config.reveal.insult);
             self.discord_connector.send_reply(&reply).await?;
         } else {
             // Handle human member
@@ -523,7 +519,7 @@ mod nicknamer_impl_tests {
             // Expect get_role_by_name to be called
             mock_discord
                 .expect_get_role_by_name()
-                .with(eq(create_mock_config().reveal().role_to_mention.clone()))
+                .with(eq(create_mock_config().reveal.role_to_mention.clone()))
                 .times(1)
                 .returning(|_| Ok(Box::new(MockRole::new())));
 
@@ -864,7 +860,7 @@ mod nicknamer_impl_tests {
                     "Here are people's real names, {}:
 \t'AliceNickname' is Alice
 \t'BobNickname' is Bob",
-                    create_mock_config().reveal().insult
+                    create_mock_config().reveal.insult
                 )))
                 .times(1)
                 .returning(|_| Ok(()));
@@ -1044,7 +1040,7 @@ mod nicknamer_impl_tests {
                 .expect_send_reply()
                 .with(eq(format!(
                     "BotNick is a bot, {}!",
-                    create_mock_config().reveal().insult
+                    create_mock_config().reveal.insult
                 )))
                 .times(1)
                 .returning(|_| Ok(()));
@@ -1080,7 +1076,7 @@ mod nicknamer_impl_tests {
                 .expect_send_reply()
                 .with(eq(format!(
                     "BotUserName is a bot, {}!",
-                    create_mock_config().reveal().insult
+                    create_mock_config().reveal.insult
                 )))
                 .times(1)
                 .returning(|_| Ok(()));
