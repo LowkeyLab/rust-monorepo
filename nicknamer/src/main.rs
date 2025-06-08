@@ -2,7 +2,6 @@ mod nicknamer;
 
 use self::nicknamer::connectors::discord;
 use self::nicknamer::connectors::discord::serenity::{Context, SerenityDiscordConnector};
-use self::nicknamer::connectors::discord::server_member::ServerMember;
 use self::nicknamer::names::EmbeddedNamesRepository;
 use crate::nicknamer::{Nicknamer, NicknamerImpl};
 use log::{LevelFilter, debug, info};
@@ -10,7 +9,7 @@ use log4rs::Config;
 use log4rs::append::console::ConsoleAppender;
 use log4rs::config::{Appender, Logger, Root};
 use poise::serenity_prelude as serenity;
-use poise::serenity_prelude::{FullEvent, Member};
+use poise::serenity_prelude::{FullEvent, Member, Message};
 
 /// Ping command to test bot availability
 ///
@@ -63,26 +62,19 @@ async fn reveal(
     let connector = SerenityDiscordConnector::new(ctx);
     let nicknamer = NicknamerImpl::new(&ctx.data().names_repository, &connector);
     match member {
-        Some(member) => reveal_single_member(&nicknamer, &member.into()).await,
-        None => reveal_all_members(&nicknamer).await,
+        Some(member) => {
+            nicknamer.reveal(&member.into()).await?;
+            Ok(())
+        }
+        None => {
+            nicknamer.reveal_all().await?;
+            Ok(())
+        }
     }
 }
 
-async fn reveal_all_members<T: Nicknamer>(nicknamer: &T) -> anyhow::Result<()> {
-    let _ = nicknamer.reveal_all().await?;
-    Ok(())
-}
-
-async fn reveal_single_member<T: Nicknamer>(
-    nicknamer: &T,
-    member: &ServerMember,
-) -> anyhow::Result<()> {
-    let _ = nicknamer.reveal(member).await?;
-    Ok(())
-}
-
 /// Logs message contents when a message is created
-async fn on_message_create(_ctx: &serenity::Context, new_message: &serenity::Message) {
+async fn on_message_create(_ctx: &serenity::Context, new_message: &Message) {
     info!("Message created: {}", new_message.content);
 }
 
@@ -113,9 +105,9 @@ async fn main() {
         },
         event_handler: |ctx, event, _framework, _data| {
             Box::pin(async move {
-                match event {
+                match &event {
                     FullEvent::Message { new_message } => {
-                        on_message_create(ctx, &new_message).await;
+                        on_message_create(ctx, new_message).await;
                     }
                     _ => debug!("Unhandled event: {:?}", event),
                 }

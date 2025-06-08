@@ -142,7 +142,7 @@ impl<REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Syn
         if !users_with_real_names.is_empty() {
             let reply = users_with_real_names
                 .iter()
-                .map(|user| user.to_string())
+                .map(|user| Self::format_user(user))
                 .collect::<Vec<String>>();
 
             let formatted_reply = format!(
@@ -182,7 +182,7 @@ impl<REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Syn
 
             let reply = users_without_real_names
                 .iter()
-                .map(|user| user.to_string())
+                .map(|user| Self::format_user(user))
                 .collect::<Vec<String>>();
 
             let formatted_reply = format!(
@@ -218,7 +218,7 @@ impl<REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Syn
             let mut user: User = member.into();
             let real_name = names.names.get(&user_id).cloned();
             user.real_name = real_name;
-            let reply = user.to_string();
+            let reply = Self::format_user(&user);
             self.discord_connector.send_reply(&reply).await?;
         }
         Ok(())
@@ -236,6 +236,24 @@ impl<REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Syn
             self.change_member_nick_name(member, new_nickname).await?;
         }
         Ok(())
+    }
+}
+
+impl<REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Sync>
+    NicknamerImpl<'_, REPO, DISCORD>
+{
+    fn format_user(user: &User) -> String {
+        if let Some(real_name) = &user.real_name {
+            if let Some(nick_name) = &user.nick_name {
+                format!("'{}' is {}", nick_name, real_name)
+            } else {
+                format!("'{}' is {}", user.user_name, real_name)
+            }
+        } else if let Some(nick_name) = &user.nick_name {
+            format!("{} aka '{}'", user.user_name, nick_name)
+        } else {
+            format!("{} has neither a nickname nor a real name", user.user_name)
+        }
     }
 }
 
@@ -792,9 +810,15 @@ mod nicknamer_impl_tests {
                 .times(1)
                 .returning(move || Ok(names.clone()));
 
+            // Expect exact message content
             mock_discord
                 .expect_send_reply()
-                .with(always()) // We don't test exact message content here as that's tested separately
+                .with(eq(format!(
+                    "Here are people's real names, {}:
+                \t'AliceNickname' is Alice
+\t'BobNickname' is Bob",
+                    config::REVEAL_INSULT
+                )))
                 .times(1)
                 .returning(|_| Ok(()));
 
@@ -881,17 +905,17 @@ mod nicknamer_impl_tests {
                 .times(1)
                 .returning(|_| Ok(Box::new(MockRole::new())));
 
-            // Expect only one user (the human) in the message
+            // Expect exact message content
             mock_discord
                 .expect_send_reply()
-                .with(always())
+                .with(eq(
+                    "Hey @CodeMonkeys, these members are unrecognized:
+                \tHumanUser aka 'HumanUser'
+                One of y'all should improve real name management and/or add them to the config"
+                        .to_string(),
+                ))
                 .times(1)
-                .returning(|message| {
-                    // The bot user should not be included in the message
-                    assert!(message.contains("HumanUser"));
-                    assert!(!message.contains("BotUser"));
-                    Ok(())
-                });
+                .returning(|_| Ok(()));
 
             // Create nicknamer with mock objects
             let nicknamer = NicknamerImpl::new(&mock_repo, &mock_discord);
@@ -1145,6 +1169,96 @@ mod nicknamer_impl_tests {
             assert!(
                 result.is_ok(),
                 "reveal should succeed for a member with real name"
+            );
+        }
+
+        #[tokio::test]
+        async fn reveal_member_should_handle_member_with_real_name_but_no_nickname() {
+            // Setup mock objects
+            let mut mock_repo = MockNamesRepository::new();
+            let mut mock_discord = MockDiscordConnector::new();
+
+            // Define test data - a user with a real name but no nickname
+            let member = ServerMemberBuilder::new()
+                .id(111111111)
+                .user_name("UserWithoutNickname")
+                .is_bot(false)
+                .build();
+
+            // Names database with the user's real name
+            let mut names_map = HashMap::new();
+            names_map.insert(111111111, "Real Person".to_string());
+            let names = Names { names: names_map };
+
+            // Set up expectations
+            mock_repo
+                .expect_load_real_names()
+                .times(1)
+                .returning(move || Ok(names.clone()));
+
+            // The message should include the real name but use username instead of nickname
+            mock_discord
+                .expect_send_reply()
+                .with(eq("'UserWithoutNickname' is Real Person"))
+                .times(1)
+                .returning(|_| Ok(()));
+
+            // Create nicknamer with mock objects
+            let nicknamer = NicknamerImpl::new(&mock_repo, &mock_discord);
+
+            // Execute the method under test
+            let result = nicknamer.reveal(&member).await;
+
+            // Verify results
+            assert!(
+                result.is_ok(),
+                "reveal should succeed for a member with real name but no nickname"
+            );
+        }
+
+        #[tokio::test]
+        async fn reveal_member_should_handle_member_with_neither_real_name_nor_nickname() {
+            // Setup mock objects
+            let mut mock_repo = MockNamesRepository::new();
+            let mut mock_discord = MockDiscordConnector::new();
+
+            // Define test data - a user with neither real name nor nickname
+            let member = ServerMemberBuilder::new()
+                .id(111111111)
+                .user_name("UserWithoutAnything")
+                .is_bot(false)
+                .build();
+
+            // Empty names database
+            let names = Names {
+                names: HashMap::new(),
+            };
+
+            // Set up expectations
+            mock_repo
+                .expect_load_real_names()
+                .times(1)
+                .returning(move || Ok(names.clone()));
+
+            // The message should indicate the user has neither a nickname nor a real name
+            mock_discord
+                .expect_send_reply()
+                .with(eq(
+                    "UserWithoutAnything has neither a nickname nor a real name",
+                ))
+                .times(1)
+                .returning(|_| Ok(()));
+
+            // Create nicknamer with mock objects
+            let nicknamer = NicknamerImpl::new(&mock_repo, &mock_discord);
+
+            // Execute the method under test
+            let result = nicknamer.reveal(&member).await;
+
+            // Verify results
+            assert!(
+                result.is_ok(),
+                "reveal should succeed for a member with neither real name nor nickname"
             );
         }
 
