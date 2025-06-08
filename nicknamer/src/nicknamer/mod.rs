@@ -147,7 +147,7 @@ impl<REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Syn
 
             let formatted_reply = format!(
                 "Here are people's real names, {}:
-                \t{}",
+\t{}",
                 config::REVEAL_INSULT,
                 reply.join("\n\t")
             );
@@ -815,7 +815,7 @@ mod nicknamer_impl_tests {
                 .expect_send_reply()
                 .with(eq(format!(
                     "Here are people's real names, {}:
-                \t'AliceNickname' is Alice
+\t'AliceNickname' is Alice
 \t'BobNickname' is Bob",
                     config::REVEAL_INSULT
                 )))
