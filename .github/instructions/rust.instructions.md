@@ -31,4 +31,4 @@ Before returning any code:
    • Sort functions and methods by visibility: public functions first, then private functions, followed by private methods.
    • Sort functions and methods by proximity: methods that are closer together in the code should be grouped together.
 
-Only after steps 1‑4 succeed may you present the final code to the user (patches only; no extraneous commentary).
+Only return code that passes all checks above. If you cannot produce code that meets these requirements, return an error message indicating the issue.
