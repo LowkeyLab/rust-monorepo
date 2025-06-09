@@ -17,4 +17,7 @@ Before returning any code:
    Run `cargo test --all-features --all-targets`.  
    • All unit, integration, and doc tests must pass.
 
-Only after steps 1‑3 succeed may you present the final code to the user (patches only; no extraneous commentary).
+4. **Logging**
+   • Avoid writing logs that are only for debugging purposes. Logs should be meaningful for production environments.
+
+Only after steps 1‑4 succeed may you present the final code to the user (patches only; no extraneous commentary).
