@@ -25,8 +25,8 @@ pub struct NicknamerConfig {
 
 impl Config {
     pub(crate) fn new() -> anyhow::Result<Self> {
-        let s = config::Config::builder()
-            .add_source(config::File::with_name("nicknamer/config"))
+        let s = ::config::Config::builder()
+            .add_source(::config::File::with_name("nicknamer/config"))
             .build()?;
 
         Ok(s.try_deserialize()?)
