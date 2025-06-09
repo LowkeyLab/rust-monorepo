@@ -865,7 +865,7 @@ mod nicknamer_impl_tests {
                     "Here are people's real names, {}:
 \t'AliceNickname' is Alice
 \t'BobNickname' is Bob",
-                    create_test_config().reveal.insult
+                    config.reveal.insult
                 )))
                 .times(1)
                 .returning(|_| Ok(()));
