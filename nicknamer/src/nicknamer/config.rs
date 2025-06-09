@@ -1,18 +1,25 @@
 use serde::{Deserialize, Serialize};
 
+/// Represents the overall configuration structure.
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
+    /// Configuration specific to the nicknamer application.
     pub nicknamer: NicknamerConfig,
 }
 
+/// Configuration for the reveal feature.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct RevealConfig {
+    /// The insult to be used when revealing a nickname.
     pub insult: String,
+    /// The role to mention when revealing a nickname.
     pub role_to_mention: String,
 }
 
+/// Configuration for the nicknamer application.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct NicknamerConfig {
+    /// Configuration for the reveal feature.
     pub reveal: RevealConfig,
 }
 
