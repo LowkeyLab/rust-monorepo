@@ -28,6 +28,8 @@ Before returning any code:
 
 6. **Code Style**
    • Run `cargo fmt` to format the code consistently.
+   • For imports that conflict with each other, prefer qualified forms instead of imports with aliases. For example, use `use std::io;` instead of `use std::io as io;`.
+7. **Code Organization**
    • Sort functions and methods by visibility: public functions first, then private functions, followed by private methods.
    • Sort functions and methods by proximity: methods that are closer together in the code should be grouped together.
    • Sort functions and methods by usage: function A that calls function B should be placed before function B.
