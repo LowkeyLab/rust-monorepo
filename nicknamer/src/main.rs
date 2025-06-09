@@ -5,11 +5,14 @@ use self::nicknamer::connectors::discord;
 use self::nicknamer::connectors::discord::serenity::{Context, SerenityDiscordConnector};
 use self::nicknamer::names::EmbeddedNamesRepository;
 use crate::nicknamer::{Nicknamer, NicknamerImpl};
+use include_dir::{Dir, include_dir};
 use log::{debug, info, LevelFilter};
 use log4rs::append::console::ConsoleAppender;
 use log4rs::config::{Appender, Logger, Root};
 use poise::serenity_prelude as serenity;
 use poise::serenity_prelude::{FullEvent, Member, Message};
+
+static CONFIG_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/config");
 
 /// Ping command to test bot availability
 ///

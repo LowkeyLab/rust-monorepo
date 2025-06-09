@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::CONFIG_DIR;
+
 /// Represents the overall configuration structure.
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
@@ -25,11 +27,13 @@ pub struct NicknamerConfig {
 
 impl Config {
     pub(crate) fn new() -> anyhow::Result<Self> {
-        let s = ::config::Config::builder()
-            .add_source(::config::File::with_name("nicknamer/config"))
+        let config_file = CONFIG_DIR.get_file("config.toml").unwrap();
+        let config_data = config_file.contents_utf8().unwrap();
+        let config = ::config::Config::builder()
+            .add_source(::config::File::from_str(config_data, ::config::FileFormat::Toml))
             .build()?;
 
-        Ok(s.try_deserialize()?)
+        Ok(config.try_deserialize()?)
     }
 }
 
