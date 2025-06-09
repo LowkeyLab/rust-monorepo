@@ -28,7 +28,9 @@ pub struct NicknamerConfig {
 impl Config {
     pub(crate) fn new() -> anyhow::Result<Self> {
         let config_file = CONFIG_DIR.get_file("config.toml").unwrap();
-        let config_data = config_file.contents_utf8().unwrap();
+        let config_data = config_file
+            .contents_utf8()
+            .context("Failed to read config file as UTF-8")?;
         let config = ::config::Config::builder()
             .add_source(::config::File::from_str(config_data, ::config::FileFormat::Toml))
             .build()?;
