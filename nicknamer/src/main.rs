@@ -109,7 +109,7 @@ async fn start_web_server() {
         .expect("Failed to bind web server");
     info!("Web server running on http://{}", addr);
 
-    tokio::spawn(async {
+    tokio::spawn(async move {
         axum::serve(listener, app.into_make_service())
             .await
             .expect("Web server encountered an error");
