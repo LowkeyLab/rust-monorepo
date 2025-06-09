@@ -133,7 +133,7 @@ async fn main() {
         Box::pin(async move {
             poise::builtins::register_globally(ctx, &framework.options().commands).await?;
             Ok(discord::serenity::Data {
-                names_repository: EmbeddedNamesRepository::new(),
+                names_repository: EmbeddedNamesRepository::new().expect("failed to load names repository"),
                 config: Config::new().expect("failed to load config"),
             })
         })
