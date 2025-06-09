@@ -1,11 +1,11 @@
 mod nicknamer;
 
+use self::nicknamer::config::Config;
 use self::nicknamer::connectors::discord;
 use self::nicknamer::connectors::discord::serenity::{Context, SerenityDiscordConnector};
 use self::nicknamer::names::EmbeddedNamesRepository;
 use crate::nicknamer::{Nicknamer, NicknamerImpl};
-use log::{LevelFilter, debug, info};
-use log4rs::Config;
+use log::{debug, info, LevelFilter};
 use log4rs::append::console::ConsoleAppender;
 use log4rs::config::{Appender, Logger, Root};
 use poise::serenity_prelude as serenity;
@@ -43,7 +43,12 @@ async fn nick(
     #[description = "The new nickname to set"] nickname: String,
 ) -> anyhow::Result<()> {
     let connector = SerenityDiscordConnector::new(ctx);
-    let nicknamer = NicknamerImpl::new(&ctx.data().names_repository, &connector);
+    let nicknamer_config = &ctx.data().config.nicknamer;
+    let nicknamer = NicknamerImpl::new(
+        &ctx.data().names_repository,
+        &connector,
+        nicknamer_config,
+    );
     nicknamer.change_nickname(&member.into(), &nickname).await?;
     Ok(())
 }
@@ -60,7 +65,12 @@ async fn reveal(
 ) -> anyhow::Result<()> {
     // Use the names_repository from the Data struct via the wrapper
     let connector = SerenityDiscordConnector::new(ctx);
-    let nicknamer = NicknamerImpl::new(&ctx.data().names_repository, &connector);
+    let nicknamer_config = &ctx.data().config.nicknamer;
+    let nicknamer = NicknamerImpl::new(
+        &ctx.data().names_repository,
+        &connector,
+        nicknamer_config,
+    );
     match member {
         Some(member) => {
             nicknamer.reveal(&member.into()).await?;
@@ -81,12 +91,12 @@ async fn on_message_create(_ctx: &serenity::Context, new_message: &Message) {
 #[tokio::main]
 async fn main() {
     let stdout = ConsoleAppender::builder().build();
-    let config = Config::builder()
+    let log_config = log4rs::Config::builder()
         .appender(Appender::builder().build("stdout", Box::new(stdout)))
         .logger(Logger::builder().build("nicknamer", LevelFilter::Info))
         .build(Root::builder().appender("stdout").build(LevelFilter::Warn))
         .unwrap();
-    let _log4rs_handle = log4rs::init_config(config).unwrap();
+    let _log4rs_handle = log4rs::init_config(log_config).unwrap();
     let token = std::env::var("DISCORD_TOKEN").expect("missing DISCORD_TOKEN");
     let intents = serenity::GatewayIntents::non_privileged()
         | serenity::GatewayIntents::MESSAGE_CONTENT
@@ -121,6 +131,7 @@ async fn main() {
             poise::builtins::register_globally(ctx, &framework.options().commands).await?;
             Ok(discord::serenity::Data {
                 names_repository: EmbeddedNamesRepository::new(),
+                config: Config::new().expect("failed to load config"),
             })
         })
     })
