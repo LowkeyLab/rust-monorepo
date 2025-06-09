@@ -84,12 +84,7 @@ async fn on_message_create(_ctx: &serenity::Context, new_message: &Message) {
     info!("Message created: {}", new_message.content);
 }
 
-async fn health_check() -> &'static str {
-    "OK"
-}
-
-#[tokio::main]
-async fn main() {
+fn configure_logging() {
     let stdout = ConsoleAppender::builder().build();
     let log_config = log4rs::Config::builder()
         .appender(Appender::builder().build("stdout", Box::new(stdout)))
@@ -97,6 +92,29 @@ async fn main() {
         .build(Root::builder().appender("stdout").build(LevelFilter::Warn))
         .unwrap();
     let _log4rs_handle = log4rs::init_config(log_config).unwrap();
+}
+
+async fn start_web_server() {
+    tokio::spawn(async {
+        let app = Router::new().route("/health", axum::routing::get(health_check));
+        let addr = std::net::SocketAddr::from(([0, 0, 0, 0], 3030));
+
+        // 1. Create a TCP listener.
+        let listener = tokio::net::TcpListener::bind(addr)
+            .await
+            .expect("Failed to bind health check server");
+
+        // Log before starting the server.
+        info!("Health check server running on http://{}", addr);
+
+        // 2. Serve the application using axum::serve.
+        axum::serve(listener, app.into_make_service())
+            .await
+            .expect("Health check server encountered an error");
+    });
+}
+
+async fn configure_discord_bot() -> anyhow::Result<serenity::Client> {
     let token = std::env::var("DISCORD_TOKEN").expect("missing DISCORD_TOKEN");
     let intents = serenity::GatewayIntents::non_privileged()
         | serenity::GatewayIntents::MESSAGE_CONTENT
@@ -138,28 +156,40 @@ async fn main() {
     })
     .build();
 
-    let client = serenity::ClientBuilder::new(token, intents)
+    serenity::ClientBuilder::new(token, intents)
         .framework(framework)
-        .await;
+        .await
+        .map_err(anyhow::Error::from)
+}
 
-    tokio::spawn(async {
-        let app = Router::new().route("/health", axum::routing::get(health_check));
-        let addr = std::net::SocketAddr::from(([0, 0, 0, 0], 3030));
+async fn health_check() -> &'static str {
+    "OK"
+}
 
-        // 1. Create a TCP listener.
-        let listener = tokio::net::TcpListener::bind(addr)
-            .await
-            .expect("Failed to bind health check server");
-        
-        // Log before starting the server.
-        info!("Health check server running on http://{}", addr);
+#[tokio::main]
+async fn main() {
+    configure_logging();
+    info!("Logging configured.");
 
-        // 2. Serve the application using axum::serve.
-        axum::serve(listener, app.into_make_service())
-            .await
-            .expect("Health check server encountered an error");
-    });
+    let web_server = start_web_server();
 
-    info!("Starting bot...");
-    client.unwrap().start().await.unwrap();
+    info!("Health check configured and started.");
+
+    info!("Configuring Discord bot...");
+    let client_result = configure_discord_bot().await;
+
+    match client_result {
+        Ok(mut client) => {
+            info!("Discord bot configured. Starting bot...");
+            if let Err(why) = client.start().await {
+                log::error!("Client error: {:?}", why);
+            }
+        }
+        Err(e) => {
+            log::error!("Failed to configure Discord bot: {:?}", e);
+        }
+    }
+
+    // We put an await here so that the Rust compiler is happy
+    web_server.await;
 }
