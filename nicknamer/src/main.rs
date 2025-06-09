@@ -5,8 +5,9 @@ use self::nicknamer::connectors::discord;
 use self::nicknamer::connectors::discord::serenity::{Context, SerenityDiscordConnector};
 use self::nicknamer::names::EmbeddedNamesRepository;
 use crate::nicknamer::{Nicknamer, NicknamerImpl};
+use axum::Router;
 use include_dir::{Dir, include_dir};
-use log::{debug, info, LevelFilter};
+use log::{LevelFilter, debug, info};
 use log4rs::append::console::ConsoleAppender;
 use log4rs::config::{Appender, Logger, Root};
 use poise::serenity_prelude as serenity;
@@ -47,11 +48,7 @@ async fn nick(
 ) -> anyhow::Result<()> {
     let connector = SerenityDiscordConnector::new(ctx);
     let nicknamer_config = &ctx.data().config.nicknamer;
-    let nicknamer = NicknamerImpl::new(
-        &ctx.data().names_repository,
-        &connector,
-        nicknamer_config,
-    );
+    let nicknamer = NicknamerImpl::new(&ctx.data().names_repository, &connector, nicknamer_config);
     nicknamer.change_nickname(&member.into(), &nickname).await?;
     Ok(())
 }
@@ -69,11 +66,7 @@ async fn reveal(
     // Use the names_repository from the Data struct via the wrapper
     let connector = SerenityDiscordConnector::new(ctx);
     let nicknamer_config = &ctx.data().config.nicknamer;
-    let nicknamer = NicknamerImpl::new(
-        &ctx.data().names_repository,
-        &connector,
-        nicknamer_config,
-    );
+    let nicknamer = NicknamerImpl::new(&ctx.data().names_repository, &connector, nicknamer_config);
     match member {
         Some(member) => {
             nicknamer.reveal(&member.into()).await?;
@@ -89,6 +82,10 @@ async fn reveal(
 /// Logs message contents when a message is created
 async fn on_message_create(_ctx: &serenity::Context, new_message: &Message) {
     info!("Message created: {}", new_message.content);
+}
+
+async fn health_check() -> &'static str {
+    "OK"
 }
 
 #[tokio::main]
@@ -133,7 +130,8 @@ async fn main() {
         Box::pin(async move {
             poise::builtins::register_globally(ctx, &framework.options().commands).await?;
             Ok(discord::serenity::Data {
-                names_repository: EmbeddedNamesRepository::new().expect("failed to load names repository"),
+                names_repository: EmbeddedNamesRepository::new()
+                    .expect("failed to load names repository"),
                 config: Config::new().expect("failed to load config"),
             })
         })
@@ -143,6 +141,24 @@ async fn main() {
     let client = serenity::ClientBuilder::new(token, intents)
         .framework(framework)
         .await;
+
+    tokio::spawn(async {
+        let app = Router::new().route("/health", axum::routing::get(health_check));
+        let addr = std::net::SocketAddr::from(([0, 0, 0, 0], 3030));
+
+        // 1. Create a TCP listener.
+        let listener = tokio::net::TcpListener::bind(addr)
+            .await
+            .expect("Failed to bind health check server");
+        
+        // Log before starting the server.
+        info!("Health check server running on http://{}", addr);
+
+        // 2. Serve the application using axum::serve.
+        axum::serve(listener, app.into_make_service())
+            .await
+            .expect("Health check server encountered an error");
+    });
 
     info!("Starting bot...");
     client.unwrap().start().await.unwrap();
