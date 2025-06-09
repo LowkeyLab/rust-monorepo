@@ -5,8 +5,9 @@ use self::nicknamer::connectors::discord;
 use self::nicknamer::connectors::discord::serenity::{Context, SerenityDiscordConnector};
 use self::nicknamer::names::EmbeddedNamesRepository;
 use crate::nicknamer::{Nicknamer, NicknamerImpl};
+use axum::Router;
 use include_dir::{Dir, include_dir};
-use log::{debug, info, LevelFilter};
+use log::{LevelFilter, debug, info};
 use log4rs::append::console::ConsoleAppender;
 use log4rs::config::{Appender, Logger, Root};
 use poise::serenity_prelude as serenity;
@@ -47,11 +48,7 @@ async fn nick(
 ) -> anyhow::Result<()> {
     let connector = SerenityDiscordConnector::new(ctx);
     let nicknamer_config = &ctx.data().config.nicknamer;
-    let nicknamer = NicknamerImpl::new(
-        &ctx.data().names_repository,
-        &connector,
-        nicknamer_config,
-    );
+    let nicknamer = NicknamerImpl::new(&ctx.data().names_repository, &connector, nicknamer_config);
     nicknamer.change_nickname(&member.into(), &nickname).await?;
     Ok(())
 }
@@ -69,11 +66,7 @@ async fn reveal(
     // Use the names_repository from the Data struct via the wrapper
     let connector = SerenityDiscordConnector::new(ctx);
     let nicknamer_config = &ctx.data().config.nicknamer;
-    let nicknamer = NicknamerImpl::new(
-        &ctx.data().names_repository,
-        &connector,
-        nicknamer_config,
-    );
+    let nicknamer = NicknamerImpl::new(&ctx.data().names_repository, &connector, nicknamer_config);
     match member {
         Some(member) => {
             nicknamer.reveal(&member.into()).await?;
@@ -91,8 +84,7 @@ async fn on_message_create(_ctx: &serenity::Context, new_message: &Message) {
     info!("Message created: {}", new_message.content);
 }
 
-#[tokio::main]
-async fn main() {
+fn configure_logging() {
     let stdout = ConsoleAppender::builder().build();
     let log_config = log4rs::Config::builder()
         .appender(Appender::builder().build("stdout", Box::new(stdout)))
@@ -100,6 +92,33 @@ async fn main() {
         .build(Root::builder().appender("stdout").build(LevelFilter::Warn))
         .unwrap();
     let _log4rs_handle = log4rs::init_config(log_config).unwrap();
+}
+
+async fn start_web_server() {
+    tokio::spawn(async {
+        let app = Router::new().route("/health", axum::routing::get(health_check));
+        let port = std::env::var("PORT")
+            .ok()
+            .and_then(|s| s.parse::<u16>().ok())
+            .unwrap_or(3030);
+        let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));
+
+        // 1. Create a TCP listener.
+        let listener = tokio::net::TcpListener::bind(addr)
+            .await
+            .expect("Failed to bind web server");
+
+        // Log before starting the server.
+        info!("Web server running on http://{}", addr);
+
+        // 2. Serve the application using axum::serve.
+        axum::serve(listener, app.into_make_service())
+            .await
+            .expect("Web server encountered an error");
+    });
+}
+
+async fn configure_discord_bot() -> anyhow::Result<serenity::Client> {
     let token = std::env::var("DISCORD_TOKEN").expect("missing DISCORD_TOKEN");
     let intents = serenity::GatewayIntents::non_privileged()
         | serenity::GatewayIntents::MESSAGE_CONTENT
@@ -133,17 +152,44 @@ async fn main() {
         Box::pin(async move {
             poise::builtins::register_globally(ctx, &framework.options().commands).await?;
             Ok(discord::serenity::Data {
-                names_repository: EmbeddedNamesRepository::new().expect("failed to load names repository"),
+                names_repository: EmbeddedNamesRepository::new()
+                    .expect("failed to load names repository"),
                 config: Config::new().expect("failed to load config"),
             })
         })
     })
     .build();
 
-    let client = serenity::ClientBuilder::new(token, intents)
+    serenity::ClientBuilder::new(token, intents)
         .framework(framework)
-        .await;
+        .await
+        .map_err(anyhow::Error::from)
+}
 
-    info!("Starting bot...");
-    client.unwrap().start().await.unwrap();
+async fn health_check() -> &'static str {
+    "OK"
+}
+
+#[tokio::main]
+async fn main() {
+    configure_logging();
+
+    let web_server = start_web_server();
+
+    let client_result = configure_discord_bot().await;
+
+    match client_result {
+        Ok(mut client) => {
+            info!("Discord bot configured. Starting bot...");
+            if let Err(why) = client.start().await {
+                log::error!("Client error: {:?}", why);
+            }
+        }
+        Err(e) => {
+            log::error!("Failed to configure Discord bot: {:?}", e);
+        }
+    }
+
+    // We put an await here so that the Rust compiler is happy
+    web_server.await;
 }
