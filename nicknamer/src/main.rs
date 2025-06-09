@@ -18,15 +18,6 @@ use poise::serenity_prelude::{FullEvent, Member, Message};
 
 static CONFIG_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/config");
 
-/// Ping command to test bot availability
-///
-/// Any instance of bot connected to the server will respond with "Pong!" and some runtime information.
-#[poise::command(prefix_command)]
-async fn ping(ctx: PoiseContext<'_>) -> anyhow::Result<()> {
-    ctx.reply("Pong!").await?;
-    Ok(())
-}
-
 /// Show this menu
 #[poise::command(prefix_command)]
 pub async fn help(
@@ -39,6 +30,15 @@ Type ~help command for more info on a command.",
         ..Default::default()
     };
     poise::builtins::help(ctx, command.as_deref(), config).await?;
+    Ok(())
+}
+
+/// Ping command to test bot availability
+///
+/// Any instance of bot connected to the server will respond with "Pong!" and some runtime information.
+#[poise::command(prefix_command)]
+async fn ping(ctx: PoiseContext<'_>) -> anyhow::Result<()> {
+    ctx.reply("Pong!").await?;
     Ok(())
 }
 
@@ -82,9 +82,31 @@ async fn reveal(
     }
 }
 
-/// Logs message contents when a message is created
-async fn on_message_create(_ctx: &serenity::Context, new_message: &Message) {
-    info!("Message created: {}", new_message.content);
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    // Section 1: Log configuration
+    configure_logging();
+    log::info!("Log configuration complete.");
+
+    // Section 2: Web server start up (initiation)
+    // Call start_web_server to begin its setup and get the future for its completion.
+    // The actual server runs in a spawned task.
+    log::info!("Initiating web server startup sequence...");
+    let web_server_setup_completion_future = start_web_server();
+
+    // Section 3: Discord bot start up
+    log::info!("Attempting to start Discord bot...");
+    start_discord_bot()
+        .await
+        .context("Discord bot failed to start or encountered a critical error during operation")?;
+    log::info!("Discord bot startup sequence concluded successfully.");
+
+    // Await the web server's initial setup completion.
+    log::info!("Awaiting completion of web server initial setup...");
+    web_server_setup_completion_future.await;
+    log::info!("Web server initial setup complete. Server is running in a background task.");
+
+    Ok(())
 }
 
 fn configure_logging() {
@@ -114,6 +136,26 @@ async fn start_web_server() {
             .await
             .expect("Web server encountered an error");
     });
+}
+
+async fn health_check() -> &'static str {
+    "OK"
+}
+
+async fn start_discord_bot() -> anyhow::Result<()> {
+    log::info!("Initiating Discord bot startup sequence...");
+    let mut client = configure_discord_bot()
+        .await
+        .context("Discord bot configuration failed")?;
+
+    log::info!("Discord bot configured. Starting bot's main loop...");
+    client
+        .start()
+        .await
+        .context("Discord client execution failed or stopped unexpectedly")?;
+
+    log::info!("Discord bot main loop exited gracefully.");
+    Ok(())
 }
 
 async fn configure_discord_bot() -> anyhow::Result<serenity::Client> {
@@ -167,49 +209,7 @@ async fn configure_discord_bot() -> anyhow::Result<serenity::Client> {
         .context("Failed to create Discord client")
 }
 
-async fn start_discord_bot() -> anyhow::Result<()> {
-    log::info!("Initiating Discord bot startup sequence...");
-    let mut client = configure_discord_bot()
-        .await
-        .context("Discord bot configuration failed")?;
-
-    log::info!("Discord bot configured. Starting bot's main loop...");
-    client
-        .start()
-        .await
-        .context("Discord client execution failed or stopped unexpectedly")?;
-
-    log::info!("Discord bot main loop exited gracefully.");
-    Ok(())
-}
-
-async fn health_check() -> &'static str {
-    "OK"
-}
-
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    // Section 1: Log configuration
-    configure_logging();
-    log::info!("Log configuration complete.");
-
-    // Section 2: Web server start up (initiation)
-    // Call start_web_server to begin its setup and get the future for its completion.
-    // The actual server runs in a spawned task.
-    log::info!("Initiating web server startup sequence...");
-    let web_server_setup_completion_future = start_web_server();
-
-    // Section 3: Discord bot start up
-    log::info!("Attempting to start Discord bot...");
-    start_discord_bot()
-        .await
-        .context("Discord bot failed to start or encountered a critical error during operation")?;
-    log::info!("Discord bot startup sequence concluded successfully.");
-
-    // Await the web server's initial setup completion.
-    log::info!("Awaiting completion of web server initial setup...");
-    web_server_setup_completion_future.await;
-    log::info!("Web server initial setup complete. Server is running in a background task.");
-
-    Ok(())
+/// Logs message contents when a message is created
+async fn on_message_create(_ctx: &serenity::Context, new_message: &Message) {
+    info!("Message created: {}", new_message.content);
 }
