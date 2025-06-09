@@ -70,12 +70,14 @@ impl EmbeddedNamesRepository {
     ///
     /// A new EmbeddedNamesRepository instance
     pub(crate) fn new() -> anyhow::Result<Self> {
+        let real_names_file = CONFIG_DIR
+            .get_file("real_names.yml")
+            .expect("Failed to find real_names.yml in the config directory");
+        let file_contents = real_names_file
+            .contents_utf8()
+            .expect("Failed to read real_names.yml as UTF-8");
         Ok(Self {
-            embedded_names: CONFIG_DIR
-                .get_file("real_names.yml")
-                .expect("Failed to find real_names.yml in the config directory")
-                .contents_utf8()
-                .expect("Failed to read real_names.yml as UTF-8"),
+            embedded_names: file_contents,
         })
     }
 }
