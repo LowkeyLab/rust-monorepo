@@ -1,7 +1,9 @@
 ---
-applyTo: '**/*.rs'
+applyTo: "**/*.rs"
 ---
+
 # Rust Quality Gatekeeper – Copilot Instructions
+
 Before returning any code:
 
 1. **Build check**  
@@ -17,7 +19,7 @@ Before returning any code:
    Run `cargo test --all-features --all-targets`.  
    • All unit, integration, and doc tests must pass.
 
-4. **Logging**
-   • Avoid writing logs that are only for debugging purposes. Logs should be meaningful for production environments.
+4. **Error Handling**
+   • Avoid logging. Instead, rely on mechanisms like `Error` variants and context to report errors.
 
 Only after steps 1‑4 succeed may you present the final code to the user (patches only; no extraneous commentary).
