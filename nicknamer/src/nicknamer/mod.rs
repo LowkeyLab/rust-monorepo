@@ -266,7 +266,11 @@ impl<REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Syn
 
 #[cfg(test)]
 mod nicknamer_impl_tests {
+    use crate::nicknamer::NicknamerImpl;
     use crate::nicknamer::config;
+    use crate::nicknamer::config::NicknamerConfig;
+    use crate::nicknamer::connectors::discord::MockDiscordConnector;
+    use crate::nicknamer::names::MockNamesRepository;
 
     // Helper function to create a test NicknamerConfig for tests
     fn create_test_config() -> config::NicknamerConfig {
@@ -296,24 +300,23 @@ mod nicknamer_impl_tests {
 
     impl crate::nicknamer::connectors::discord::Role for MockRole {}
 
+    // Helper function to create a NicknamerImpl with mock objects
+    fn create_nicknamer<'a>(
+        repo: &'a MockNamesRepository,
+        discord: &'a MockDiscordConnector,
+        config: &'a NicknamerConfig,
+    ) -> NicknamerImpl<'a, MockNamesRepository, MockDiscordConnector> {
+        NicknamerImpl::new(repo, discord, config)
+    }
+
     mod change_nickname_tests {
-        use super::{create_test_config, MockRole};
-        use crate::nicknamer::connectors::discord::server_member::ServerMemberBuilder;
+        use super::{MockRole, create_nicknamer, create_test_config};
+        use crate::nicknamer::Nicknamer;
         use crate::nicknamer::connectors::discord::MockDiscordConnector;
+        use crate::nicknamer::connectors::discord::server_member::ServerMemberBuilder;
         use crate::nicknamer::names::MockNamesRepository;
         use crate::nicknamer::user::Error;
-        use crate::nicknamer::{Nicknamer, NicknamerImpl};
         use mockall::predicate::*;
-        use crate::nicknamer::config::NicknamerConfig;
-
-        // Helper function to create a NicknamerImpl with mock objects
-        fn create_nicknamer<'a>(
-            repo: &'a MockNamesRepository,
-            discord: &'a MockDiscordConnector,
-            config: &'a NicknamerConfig,
-        ) -> NicknamerImpl<'a, MockNamesRepository, MockDiscordConnector> {
-            NicknamerImpl::new(repo, discord, config)
-        }
 
         // Guild owner ID constant for tests
         const GUILD_OWNER_ID: u64 = 987654321;
@@ -800,24 +803,14 @@ mod nicknamer_impl_tests {
     }
 
     mod reveal_tests {
-        use super::{create_test_config, MockRole};
-        use crate::nicknamer::connectors::discord::server_member::ServerMemberBuilder;
+        use super::{MockRole, create_nicknamer, create_test_config};
+        use crate::nicknamer::Nicknamer;
         use crate::nicknamer::connectors::discord::MockDiscordConnector;
+        use crate::nicknamer::connectors::discord::server_member::ServerMemberBuilder;
         use crate::nicknamer::names::{MockNamesRepository, Names};
         use crate::nicknamer::user::Error;
-        use crate::nicknamer::{Nicknamer, NicknamerImpl};
         use mockall::predicate::*;
         use std::collections::HashMap;
-        use crate::nicknamer::config::NicknamerConfig;
-
-        // Helper function to create a NicknamerImpl with mock objects
-        fn create_nicknamer<'a>(
-            repo: &'a MockNamesRepository,
-            discord: &'a MockDiscordConnector,
-            config: &'a NicknamerConfig,
-        ) -> NicknamerImpl<'a, MockNamesRepository, MockDiscordConnector> {
-            NicknamerImpl::new(repo, discord, config)
-        }
 
         #[tokio::test]
         async fn can_successfully_reveal_all_members() {
