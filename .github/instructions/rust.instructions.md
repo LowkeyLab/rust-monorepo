@@ -30,5 +30,6 @@ Before returning any code:
    • Run `cargo fmt` to format the code consistently.
    • Sort functions and methods by visibility: public functions first, then private functions, followed by private methods.
    • Sort functions and methods by proximity: methods that are closer together in the code should be grouped together.
+   • Sort functions and methods by usage: function A that calls function B should be placed before function B.
 
 Only return code that passes all checks above. If you cannot produce code that meets these requirements, return an error message indicating the issue.
