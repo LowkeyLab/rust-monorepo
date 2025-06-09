@@ -527,7 +527,7 @@ mod nicknamer_impl_tests {
             // Expect get_role_by_name to be called
             mock_discord
                 .expect_get_role_by_name()
-                .with(eq(create_test_config().reveal.role_to_mention.clone()))
+                .with(eq(config.reveal.role_to_mention.clone()))
                 .times(1)
                 .returning(|_| Ok(Box::new(MockRole::new())));
 
