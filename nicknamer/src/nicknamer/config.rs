@@ -1,3 +1,4 @@
+use anyhow::Context;
 use serde::{Deserialize, Serialize};
 
 use crate::CONFIG_DIR;
@@ -27,12 +28,17 @@ pub struct NicknamerConfig {
 
 impl Config {
     pub(crate) fn new() -> anyhow::Result<Self> {
-        let config_file = CONFIG_DIR.get_file("config.toml").unwrap();
+        let config_file = CONFIG_DIR
+            .get_file("config.toml")
+            .context("Failed to find config.toml in the config directory")?;
         let config_data = config_file
             .contents_utf8()
             .context("Failed to read config file as UTF-8")?;
         let config = ::config::Config::builder()
-            .add_source(::config::File::from_str(config_data, ::config::FileFormat::Toml))
+            .add_source(::config::File::from_str(
+                config_data,
+                ::config::FileFormat::Toml,
+            ))
             .build()?;
 
         Ok(config.try_deserialize()?)
