@@ -9,9 +9,8 @@
 //! The module supports deserializing name data from YAML format and provides
 //! error handling for failed loading operations.
 
-use crate::nicknamer::names::Error::CannotLoadNames;
+use crate::{nicknamer::names::Error::CannotLoadNames, CONFIG_DIR};
 use async_trait::async_trait;
-use log::info;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -70,10 +69,14 @@ impl EmbeddedNamesRepository {
     /// # Returns
     ///
     /// A new EmbeddedNamesRepository instance
-    pub(crate) fn new() -> Self {
-        Self {
-            embedded_names: include_str!("real_names.yml"),
-        }
+    pub(crate) fn new() -> anyhow::Result<Self> {
+        Ok(Self {
+            embedded_names: CONFIG_DIR
+                .get_file("real_names.yml")
+                .expect("Failed to find real_names.yml in the config directory")
+                .contents_utf8()
+                .expect("Failed to read real_names.yml as UTF-8"),
+        })
     }
 }
 
@@ -89,7 +92,6 @@ impl NamesRepository for EmbeddedNamesRepository {
     /// * `Result<Names, Error>` - The loaded Names on success, or CannotLoadNames error on failure
     async fn load_real_names(&self) -> Result<Names, Error> {
         let names: Names = serde_yml::from_str(self.embedded_names).map_err(|_| CannotLoadNames)?;
-        info!("Loaded {} names", names.names.len());
         Ok(names)
     }
 }
