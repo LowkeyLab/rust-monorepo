@@ -102,15 +102,15 @@ async fn start_web_server() {
         // 1. Create a TCP listener.
         let listener = tokio::net::TcpListener::bind(addr)
             .await
-            .expect("Failed to bind health check server");
+            .expect("Failed to bind web server");
 
         // Log before starting the server.
-        info!("Health check server running on http://{}", addr);
+        info!("Web server running on http://{}", addr);
 
         // 2. Serve the application using axum::serve.
         axum::serve(listener, app.into_make_service())
             .await
-            .expect("Health check server encountered an error");
+            .expect("Web server encountered an error");
     });
 }
 
@@ -169,13 +169,9 @@ async fn health_check() -> &'static str {
 #[tokio::main]
 async fn main() {
     configure_logging();
-    info!("Logging configured.");
 
     let web_server = start_web_server();
 
-    info!("Health check configured and started.");
-
-    info!("Configuring Discord bot...");
     let client_result = configure_discord_bot().await;
 
     match client_result {
