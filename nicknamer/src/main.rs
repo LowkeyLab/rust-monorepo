@@ -97,7 +97,11 @@ fn configure_logging() {
 async fn start_web_server() {
     tokio::spawn(async {
         let app = Router::new().route("/health", axum::routing::get(health_check));
-        let addr = std::net::SocketAddr::from(([0, 0, 0, 0], 3030));
+        let port = std::env::var("PORT")
+            .ok()
+            .and_then(|s| s.parse::<u16>().ok())
+            .unwrap_or(3030);
+        let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));
 
         // 1. Create a TCP listener.
         let listener = tokio::net::TcpListener::bind(addr)
