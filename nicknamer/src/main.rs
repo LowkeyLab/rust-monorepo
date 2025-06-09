@@ -5,7 +5,7 @@ use self::nicknamer::connectors::discord;
 use self::nicknamer::connectors::discord::serenity::{Context, SerenityDiscordConnector};
 use self::nicknamer::names::EmbeddedNamesRepository;
 use crate::nicknamer::{Nicknamer, NicknamerImpl};
-use log::{LevelFilter, debug, info};
+use log::{debug, info, LevelFilter};
 use log4rs::append::console::ConsoleAppender;
 use log4rs::config::{Appender, Logger, Root};
 use poise::serenity_prelude as serenity;
@@ -89,12 +89,12 @@ async fn on_message_create(_ctx: &serenity::Context, new_message: &Message) {
 #[tokio::main]
 async fn main() {
     let stdout = ConsoleAppender::builder().build();
-    let config = log4rs::Config::builder()
+    let log_config = log4rs::Config::builder()
         .appender(Appender::builder().build("stdout", Box::new(stdout)))
         .logger(Logger::builder().build("nicknamer", LevelFilter::Info))
         .build(Root::builder().appender("stdout").build(LevelFilter::Warn))
         .unwrap();
-    let _log4rs_handle = log4rs::init_config(config).unwrap();
+    let _log4rs_handle = log4rs::init_config(log_config).unwrap();
     let token = std::env::var("DISCORD_TOKEN").expect("missing DISCORD_TOKEN");
     let intents = serenity::GatewayIntents::non_privileged()
         | serenity::GatewayIntents::MESSAGE_CONTENT

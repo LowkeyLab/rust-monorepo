@@ -27,7 +27,7 @@ pub trait Nicknamer {
 pub struct NicknamerImpl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> {
     names_repository: &'a REPO,
     discord_connector: &'a DISCORD,
-    config: config::NicknamerConfig,
+    config: NicknamerConfig,
 }
 
 impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> NicknamerImpl<'a, REPO, DISCORD> {
@@ -297,9 +297,9 @@ mod nicknamer_impl_tests {
     impl crate::nicknamer::connectors::discord::Role for MockRole {}
 
     mod change_nickname_tests {
-        use super::{MockRole, create_test_config};
-        use crate::nicknamer::connectors::discord::MockDiscordConnector;
+        use super::{create_test_config, MockRole};
         use crate::nicknamer::connectors::discord::server_member::ServerMemberBuilder;
+        use crate::nicknamer::connectors::discord::MockDiscordConnector;
         use crate::nicknamer::names::MockNamesRepository;
         use crate::nicknamer::user::Error;
         use crate::nicknamer::{Nicknamer, NicknamerImpl};
@@ -788,9 +788,9 @@ mod nicknamer_impl_tests {
     }
 
     mod reveal_tests {
-        use super::{MockRole, create_test_config};
-        use crate::nicknamer::connectors::discord::MockDiscordConnector;
+        use super::{create_test_config, MockRole};
         use crate::nicknamer::connectors::discord::server_member::ServerMemberBuilder;
+        use crate::nicknamer::connectors::discord::MockDiscordConnector;
         use crate::nicknamer::names::{MockNamesRepository, Names};
         use crate::nicknamer::user::Error;
         use crate::nicknamer::{Nicknamer, NicknamerImpl};
