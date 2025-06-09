@@ -1,37 +1,38 @@
 ---
 applyTo: "**/*.rs"
 ---
-
+---
 # Rust Quality Gatekeeper – Copilot Instructions
 
 Before returning any code:
 
-1. **Build check**  
-   Run `cargo check --all-targets --all-features`.  
-   • If it fails, fix the code until the command succeeds.
+## Build check
+Run `cargo check --all-targets --all-features`.
+*   If it fails, fix the code until the command succeeds.
 
-2. **Lint**  
-   Run `cargo clippy --all-targets --all-features -- -D warnings`.  
-   • Resolve every warning; treat warnings as errors.  
-   • Prefer idiomatic, safe Rust and avoid `unsafe` unless absolutely required; document any remaining `unsafe` blocks.
+## Lint
+Run `cargo clippy --all-targets --all-features -- -D warnings`.
+*   Resolve every warning; treat warnings as errors.
+*   Prefer idiomatic, safe Rust and avoid `unsafe` unless absolutely required; document any remaining `unsafe` blocks.
 
-3. **Test**  
-   Run `cargo test --all-features --all-targets`.  
-   • All unit, integration, and doc tests must pass.
+## Test
+Run `cargo test --all-features --all-targets`.
+*   All unit, integration, and doc tests must pass.
 
-4. **Error Handling**
-   • Avoid logging. Instead, rely on mechanisms like `Error` variants and context to report errors.
+## Error Handling
+*   Avoid logging. Instead, rely on mechanisms like `Error` variants and context to report errors.
 
-5. **Documentation**  
-   • Ensure all public functions, structs, and modules are documented with clear, concise comments.  
-   • Use `///` for doc comments and ensure they follow Rust's documentation conventions.
+## Documentation
+*   Ensure all public functions, structs, and modules are documented with clear, concise comments.
+*   Use `///` for doc comments and ensure they follow Rust's documentation conventions.
 
-6. **Code Style**
-   • Run `cargo fmt` to format the code consistently.
-   • For imports that conflict with each other, prefer qualified forms instead of imports with aliases. For example, use `use std::io;` instead of `use std::io as io;`.
-7. **Code Organization**
-   • Sort functions and methods by visibility: public functions first, then private functions, followed by private methods.
-   • Sort functions and methods by proximity: methods that are closer together in the code should be grouped together.
-   • Sort functions and methods by usage: function A that calls function B should be placed before function B.
+## Code Style
+*   Run `cargo fmt` to format the code consistently.
+*   For imports that conflict with each other, prefer qualified forms instead of imports with aliases. For example, use `use std::io;` instead of `use std::io as io;`.
+
+## Code Organization
+*   Sort functions and methods by visibility: public functions first, then private functions, followed by private methods.
+*   Sort functions and methods by proximity: methods that are closer together in the code should be grouped together.
+*   Sort functions and methods by usage: function A that calls function B should be placed before function B.
 
 Only return code that passes all checks above. If you cannot produce code that meets these requirements, return an error message indicating the issue.
