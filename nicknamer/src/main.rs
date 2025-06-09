@@ -43,10 +43,11 @@ async fn nick(
     #[description = "The new nickname to set"] nickname: String,
 ) -> anyhow::Result<()> {
     let connector = SerenityDiscordConnector::new(ctx);
+    let nicknamer_config = &ctx.data().config.nicknamer;
     let nicknamer = NicknamerImpl::new(
         &ctx.data().names_repository,
         &connector,
-        ctx.data().config.nicknamer.clone(),
+        nicknamer_config,
     );
     nicknamer.change_nickname(&member.into(), &nickname).await?;
     Ok(())
@@ -64,10 +65,11 @@ async fn reveal(
 ) -> anyhow::Result<()> {
     // Use the names_repository from the Data struct via the wrapper
     let connector = SerenityDiscordConnector::new(ctx);
+    let nicknamer_config = &ctx.data().config.nicknamer;
     let nicknamer = NicknamerImpl::new(
         &ctx.data().names_repository,
         &connector,
-        ctx.data().config.nicknamer.clone(),
+        nicknamer_config,
     );
     match member {
         Some(member) => {
