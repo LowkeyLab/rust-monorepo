@@ -95,23 +95,18 @@ fn configure_logging() {
 }
 
 async fn start_web_server() {
+    let app = Router::new().route("/health", axum::routing::get(health_check));
+    let port = std::env::var("PORT")
+        .ok()
+        .and_then(|s| s.parse::<u16>().ok())
+        .unwrap_or(3030);
+    let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await
+        .expect("Failed to bind web server");
+    info!("Web server running on http://{}", addr);
+
     tokio::spawn(async {
-        let app = Router::new().route("/health", axum::routing::get(health_check));
-        let port = std::env::var("PORT")
-            .ok()
-            .and_then(|s| s.parse::<u16>().ok())
-            .unwrap_or(3030);
-        let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));
-
-        // 1. Create a TCP listener.
-        let listener = tokio::net::TcpListener::bind(addr)
-            .await
-            .expect("Failed to bind web server");
-
-        // Log before starting the server.
-        info!("Web server running on http://{}", addr);
-
-        // 2. Serve the application using axum::serve.
         axum::serve(listener, app.into_make_service())
             .await
             .expect("Web server encountered an error");
@@ -184,12 +179,10 @@ async fn main() {
             if let Err(why) = client.start().await {
                 log::error!("Client error: {:?}", why);
             }
+            web_server.await;
         }
         Err(e) => {
             log::error!("Failed to configure Discord bot: {:?}", e);
         }
     }
-
-    // We put an await here so that the Rust compiler is happy
-    web_server.await;
 }
