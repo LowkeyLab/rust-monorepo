@@ -167,22 +167,42 @@ async fn health_check() -> &'static str {
 
 #[tokio::main]
 async fn main() {
+    // Section 1: Log configuration
     configure_logging();
 
-    let web_server = start_web_server();
+    // Section 2: Web server start up (initiation)
+    // Call start_web_server to begin its setup and get the future for its completion.
+    // The actual server runs in a spawned task.
+    let web_server_setup_completion_future = start_web_server();
 
+    // Section 3: Discord bot start up
+    // Configure and start the Discord bot. client.start().await is typically a long-running task.
     let client_result = configure_discord_bot().await;
 
     match client_result {
         Ok(mut client) => {
-            info!("Discord bot configured. Starting bot...");
             if let Err(why) = client.start().await {
-                log::error!("Client error: {:?}", why);
+                // client.start().await is blocking. If it errors, the bot failed to run or stopped with an error.
+                log::error!("Discord client execution failed or stopped with error: {:?}", why);
+            } else {
+                // If client.start() returns Ok(()), it means the bot shut down gracefully.
+                log::info!("Discord bot main loop exited gracefully.");
             }
-            web_server.await;
         }
         Err(e) => {
             log::error!("Failed to configure Discord bot: {:?}", e);
         }
     }
+    log::info!("Discord bot startup sequence concluded.");
+
+    // Await the web server's initial setup completion.
+    // This is done after the Discord bot's startup sequence (including its main loop attempt).
+    // This ensures that start_web_server() has finished its own async operations (e.g., binding).
+    log::info!("Awaiting completion of web server initial setup...");
+    web_server_setup_completion_future.await;
+    log::info!("Web server initial setup complete. Server is running in a background task.");
+
+    // If client.start().await was the main blocking operation and it has returned (e.g., bot stopped),
+    // main will now exit. This will also lead to the termination of spawned tasks like the web server.
+    // This is typical behavior for such applications.
 }
