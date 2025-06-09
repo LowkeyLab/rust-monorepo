@@ -7,7 +7,7 @@ use self::nicknamer::connectors::discord::serenity::{
 };
 use self::nicknamer::names::EmbeddedNamesRepository;
 use crate::nicknamer::{Nicknamer, NicknamerImpl};
-use anyhow::Context;
+use anyhow::Context as AnyhowContext;
 use axum::Router;
 use include_dir::{Dir, include_dir};
 use log::{LevelFilter, debug, info};
