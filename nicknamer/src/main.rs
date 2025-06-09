@@ -2,9 +2,12 @@ mod nicknamer;
 
 use self::nicknamer::config::Config;
 use self::nicknamer::connectors::discord;
-use self::nicknamer::connectors::discord::serenity::{Context, SerenityDiscordConnector};
+use self::nicknamer::connectors::discord::serenity::{
+    Context as PoiseContext, SerenityDiscordConnector,
+};
 use self::nicknamer::names::EmbeddedNamesRepository;
 use crate::nicknamer::{Nicknamer, NicknamerImpl};
+use anyhow::Context;
 use axum::Router;
 use include_dir::{Dir, include_dir};
 use log::{LevelFilter, debug, info};
@@ -19,7 +22,7 @@ static CONFIG_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/config");
 ///
 /// Any instance of bot connected to the server will respond with "Pong!" and some runtime information.
 #[poise::command(prefix_command)]
-async fn ping(ctx: Context<'_>) -> anyhow::Result<()> {
+async fn ping(ctx: PoiseContext<'_>) -> anyhow::Result<()> {
     ctx.reply("Pong!").await?;
     Ok(())
 }
@@ -27,7 +30,7 @@ async fn ping(ctx: Context<'_>) -> anyhow::Result<()> {
 /// Show this menu
 #[poise::command(prefix_command)]
 pub async fn help(
-    ctx: Context<'_>,
+    ctx: PoiseContext<'_>,
     #[description = "Specific command to show help about"] command: Option<String>,
 ) -> anyhow::Result<()> {
     let config = poise::builtins::HelpConfiguration {
@@ -42,7 +45,7 @@ Type ~help command for more info on a command.",
 /// Changes the nickname for a member into a new one
 #[poise::command(prefix_command)]
 async fn nick(
-    ctx: Context<'_>,
+    ctx: PoiseContext<'_>,
     #[description = "The specific member to reveal the name of"] member: Member,
     #[description = "The new nickname to set"] nickname: String,
 ) -> anyhow::Result<()> {
@@ -60,7 +63,7 @@ async fn nick(
 /// You can also tag another member and I'll reveal the name of that person, regardless of whether they can access this channel or not
 #[poise::command(prefix_command)]
 async fn reveal(
-    ctx: Context<'_>,
+    ctx: PoiseContext<'_>,
     #[description = "The specific member to reveal the name of"] member: Option<Member>,
 ) -> anyhow::Result<()> {
     // Use the names_repository from the Data struct via the wrapper
@@ -114,7 +117,8 @@ async fn start_web_server() {
 }
 
 async fn configure_discord_bot() -> anyhow::Result<serenity::Client> {
-    let token = std::env::var("DISCORD_TOKEN").expect("missing DISCORD_TOKEN");
+    let token =
+        std::env::var("DISCORD_TOKEN").context("DISCORD_TOKEN environment variable not set")?;
     let intents = serenity::GatewayIntents::non_privileged()
         | serenity::GatewayIntents::MESSAGE_CONTENT
         | serenity::GatewayIntents::GUILD_MESSAGES
@@ -145,11 +149,13 @@ async fn configure_discord_bot() -> anyhow::Result<serenity::Client> {
     })
     .setup(|ctx, _ready, framework| {
         Box::pin(async move {
-            poise::builtins::register_globally(ctx, &framework.options().commands).await?;
+            poise::builtins::register_globally(ctx, &framework.options().commands)
+                .await
+                .context("Failed to register Discord commands globally")?;
             Ok(discord::serenity::Data {
                 names_repository: EmbeddedNamesRepository::new()
-                    .expect("failed to load names repository"),
-                config: Config::new().expect("failed to load config"),
+                    .context("Failed to load embedded names repository for Discord bot")?,
+                config: Config::new().context("Failed to load configuration for Discord bot")?,
             })
         })
     })
@@ -158,31 +164,23 @@ async fn configure_discord_bot() -> anyhow::Result<serenity::Client> {
     serenity::ClientBuilder::new(token, intents)
         .framework(framework)
         .await
-        .map_err(anyhow::Error::from)
+        .context("Failed to create Discord client")
 }
 
 async fn start_discord_bot() -> anyhow::Result<()> {
     log::info!("Initiating Discord bot startup sequence...");
-    let client_result = configure_discord_bot().await;
+    let mut client = configure_discord_bot()
+        .await
+        .context("Discord bot configuration failed")?;
 
-    match client_result {
-        Ok(mut client) => {
-            log::info!("Discord bot configured. Starting bot's main loop...");
-            if let Err(why) = client.start().await {
-                // client.start().await is blocking. If it errors, the bot failed to run or stopped with an error.
-                log::error!("Discord client execution failed or stopped with error: {:?}", why);
-                Err(anyhow::anyhow!("Discord client error: {:?}", why))
-            } else {
-                // If client.start() returns Ok(()), it means the bot shut down gracefully.
-                log::info!("Discord bot main loop exited gracefully.");
-                Ok(())
-            }
-        }
-        Err(e) => {
-            log::error!("Failed to configure Discord bot: {:?}", e);
-            Err(e)
-        }
-    }
+    log::info!("Discord bot configured. Starting bot's main loop...");
+    client
+        .start()
+        .await
+        .context("Discord client execution failed or stopped unexpectedly")?;
+
+    log::info!("Discord bot main loop exited gracefully.");
+    Ok(())
 }
 
 async fn health_check() -> &'static str {
@@ -190,7 +188,7 @@ async fn health_check() -> &'static str {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     // Section 1: Log configuration
     configure_logging();
     log::info!("Log configuration complete.");
@@ -202,13 +200,16 @@ async fn main() {
     let web_server_setup_completion_future = start_web_server();
 
     // Section 3: Discord bot start up
-    if let Err(e) = start_discord_bot().await {
-        log::error!("Discord bot failed to start or encountered an error: {:?}", e);
-    }
-    log::info!("Discord bot startup sequence concluded.");
+    log::info!("Attempting to start Discord bot...");
+    start_discord_bot()
+        .await
+        .context("Discord bot failed to start or encountered a critical error during operation")?;
+    log::info!("Discord bot startup sequence concluded successfully.");
 
     // Await the web server's initial setup completion.
     log::info!("Awaiting completion of web server initial setup...");
     web_server_setup_completion_future.await;
     log::info!("Web server initial setup complete. Server is running in a background task.");
+
+    Ok(())
 }
