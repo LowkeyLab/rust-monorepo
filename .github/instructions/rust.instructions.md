@@ -22,4 +22,13 @@ Before returning any code:
 4. **Error Handling**
    • Avoid logging. Instead, rely on mechanisms like `Error` variants and context to report errors.
 
+5. **Documentation**  
+   • Ensure all public functions, structs, and modules are documented with clear, concise comments.  
+   • Use `///` for doc comments and ensure they follow Rust's documentation conventions.
+
+6. **Code Style**
+   • Run `cargo fmt` to format the code consistently.
+   • Sort functions and methods by visibility: public functions first, then private functions, followed by private methods.
+   • Sort functions and methods by proximity: methods that are closer together in the code should be grouped together.
+
 Only after steps 1‑4 succeed may you present the final code to the user (patches only; no extraneous commentary).
