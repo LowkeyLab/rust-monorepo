@@ -103,6 +103,7 @@ fn configure_logging() {
         .build(Root::builder().appender("stdout").build(LevelFilter::Warn))
         .unwrap();
     let _log4rs_handle = log4rs::init_config(log_config).unwrap();
+    tracing_subscriber::fmt().init();
 }
 
 async fn start_web_server() {
