@@ -84,27 +84,13 @@ async fn reveal(
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // Section 1: Log configuration
     configure_logging();
-    log::info!("Log configuration complete.");
 
-    // Section 2: Web server start up (initiation)
-    // Call start_web_server to begin its setup and get the future for its completion.
-    // The actual server runs in a spawned task.
-    log::info!("Initiating web server startup sequence...");
-    let web_server_setup_completion_future = start_web_server();
+    tokio::spawn(start_web_server());
 
-    // Section 3: Discord bot start up
-    log::info!("Attempting to start Discord bot...");
     start_discord_bot()
         .await
         .context("Discord bot failed to start or encountered a critical error during operation")?;
-    log::info!("Discord bot startup sequence concluded successfully.");
-
-    // Await the web server's initial setup completion.
-    log::info!("Awaiting completion of web server initial setup...");
-    web_server_setup_completion_future.await;
-    log::info!("Web server initial setup complete. Server is running in a background task.");
 
     Ok(())
 }
@@ -131,11 +117,9 @@ async fn start_web_server() {
         .expect("Failed to bind web server");
     info!("Web server running on http://{}", addr);
 
-    tokio::spawn(async move {
-        axum::serve(listener, app.into_make_service())
-            .await
-            .expect("Web server encountered an error");
-    });
+    axum::serve(listener, app.into_make_service())
+        .await
+        .expect("Web server encountered an error");
 }
 
 async fn health_check() -> &'static str {
