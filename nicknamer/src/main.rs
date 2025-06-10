@@ -104,6 +104,7 @@ fn configure_logging() {
     tracing_subscriber::fmt().init();
 }
 
+#[tracing::instrument]
 async fn start_web_server() {
     let app = Router::new().route("/health", axum::routing::get(health_check));
     let port = std::env::var("PORT")
@@ -125,6 +126,7 @@ async fn health_check() -> &'static str {
     "OK"
 }
 
+#[tracing::instrument]
 async fn start_discord_bot() -> anyhow::Result<()> {
     info!("Initiating Discord bot startup sequence...");
     let mut client = configure_discord_bot()
@@ -141,6 +143,7 @@ async fn start_discord_bot() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[tracing::instrument]
 async fn configure_discord_bot() -> anyhow::Result<serenity::Client> {
     let token =
         std::env::var("DISCORD_TOKEN").context("DISCORD_TOKEN environment variable not set")?;
@@ -193,6 +196,7 @@ async fn configure_discord_bot() -> anyhow::Result<serenity::Client> {
 }
 
 /// Logs message contents when a message is created
+#[tracing::instrument]
 async fn on_message_create(_ctx: &serenity::Context, new_message: &Message) {
     info!("Message created: {}", new_message.content);
 }
