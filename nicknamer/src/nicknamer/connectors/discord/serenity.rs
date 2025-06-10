@@ -12,10 +12,10 @@ use crate::nicknamer::connectors::discord::server_member::ServerMember;
 use crate::nicknamer::connectors::discord::{DiscordConnector, Error, Mentionable, Role};
 use crate::nicknamer::names::{EmbeddedNamesRepository, NamesRepository};
 use async_trait::async_trait;
-use log::info;
 use poise::serenity_prelude as serenity;
 use poise::serenity_prelude::EditMember;
 use poise::serenity_prelude::Mentionable as poise_Mentionable;
+use tracing::info;
 
 /// Discord connector implementation using Serenity library.
 ///

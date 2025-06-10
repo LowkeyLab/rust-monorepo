@@ -10,15 +10,14 @@ use crate::nicknamer::{Nicknamer, NicknamerImpl};
 use anyhow::Context as AnyhowContext;
 use axum::Router;
 use include_dir::{Dir, include_dir};
-use log::{LevelFilter, debug, info};
-use log4rs::append::console::ConsoleAppender;
-use log4rs::config::{Appender, Logger, Root};
 use poise::serenity_prelude as serenity;
 use poise::serenity_prelude::{FullEvent, Member, Message};
+use tracing::{debug, info};
 
 static CONFIG_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/config");
 
 /// Show this menu
+#[tracing::instrument(skip(ctx))]
 #[poise::command(prefix_command)]
 pub async fn help(
     ctx: PoiseContext<'_>,
@@ -36,13 +35,15 @@ Type ~help command for more info on a command.",
 /// Ping command to test bot availability
 ///
 /// Any instance of bot connected to the server will respond with "Pong!" and some runtime information.
+#[tracing::instrument(skip(ctx))]
 #[poise::command(prefix_command)]
 async fn ping(ctx: PoiseContext<'_>) -> anyhow::Result<()> {
     ctx.reply("Pong!").await?;
     Ok(())
 }
 
-/// Changes the nickname for a member into a new one
+/// Changes the nickname for a member into a new
+#[tracing::instrument(skip(ctx))]
 #[poise::command(prefix_command)]
 async fn nick(
     ctx: PoiseContext<'_>,
@@ -61,6 +62,7 @@ async fn nick(
 /// Specifically, I'll reveal the names of members that can access this channel
 ///
 /// You can also tag another member and I'll reveal the name of that person, regardless of whether they can access this channel or not
+#[tracing::instrument(skip(ctx))]
 #[poise::command(prefix_command)]
 async fn reveal(
     ctx: PoiseContext<'_>,
@@ -96,15 +98,13 @@ async fn main() -> anyhow::Result<()> {
 }
 
 fn configure_logging() {
-    let stdout = ConsoleAppender::builder().build();
-    let log_config = log4rs::Config::builder()
-        .appender(Appender::builder().build("stdout", Box::new(stdout)))
-        .logger(Logger::builder().build("nicknamer", LevelFilter::Info))
-        .build(Root::builder().appender("stdout").build(LevelFilter::Warn))
-        .unwrap();
-    let _log4rs_handle = log4rs::init_config(log_config).unwrap();
+    // The log4rs configuration is removed as we are switching to tracing.
+    // If specific log4rs features like file output or complex filtering were used,
+    // equivalent tracing subscribers and layers would need to be configured here.
+    tracing_subscriber::fmt().init();
 }
 
+#[tracing::instrument]
 async fn start_web_server() {
     let app = Router::new().route("/health", axum::routing::get(health_check));
     let port = std::env::var("PORT")
@@ -126,22 +126,24 @@ async fn health_check() -> &'static str {
     "OK"
 }
 
+#[tracing::instrument]
 async fn start_discord_bot() -> anyhow::Result<()> {
-    log::info!("Initiating Discord bot startup sequence...");
+    info!("Initiating Discord bot startup sequence...");
     let mut client = configure_discord_bot()
         .await
         .context("Discord bot configuration failed")?;
 
-    log::info!("Discord bot configured. Starting bot's main loop...");
+    info!("Discord bot configured. Starting bot's main loop...");
     client
         .start()
         .await
         .context("Discord client execution failed or stopped unexpectedly")?;
 
-    log::info!("Discord bot main loop exited gracefully.");
+    info!("Discord bot main loop exited gracefully.");
     Ok(())
 }
 
+#[tracing::instrument]
 async fn configure_discord_bot() -> anyhow::Result<serenity::Client> {
     let token =
         std::env::var("DISCORD_TOKEN").context("DISCORD_TOKEN environment variable not set")?;
@@ -194,6 +196,7 @@ async fn configure_discord_bot() -> anyhow::Result<serenity::Client> {
 }
 
 /// Logs message contents when a message is created
+#[tracing::instrument]
 async fn on_message_create(_ctx: &serenity::Context, new_message: &Message) {
     info!("Message created: {}", new_message.content);
 }
