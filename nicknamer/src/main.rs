@@ -19,6 +19,7 @@ use poise::serenity_prelude::{FullEvent, Member, Message};
 static CONFIG_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/config");
 
 /// Show this menu
+#[tracing::instrument(skip(ctx))]
 #[poise::command(prefix_command)]
 pub async fn help(
     ctx: PoiseContext<'_>,
@@ -36,13 +37,15 @@ Type ~help command for more info on a command.",
 /// Ping command to test bot availability
 ///
 /// Any instance of bot connected to the server will respond with "Pong!" and some runtime information.
+#[tracing::instrument(skip(ctx))]
 #[poise::command(prefix_command)]
 async fn ping(ctx: PoiseContext<'_>) -> anyhow::Result<()> {
     ctx.reply("Pong!").await?;
     Ok(())
 }
 
-/// Changes the nickname for a member into a new one
+/// Changes the nickname for a member into a new 
+#[tracing::instrument(skip(ctx))]
 #[poise::command(prefix_command)]
 async fn nick(
     ctx: PoiseContext<'_>,
@@ -61,6 +64,7 @@ async fn nick(
 /// Specifically, I'll reveal the names of members that can access this channel
 ///
 /// You can also tag another member and I'll reveal the name of that person, regardless of whether they can access this channel or not
+#[tracing::instrument(skip(ctx))]
 #[poise::command(prefix_command)]
 async fn reveal(
     ctx: PoiseContext<'_>,
