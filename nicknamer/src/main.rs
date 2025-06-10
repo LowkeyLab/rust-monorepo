@@ -12,12 +12,12 @@ use axum::Router;
 use include_dir::{Dir, include_dir};
 use poise::serenity_prelude as serenity;
 use poise::serenity_prelude::{FullEvent, Member, Message};
-use tracing::{debug, info, instrument};
+use tracing::{debug, info};
 
 static CONFIG_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/config");
 
 /// Show this menu
-#[instrument(skip(ctx))]
+#[tracing::instrument(skip(ctx))]
 #[poise::command(prefix_command)]
 pub async fn help(
     ctx: PoiseContext<'_>,
@@ -35,7 +35,7 @@ Type ~help command for more info on a command.",
 /// Ping command to test bot availability
 ///
 /// Any instance of bot connected to the server will respond with "Pong!" and some runtime information.
-#[instrument(skip(ctx))]
+#[tracing::instrument(skip(ctx))]
 #[poise::command(prefix_command)]
 async fn ping(ctx: PoiseContext<'_>) -> anyhow::Result<()> {
     ctx.reply("Pong!").await?;
@@ -43,7 +43,7 @@ async fn ping(ctx: PoiseContext<'_>) -> anyhow::Result<()> {
 }
 
 /// Changes the nickname for a member into a new
-#[instrument(skip(ctx))]
+#[tracing::instrument(skip(ctx))]
 #[poise::command(prefix_command)]
 async fn nick(
     ctx: PoiseContext<'_>,
@@ -62,7 +62,7 @@ async fn nick(
 /// Specifically, I'll reveal the names of members that can access this channel
 ///
 /// You can also tag another member and I'll reveal the name of that person, regardless of whether they can access this channel or not
-#[instrument(skip(ctx))]
+#[tracing::instrument(skip(ctx))]
 #[poise::command(prefix_command)]
 async fn reveal(
     ctx: PoiseContext<'_>,
