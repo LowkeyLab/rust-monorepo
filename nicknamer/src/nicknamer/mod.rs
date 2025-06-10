@@ -122,12 +122,22 @@ impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> NicknamerImpl<'a, REP
 impl<REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Sync> Nicknamer
     for NicknamerImpl<'_, REPO, DISCORD>
 {
+    #[tracing::instrument(skip(self))]
     async fn reveal_all(&self) -> Result<(), Error> {
         info!("Revealing real names for current channel members ...");
         let members = self
             .discord_connector
             .get_members_of_current_channel()
             .await?;
+
+        let members: Vec<discord::ServerMember> = members
+            .into_iter()
+            .filter(|member| {
+                // Filter out bots and the "he who shall not be named" user
+                !member.is_bot && member.id != self.config.reveal.he_who_shall_not_be_named
+            })
+            .collect();
+
         let real_names = self.names_repository.load_real_names().await?;
 
         // Reveal users with real names
@@ -208,6 +218,7 @@ impl<REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Syn
         Ok(())
     }
 
+    #[tracing::instrument(skip(self))]
     async fn reveal(&self, member: &discord::ServerMember) -> Result<(), Error> {
         info!("Revealing real name for {}", member.user_name);
         if member.is_bot {
@@ -231,6 +242,7 @@ impl<REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Syn
         Ok(())
     }
 
+    #[tracing::instrument(skip(self))]
     async fn change_nickname(
         &self,
         member: &discord::ServerMember,
@@ -272,12 +284,15 @@ mod nicknamer_impl_tests {
     use crate::nicknamer::connectors::discord::MockDiscordConnector;
     use crate::nicknamer::names::MockNamesRepository;
 
+    static HE_WHO_SHALL_NOT_BE_NAMED: u64 = 899501665365929985; // Example ID for tests
+
     // Helper function to create a test NicknamerConfig for tests
     fn create_test_config() -> config::NicknamerConfig {
         config::NicknamerConfig {
             reveal: config::RevealConfig {
                 insult: "ya dingus".to_string(),
                 role_to_mention: "Code Monkeys".to_string(),
+                he_who_shall_not_be_named: HE_WHO_SHALL_NOT_BE_NAMED, // Ensure this ID is correct
             },
         }
     }
@@ -811,6 +826,67 @@ mod nicknamer_impl_tests {
         use crate::nicknamer::user::Error;
         use mockall::predicate::*;
         use std::collections::HashMap;
+
+        #[tokio::test]
+        async fn reveal_all_filters_he_who_shall_not_be_named() {
+            // Arrange
+            let mut mock_repo = MockNamesRepository::new();
+            let mut mock_discord = MockDiscordConnector::new();
+            let config = create_test_config(); // This config defines HE_WHO_SHALL_NOT_BE_NAMED
+
+            let he_who_shall_not_be_named_id = config.reveal.he_who_shall_not_be_named;
+            let other_user_id = 12345u64; // A different user
+
+            let members = vec![
+                ServerMemberBuilder::new()
+                    .id(he_who_shall_not_be_named_id)
+                    .user_name("Voldemort")
+                    .nick_name("HeWhoMustNotBeNamed")
+                    .is_bot(false)
+                    .build(),
+                ServerMemberBuilder::new()
+                    .id(other_user_id)
+                    .user_name("HarryPotter")
+                    .nick_name("TheBoyWhoLived")
+                    .is_bot(false)
+                    .build(),
+            ];
+
+            let mut names_map = HashMap::new();
+            names_map.insert(he_who_shall_not_be_named_id, "Tom Riddle".to_string());
+            names_map.insert(other_user_id, "Harry Potter".to_string());
+            let names_db = Names { names: names_map };
+
+            mock_discord
+                .expect_get_members_of_current_channel()
+                .times(1)
+                .returning(move || Ok(members.clone()));
+
+            mock_repo
+                .expect_load_real_names()
+                .times(1)
+                .returning(move || Ok(names_db.clone()));
+
+            // Expect that the reply only contains "TheBoyWhoLived"
+            let expected_reply = format!(
+                "Here are people's real names, {}:
+	'TheBoyWhoLived' is Harry Potter",
+                config.reveal.insult
+            );
+            mock_discord
+                .expect_send_reply()
+                .with(eq(expected_reply))
+                .times(1)
+                .returning(|_| Ok(()));
+
+            let sut = create_nicknamer(&mock_repo, &mock_discord, &config);
+
+            // Act
+            let result = sut.reveal_all().await;
+
+            // Assert
+            assert!(result.is_ok());
+        }
 
         #[tokio::test]
         async fn can_successfully_reveal_all_members() {
