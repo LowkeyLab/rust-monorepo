@@ -8,8 +8,8 @@ use crate::nicknamer::config::NicknamerConfig;
 use crate::nicknamer::connectors::discord;
 use async_trait::async_trait;
 use connectors::discord::DiscordConnector;
-use log::info;
 use names::NamesRepository;
+use tracing::info;
 use user::Error;
 use user::User;
 
