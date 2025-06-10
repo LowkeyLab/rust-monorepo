@@ -6,7 +6,7 @@ applyTo: "**/*.rs"
 
 Before returning any code, ensure all the following guidelines are strictly followed. If any guideline is not met, do not return the code and instead provide an error message indicating the issue.
 
-## Commmands
+## Commands
 
 Run the following commands in the terminal to ensure the code meets the quality standards:
 ```bash
