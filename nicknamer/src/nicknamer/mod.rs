@@ -122,12 +122,22 @@ impl<'a, REPO: NamesRepository, DISCORD: DiscordConnector> NicknamerImpl<'a, REP
 impl<REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Sync> Nicknamer
     for NicknamerImpl<'_, REPO, DISCORD>
 {
+    #[tracing::instrument(skip(self))]
     async fn reveal_all(&self) -> Result<(), Error> {
         info!("Revealing real names for current channel members ...");
         let members = self
             .discord_connector
             .get_members_of_current_channel()
             .await?;
+
+        let members: Vec<discord::ServerMember> = members
+            .into_iter()
+            .filter(|member| {
+                // Filter out bots and the "he who shall not be named" user
+                !member.is_bot && member.id != self.config.reveal.he_who_shall_not_be_named
+            })
+            .collect();
+        
         let real_names = self.names_repository.load_real_names().await?;
 
         // Reveal users with real names
@@ -208,6 +218,7 @@ impl<REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Syn
         Ok(())
     }
 
+    #[tracing::instrument(skip(self))]
     async fn reveal(&self, member: &discord::ServerMember) -> Result<(), Error> {
         info!("Revealing real name for {}", member.user_name);
         if member.is_bot {
@@ -231,6 +242,7 @@ impl<REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Syn
         Ok(())
     }
 
+    #[tracing::instrument(skip(self))]
     async fn change_nickname(
         &self,
         member: &discord::ServerMember,
@@ -272,12 +284,15 @@ mod nicknamer_impl_tests {
     use crate::nicknamer::connectors::discord::MockDiscordConnector;
     use crate::nicknamer::names::MockNamesRepository;
 
+    static HE_WHO_SHALL_NOT_BE_NAMED : u64 = 899501665365929985; // Example ID for tests
+
     // Helper function to create a test NicknamerConfig for tests
     fn create_test_config() -> config::NicknamerConfig {
         config::NicknamerConfig {
             reveal: config::RevealConfig {
                 insult: "ya dingus".to_string(),
                 role_to_mention: "Code Monkeys".to_string(),
+                he_who_shall_not_be_named: HE_WHO_SHALL_NOT_BE_NAMED, // Ensure this ID is correct
             },
         }
     }

@@ -17,6 +17,8 @@ pub struct RevealConfig {
     pub insult: String,
     /// The role to mention when revealing a nickname.
     pub role_to_mention: String,
+    // Field to store the ID of the user who should not be named.
+    pub he_who_shall_not_be_named: u64,
 }
 
 /// Configuration for the nicknamer application.
@@ -60,6 +62,7 @@ mod tests {
                 [nicknamer.reveal]
                 insult = "test insult"
                 role_to_mention = "test role"
+                he_who_shall_not_be_named = 1
             "#;
 
             // Act
@@ -68,6 +71,7 @@ mod tests {
             // Assert
             assert_eq!(config.nicknamer.reveal.insult, "test insult");
             assert_eq!(config.nicknamer.reveal.role_to_mention, "test role");
+            assert_eq!(config.nicknamer.reveal.he_who_shall_not_be_named, 1);
         }
 
         #[test]
@@ -78,6 +82,7 @@ mod tests {
                 [nicknamer.reveal]
                 insult = ""
                 role_to_mention = ""
+                he_who_shall_not_be_named = 0
             "#;
 
             // Act
@@ -86,6 +91,7 @@ mod tests {
             // Assert
             assert_eq!(config.nicknamer.reveal.insult, "");
             assert_eq!(config.nicknamer.reveal.role_to_mention, "");
+            assert_eq!(config.nicknamer.reveal.he_who_shall_not_be_named, 0);
         }
 
         #[test]
@@ -96,6 +102,7 @@ mod tests {
                 [nicknamer.reveal]
                 insult = "Special chars: !@#$%^&*()"
                 role_to_mention = "More special: 😊🚀👍"
+                he_who_shall_not_be_named = 2
             "#;
 
             // Act
@@ -107,6 +114,7 @@ mod tests {
                 config.nicknamer.reveal.role_to_mention,
                 "More special: 😊🚀👍"
             );
+            assert_eq!(config.nicknamer.reveal.he_who_shall_not_be_named, 2);
         }
     }
 
@@ -118,6 +126,7 @@ mod tests {
                 reveal: RevealConfig {
                     insult: "test insult".to_string(),
                     role_to_mention: "test role".to_string(),
+                    he_who_shall_not_be_named: 123456789,
                 },
             },
         };
@@ -128,6 +137,7 @@ mod tests {
         // Assert
         assert!(toml_str.contains("insult = \"test insult\""));
         assert!(toml_str.contains("role_to_mention = \"test role\""));
+        assert!(toml_str.contains("he_who_shall_not_be_named = 123456789"));
     }
 
     #[test]
@@ -138,6 +148,7 @@ mod tests {
                 reveal: RevealConfig {
                     insult: "roundtrip insult".to_string(),
                     role_to_mention: "roundtrip role".to_string(),
+                    he_who_shall_not_be_named: 987654321,
                 },
             },
         };
@@ -156,6 +167,13 @@ mod tests {
         assert_eq!(
             deserialized_config.nicknamer.reveal.role_to_mention,
             "roundtrip role"
+        );
+        assert_eq!(
+            deserialized_config
+                .nicknamer
+                .reveal
+                .he_who_shall_not_be_named,
+            987654321
         );
     }
 }
