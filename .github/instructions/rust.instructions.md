@@ -6,18 +6,15 @@ applyTo: "**/*.rs"
 
 Before returning any code, ensure all the following guidelines are strictly followed. If any guideline is not met, do not return the code and instead provide an error message indicating the issue.
 
-## Build check
-Run `cargo check --all-targets --all-features`.
-*   If it fails, fix the code until the command succeeds.
+## Commmands
 
-## Lint
-Run `cargo clippy --all-targets --all-features -- -D warnings`.
-*   Resolve every warning; treat warnings as errors.
-*   Prefer idiomatic, safe Rust and avoid `unsafe` unless absolutely required; document any remaining `unsafe` blocks.
-
-## Test
-Run `cargo test --all-features --all-targets`.
-*   All unit, integration, and doc tests must pass.
+Run the following commands in the terminal to ensure the code meets the quality standards:
+```bash
+cargo fmt --all -- --check
+cargo clippy --all-targets --all-features -- -D warnings
+cargo check --all-targets --all-features
+cargo test --all-features --all-targets
+```
 
 ## Error Handling
 *   Avoid logging. Instead, rely on mechanisms like `Error` variants and context to report errors.

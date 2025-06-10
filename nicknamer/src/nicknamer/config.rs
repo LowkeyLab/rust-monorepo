@@ -17,7 +17,7 @@ pub struct RevealConfig {
     pub insult: String,
     /// The role to mention when revealing a nickname.
     pub role_to_mention: String,
-    // Field to store the ID of the user who should not be named.
+    /// The ID of the user who should not be revealed in `reveal_all` commands.
     pub he_who_shall_not_be_named: u64,
 }
 

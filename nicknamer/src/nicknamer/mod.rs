@@ -828,6 +828,67 @@ mod nicknamer_impl_tests {
         use std::collections::HashMap;
 
         #[tokio::test]
+        async fn reveal_all_filters_he_who_shall_not_be_named() {
+            // Arrange
+            let mut mock_repo = MockNamesRepository::new();
+            let mut mock_discord = MockDiscordConnector::new();
+            let config = create_test_config(); // This config defines HE_WHO_SHALL_NOT_BE_NAMED
+
+            let he_who_shall_not_be_named_id = config.reveal.he_who_shall_not_be_named;
+            let other_user_id = 12345u64; // A different user
+
+            let members = vec![
+                ServerMemberBuilder::new()
+                    .id(he_who_shall_not_be_named_id)
+                    .user_name("Voldemort")
+                    .nick_name("HeWhoMustNotBeNamed")
+                    .is_bot(false)
+                    .build(),
+                ServerMemberBuilder::new()
+                    .id(other_user_id)
+                    .user_name("HarryPotter")
+                    .nick_name("TheBoyWhoLived")
+                    .is_bot(false)
+                    .build(),
+            ];
+
+            let mut names_map = HashMap::new();
+            names_map.insert(he_who_shall_not_be_named_id, "Tom Riddle".to_string());
+            names_map.insert(other_user_id, "Harry Potter".to_string());
+            let names_db = Names { names: names_map };
+
+            mock_discord
+                .expect_get_members_of_current_channel()
+                .times(1)
+                .returning(move || Ok(members.clone()));
+
+            mock_repo
+                .expect_load_real_names()
+                .times(1)
+                .returning(move || Ok(names_db.clone()));
+
+            // Expect that the reply only contains "TheBoyWhoLived"
+            let expected_reply = format!(
+                "Here are people's real names, {}:
+	'TheBoyWhoLived' is Harry Potter",
+                config.reveal.insult
+            );
+            mock_discord
+                .expect_send_reply()
+                .with(eq(expected_reply))
+                .times(1)
+                .returning(|_| Ok(()));
+
+            let sut = create_nicknamer(&mock_repo, &mock_discord, &config);
+
+            // Act
+            let result = sut.reveal_all().await;
+
+            // Assert
+            assert!(result.is_ok());
+        }
+
+        #[tokio::test]
         async fn can_successfully_reveal_all_members() {
             // Setup mock objects
             let mut mock_repo = MockNamesRepository::new();
