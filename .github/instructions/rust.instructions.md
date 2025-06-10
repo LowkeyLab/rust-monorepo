@@ -4,7 +4,7 @@ applyTo: "**/*.rs"
 ---
 # Rust Quality Gatekeeper – Copilot Instructions
 
-Before returning any code:
+Before returning any code, ensure all the following guidelines are strictly followed. If any guideline is not met, do not return the code and instead provide an error message indicating the issue.
 
 ## Build check
 Run `cargo check --all-targets --all-features`.
