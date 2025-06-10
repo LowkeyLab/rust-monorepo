@@ -196,7 +196,7 @@ async fn configure_discord_bot() -> anyhow::Result<serenity::Client> {
 }
 
 /// Logs message contents when a message is created
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 async fn on_message_create(_ctx: &serenity::Context, new_message: &Message) {
     info!("Message created: {}", new_message.content);
 }
