@@ -137,7 +137,7 @@ impl<REPO: NamesRepository + Send + Sync, DISCORD: DiscordConnector + Send + Syn
                 !member.is_bot && member.id != self.config.reveal.he_who_shall_not_be_named
             })
             .collect();
-        
+
         let real_names = self.names_repository.load_real_names().await?;
 
         // Reveal users with real names
@@ -284,7 +284,7 @@ mod nicknamer_impl_tests {
     use crate::nicknamer::connectors::discord::MockDiscordConnector;
     use crate::nicknamer::names::MockNamesRepository;
 
-    static HE_WHO_SHALL_NOT_BE_NAMED : u64 = 899501665365929985; // Example ID for tests
+    static HE_WHO_SHALL_NOT_BE_NAMED: u64 = 899501665365929985; // Example ID for tests
 
     // Helper function to create a test NicknamerConfig for tests
     fn create_test_config() -> config::NicknamerConfig {
