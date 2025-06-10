@@ -9,7 +9,7 @@
 //! The module supports deserializing name data from YAML format and provides
 //! error handling for failed loading operations.
 
-use crate::{nicknamer::names::Error::CannotLoadNames, CONFIG_DIR};
+use crate::{CONFIG_DIR, nicknamer::names::Error::CannotLoadNames};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;

@@ -2,9 +2,12 @@ mod nicknamer;
 
 use self::nicknamer::config::Config;
 use self::nicknamer::connectors::discord;
-use self::nicknamer::connectors::discord::serenity::{Context, SerenityDiscordConnector};
+use self::nicknamer::connectors::discord::serenity::{
+    Context as PoiseContext, SerenityDiscordConnector,
+};
 use self::nicknamer::names::EmbeddedNamesRepository;
 use crate::nicknamer::{Nicknamer, NicknamerImpl};
+use anyhow::Context as AnyhowContext;
 use axum::Router;
 use include_dir::{Dir, include_dir};
 use log::{LevelFilter, debug, info};
@@ -15,19 +18,10 @@ use poise::serenity_prelude::{FullEvent, Member, Message};
 
 static CONFIG_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/config");
 
-/// Ping command to test bot availability
-///
-/// Any instance of bot connected to the server will respond with "Pong!" and some runtime information.
-#[poise::command(prefix_command)]
-async fn ping(ctx: Context<'_>) -> anyhow::Result<()> {
-    ctx.reply("Pong!").await?;
-    Ok(())
-}
-
 /// Show this menu
 #[poise::command(prefix_command)]
 pub async fn help(
-    ctx: Context<'_>,
+    ctx: PoiseContext<'_>,
     #[description = "Specific command to show help about"] command: Option<String>,
 ) -> anyhow::Result<()> {
     let config = poise::builtins::HelpConfiguration {
@@ -39,10 +33,19 @@ Type ~help command for more info on a command.",
     Ok(())
 }
 
+/// Ping command to test bot availability
+///
+/// Any instance of bot connected to the server will respond with "Pong!" and some runtime information.
+#[poise::command(prefix_command)]
+async fn ping(ctx: PoiseContext<'_>) -> anyhow::Result<()> {
+    ctx.reply("Pong!").await?;
+    Ok(())
+}
+
 /// Changes the nickname for a member into a new one
 #[poise::command(prefix_command)]
 async fn nick(
-    ctx: Context<'_>,
+    ctx: PoiseContext<'_>,
     #[description = "The specific member to reveal the name of"] member: Member,
     #[description = "The new nickname to set"] nickname: String,
 ) -> anyhow::Result<()> {
@@ -60,7 +63,7 @@ async fn nick(
 /// You can also tag another member and I'll reveal the name of that person, regardless of whether they can access this channel or not
 #[poise::command(prefix_command)]
 async fn reveal(
-    ctx: Context<'_>,
+    ctx: PoiseContext<'_>,
     #[description = "The specific member to reveal the name of"] member: Option<Member>,
 ) -> anyhow::Result<()> {
     // Use the names_repository from the Data struct via the wrapper
@@ -79,9 +82,17 @@ async fn reveal(
     }
 }
 
-/// Logs message contents when a message is created
-async fn on_message_create(_ctx: &serenity::Context, new_message: &Message) {
-    info!("Message created: {}", new_message.content);
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    configure_logging();
+
+    tokio::spawn(start_web_server());
+
+    start_discord_bot()
+        .await
+        .context("Discord bot failed to start or encountered a critical error during operation")?;
+
+    Ok(())
 }
 
 fn configure_logging() {
@@ -95,31 +106,45 @@ fn configure_logging() {
 }
 
 async fn start_web_server() {
-    tokio::spawn(async {
-        let app = Router::new().route("/health", axum::routing::get(health_check));
-        let port = std::env::var("PORT")
-            .ok()
-            .and_then(|s| s.parse::<u16>().ok())
-            .unwrap_or(3030);
-        let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));
+    let app = Router::new().route("/health", axum::routing::get(health_check));
+    let port = std::env::var("PORT")
+        .ok()
+        .and_then(|s| s.parse::<u16>().ok())
+        .unwrap_or(3030);
+    let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await
+        .expect("Failed to bind web server");
+    info!("Web server running on http://{}", addr);
 
-        // 1. Create a TCP listener.
-        let listener = tokio::net::TcpListener::bind(addr)
-            .await
-            .expect("Failed to bind web server");
+    axum::serve(listener, app.into_make_service())
+        .await
+        .expect("Web server encountered an error");
+}
 
-        // Log before starting the server.
-        info!("Web server running on http://{}", addr);
+async fn health_check() -> &'static str {
+    "OK"
+}
 
-        // 2. Serve the application using axum::serve.
-        axum::serve(listener, app.into_make_service())
-            .await
-            .expect("Web server encountered an error");
-    });
+async fn start_discord_bot() -> anyhow::Result<()> {
+    log::info!("Initiating Discord bot startup sequence...");
+    let mut client = configure_discord_bot()
+        .await
+        .context("Discord bot configuration failed")?;
+
+    log::info!("Discord bot configured. Starting bot's main loop...");
+    client
+        .start()
+        .await
+        .context("Discord client execution failed or stopped unexpectedly")?;
+
+    log::info!("Discord bot main loop exited gracefully.");
+    Ok(())
 }
 
 async fn configure_discord_bot() -> anyhow::Result<serenity::Client> {
-    let token = std::env::var("DISCORD_TOKEN").expect("missing DISCORD_TOKEN");
+    let token =
+        std::env::var("DISCORD_TOKEN").context("DISCORD_TOKEN environment variable not set")?;
     let intents = serenity::GatewayIntents::non_privileged()
         | serenity::GatewayIntents::MESSAGE_CONTENT
         | serenity::GatewayIntents::GUILD_MESSAGES
@@ -150,11 +175,13 @@ async fn configure_discord_bot() -> anyhow::Result<serenity::Client> {
     })
     .setup(|ctx, _ready, framework| {
         Box::pin(async move {
-            poise::builtins::register_globally(ctx, &framework.options().commands).await?;
+            poise::builtins::register_globally(ctx, &framework.options().commands)
+                .await
+                .context("Failed to register Discord commands globally")?;
             Ok(discord::serenity::Data {
                 names_repository: EmbeddedNamesRepository::new()
-                    .expect("failed to load names repository"),
-                config: Config::new().expect("failed to load config"),
+                    .context("Failed to load embedded names repository for Discord bot")?,
+                config: Config::new().context("Failed to load configuration for Discord bot")?,
             })
         })
     })
@@ -163,33 +190,10 @@ async fn configure_discord_bot() -> anyhow::Result<serenity::Client> {
     serenity::ClientBuilder::new(token, intents)
         .framework(framework)
         .await
-        .map_err(anyhow::Error::from)
+        .context("Failed to create Discord client")
 }
 
-async fn health_check() -> &'static str {
-    "OK"
-}
-
-#[tokio::main]
-async fn main() {
-    configure_logging();
-
-    let web_server = start_web_server();
-
-    let client_result = configure_discord_bot().await;
-
-    match client_result {
-        Ok(mut client) => {
-            info!("Discord bot configured. Starting bot...");
-            if let Err(why) = client.start().await {
-                log::error!("Client error: {:?}", why);
-            }
-        }
-        Err(e) => {
-            log::error!("Failed to configure Discord bot: {:?}", e);
-        }
-    }
-
-    // We put an await here so that the Rust compiler is happy
-    web_server.await;
+/// Logs message contents when a message is created
+async fn on_message_create(_ctx: &serenity::Context, new_message: &Message) {
+    info!("Message created: {}", new_message.content);
 }
