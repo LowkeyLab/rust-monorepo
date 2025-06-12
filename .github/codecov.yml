@@ -20,3 +20,7 @@ component_management:
       name: task-cli
       paths:
         - task-cli/**
+    - component_id: nicknamer-server
+      name: nicknamer-server
+      paths:
+        - nicknamer-server/**
