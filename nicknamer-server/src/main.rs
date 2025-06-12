@@ -70,5 +70,5 @@ mod member {
     }
 }
 fn main() {
-    lprintln!("Nicknamer server is running...");
+    println!("Nicknamer server is running...");
 }
