@@ -2,17 +2,17 @@ use ormlite::Connection;
 
 mod person {
     #[derive(ormlite::Model, Debug)]
-    #[ormlite(insert = "InsertPerson")]
-    struct Person {
+    #[ormlite(insert = "InsertUser")]
+    struct User {
         #[ormlite(primary_key)]
         id: i32,
         discord_id: i32,
         name: String,
     }
 
-    impl Person {
+    impl User {
         fn new(discord_id: i32, name: String) -> Self {
-            Person {
+            User {
                 id: 0, // Set default id to 0
                 discord_id,
                 name,
@@ -20,18 +20,18 @@ mod person {
         }
     }
 
-    struct PersonController {
-        repository: Box<dyn PersonRepository>,
+    struct UserController {
+        repository: Box<dyn UserRepository>,
     }
 
-    trait PersonRepository {
-        fn get_persons(&self) -> Vec<Person>;
-        fn add_person(&self, person: Person);
+    trait UserRepository {
+        fn get_users(&self) -> Vec<User>;
+        fn add_user(&self, user: User);
     }
 
-    impl PersonController {
-        fn load_persons(&self) -> Vec<Person> {
-            self.repository.get_persons()
+    impl UserController {
+        fn load_users(&self) -> Vec<User> {
+            self.repository.get_users()
         }
     }
 
@@ -40,12 +40,12 @@ mod person {
         use super::*;
 
         #[test]
-        fn test_member_creation() {
+        fn test_user_creation() {
             let dummy_discord_id = 123456789;
-            let member = Person::new(dummy_discord_id, "Alice".to_string());
-            assert_eq!(member.id, 0); // Expect default id of 0
-            assert_eq!(member.discord_id, dummy_discord_id);
-            assert_eq!(member.name, "Alice");
+            let user = User::new(dummy_discord_id, "Alice".to_string());
+            assert_eq!(user.id, 0); // Expect default id of 0
+            assert_eq!(user.discord_id, dummy_discord_id);
+            assert_eq!(user.name, "Alice");
         }
     }
 }
