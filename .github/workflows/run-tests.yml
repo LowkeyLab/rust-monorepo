@@ -22,5 +22,4 @@ jobs:
         run: cargo make --no-workspace workspace-ci-flow
         env:
           CARGO_MAKE_RUN_CODECOV: true
-        secrets:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
