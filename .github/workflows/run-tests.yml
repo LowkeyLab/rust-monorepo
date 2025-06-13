@@ -22,6 +22,10 @@ jobs:
       - uses: davidB/rust-cargo-make@4be7185ac95f20945b64d772e7f6f09e1bd753b6
       - name: Run CI
         run: cargo make workspace-ci-flow
+      - uses: taiki-e/install-action@cargo-llvm-cov
+      - run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+      - uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24
+        with:
+          files: ./target/debug/coverage/lcov.info
         env:
-          CARGO_MAKE_RUN_CODECOV: true
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
