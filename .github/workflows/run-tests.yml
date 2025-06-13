@@ -22,7 +22,9 @@ jobs:
       - uses: davidB/rust-cargo-make@4be7185ac95f20945b64d772e7f6f09e1bd753b6
       - name: Run CI
         run: cargo make workspace-ci-flow
-      - uses: taiki-e/install-action@cargo-llvm-cov
+      - uses: taiki-e/install-action@92f69c195229fe62d58b4d697ab4bc75def98e76
+        with:
+          tool: cargo-llvm-cov
       - run: cargo llvm-cov --all-features --workspace --lcov --output-path codecov.json
       - uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24
         with:
