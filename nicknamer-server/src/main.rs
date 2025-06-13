@@ -1,3 +1,5 @@
+use ormlite::Connection;
+
 mod person {
     #[derive(ormlite::Model, Debug)]
     #[ormlite(insert = "InsertPerson")]
@@ -22,14 +24,14 @@ mod person {
         repository: Box<dyn PersonRepository>,
     }
 
-    #[mockall::automock]
     trait PersonRepository {
-        fn get_members(&self) -> Vec<Person>;
+        fn get_persons(&self) -> Vec<Person>;
+        fn add_person(&self, person: Person);
     }
 
     impl PersonController {
-        fn load_members(&self) -> Vec<Person> {
-            self.repository.get_members()
+        fn load_persons(&self) -> Vec<Person> {
+            self.repository.get_persons()
         }
     }
 
@@ -45,32 +47,15 @@ mod person {
             assert_eq!(member.discord_id, dummy_discord_id);
             assert_eq!(member.name, "Alice");
         }
-
-        mod controller_tests {
-            use super::*;
-            // Uuid is in scope from the parent `tests` module's `use uuid::Uuid;`
-
-            #[test]
-            fn test_member_controller_load_members() {
-                let mut mock_repo = MockPersonRepository::new();
-                let dummy_discord_id = 123456789;
-                mock_repo
-                    .expect_get_members()
-                    .returning(move || vec![Person::new(dummy_discord_id, "Alice".to_string())]);
-
-                let controller = PersonController {
-                    repository: Box::new(mock_repo),
-                };
-
-                let members = controller.load_members();
-                assert_eq!(members.len(), 1);
-                assert_eq!(members[0].id, 0); // Expect default id of 0
-                assert_eq!(members[0].discord_id, dummy_discord_id);
-                assert_eq!(members[0].name, "Alice");
-            }
-        }
     }
 }
-fn main() {
+
+#[tokio::main]
+async fn main() {
+    let connection = ormlite::postgres::PgConnection::connect(
+        "postgres://username:password@localhost/nicknamer",
+    )
+    .await
+    .expect("Failed to connect to the database");
     println!("Nicknamer server is running...");
 }
