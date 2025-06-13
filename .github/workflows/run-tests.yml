@@ -12,26 +12,22 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test:
-    name: cargo test
+  ci:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
-      - run: cargo test --all-features
-  coverage:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-      - name: Generate code coverage
-        run: cargo llvm-cov --all-features --workspace --codecov --output-path codecov.json
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
         with:
-          token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
+          fetch-depth: 0
+      - uses: actions-rust-lang/setup-rust-toolchain@9d7e65c320fdb52dcd45ffaa68deb6c02c8754d9
+      - uses: davidB/rust-cargo-make@4be7185ac95f20945b64d772e7f6f09e1bd753b6
+      - name: Run CI
+        run: cargo make workspace-ci-flow
+      - uses: taiki-e/install-action@92f69c195229fe62d58b4d697ab4bc75def98e76
+        with:
+          tool: cargo-llvm-cov
+      - run: cargo llvm-cov --all-features --workspace --lcov --output-path codecov.json
+      - uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24
+        with:
           files: codecov.json
-          fail_ci_if_error: true
-          slug: LowkeyLab/rust-monorepo
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
