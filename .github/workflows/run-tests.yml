@@ -23,9 +23,9 @@ jobs:
       - name: Run CI
         run: cargo make workspace-ci-flow
       - uses: taiki-e/install-action@cargo-llvm-cov
-      - run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+      - run: cargo llvm-cov --all-features --workspace --lcov --output-path codecov.json
       - uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24
         with:
-          files: ./target/debug/coverage/lcov.info
+          files: codecov.json
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
