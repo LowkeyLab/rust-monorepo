@@ -10,10 +10,8 @@ Before returning any code, ensure all the following guidelines are strictly foll
 
 Run the following commands in the terminal to ensure the code meets the quality standards:
 ```bash
-cargo fmt --all -- --check
-cargo clippy --all-targets --all-features -- -D warnings
-cargo check --all-targets --all-features
-cargo test --all-features --all-targets
+cargo make clippy
+cargo make dev-test-flow
 ```
 
 ## Error Handling
