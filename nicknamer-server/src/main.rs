@@ -1,12 +1,12 @@
 mod person {
     struct Person {
         id: i32,
-        discord_id: uuid::Uuid,
+        discord_id: u32,
         name: String,
     }
 
     impl Person {
-        fn new(id: i32, discord_id: uuid::Uuid, name: String) -> Self {
+        fn new(id: i32, discord_id: u32, name: String) -> Self {
             Person {
                 id,
                 discord_id,
@@ -15,16 +15,16 @@ mod person {
         }
     }
 
-    struct MemberController {
-        repository: Box<dyn MemberRepository>,
+    struct PersonController {
+        repository: Box<dyn PersonRepository>,
     }
 
     #[mockall::automock]
-    trait MemberRepository {
+    trait PersonRepository {
         fn get_members(&self) -> Vec<Person>;
     }
 
-    impl MemberController {
+    impl PersonController {
         fn load_members(&self) -> Vec<Person> {
             self.repository.get_members()
         }
@@ -33,14 +33,13 @@ mod person {
     #[cfg(test)]
     mod tests {
         use super::*;
-        use uuid::Uuid; // Added import for Uuid
 
         #[test]
         fn test_member_creation() {
-            let dummy_uuid = Uuid::new_v4();
-            let member = Person::new(1, dummy_uuid, "Alice".to_string());
+            let dummy_discord_id = 123456789;
+            let member = Person::new(1, dummy_discord_id, "Alice".to_string());
             assert_eq!(member.id, 1);
-            assert_eq!(member.discord_id, dummy_uuid);
+            assert_eq!(member.discord_id, dummy_discord_id);
             assert_eq!(member.name, "Alice");
         }
 
@@ -50,20 +49,20 @@ mod person {
 
             #[test]
             fn test_member_controller_load_members() {
-                let mut mock_repo = MockMemberRepository::new();
-                let dummy_uuid = Uuid::new_v4();
+                let mut mock_repo = MockPersonRepository::new();
+                let dummy_discord_id = 123456789;
                 mock_repo
                     .expect_get_members()
-                    .returning(move || vec![Person::new(1, dummy_uuid, "Alice".to_string())]);
+                    .returning(move || vec![Person::new(1, dummy_discord_id, "Alice".to_string())]);
 
-                let controller = MemberController {
+                let controller = PersonController {
                     repository: Box::new(mock_repo),
                 };
 
                 let members = controller.load_members();
                 assert_eq!(members.len(), 1);
                 assert_eq!(members[0].id, 1);
-                assert_eq!(members[0].discord_id, dummy_uuid);
+                assert_eq!(members[0].discord_id, dummy_discord_id);
                 assert_eq!(members[0].name, "Alice");
             }
         }
