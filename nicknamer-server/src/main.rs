@@ -1,14 +1,17 @@
 mod person {
+    #[derive(ormlite::Model, Debug)]
+    #[ormlite(insert = "InsertPerson")]
     struct Person {
+        #[ormlite(primary_key)]
         id: i32,
-        discord_id: u32,
+        discord_id: i32,
         name: String,
     }
 
     impl Person {
-        fn new(id: i32, discord_id: u32, name: String) -> Self {
+        fn new(discord_id: i32, name: String) -> Self {
             Person {
-                id,
+                id: 0, // Set default id to 0
                 discord_id,
                 name,
             }
@@ -37,8 +40,8 @@ mod person {
         #[test]
         fn test_member_creation() {
             let dummy_discord_id = 123456789;
-            let member = Person::new(1, dummy_discord_id, "Alice".to_string());
-            assert_eq!(member.id, 1);
+            let member = Person::new(dummy_discord_id, "Alice".to_string());
+            assert_eq!(member.id, 0); // Expect default id of 0
             assert_eq!(member.discord_id, dummy_discord_id);
             assert_eq!(member.name, "Alice");
         }
@@ -53,7 +56,7 @@ mod person {
                 let dummy_discord_id = 123456789;
                 mock_repo
                     .expect_get_members()
-                    .returning(move || vec![Person::new(1, dummy_discord_id, "Alice".to_string())]);
+                    .returning(move || vec![Person::new(dummy_discord_id, "Alice".to_string())]);
 
                 let controller = PersonController {
                     repository: Box::new(mock_repo),
@@ -61,7 +64,7 @@ mod person {
 
                 let members = controller.load_members();
                 assert_eq!(members.len(), 1);
-                assert_eq!(members[0].id, 1);
+                assert_eq!(members[0].id, 0); // Expect default id of 0
                 assert_eq!(members[0].discord_id, dummy_discord_id);
                 assert_eq!(members[0].name, "Alice");
             }
