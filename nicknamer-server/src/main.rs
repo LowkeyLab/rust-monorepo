@@ -1,4 +1,4 @@
-mod member {
+mod person {
     struct Person {
         id: i32,
         discord_id: uuid::Uuid,
