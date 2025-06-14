@@ -29,7 +29,7 @@ pub mod entities;
 pub mod user {
     use crate::entities::*;
     use sea_orm::*;
-    #[derive(Debug)]
+    #[derive(Debug, PartialEq, Clone)]
     pub struct User {
         id: u32,
         discord_id: u64,
