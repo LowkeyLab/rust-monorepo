@@ -60,6 +60,15 @@ pub mod user {
             UserService { db }
         }
 
+        /// Creates a new user in the database.
+        /// # Arguments
+        ///
+        /// * `discord_id` - The Discord ID of the user.
+        /// * `name` - The name of the user.
+        ///
+        /// # Returns
+        ///
+        /// A `Result` containing the created `User` if successful, or an error otherwise.
         #[tracing::instrument(skip(self))]
         pub async fn create_user(&self, discord_id: u64, name: String) -> anyhow::Result<User> {
             let active_model = user::ActiveModel {
