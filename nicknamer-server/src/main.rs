@@ -1,10 +1,7 @@
-use ormlite::Connection;
 
 mod person {
-    #[derive(ormlite::Model, Debug)]
-    #[ormlite(insert = "InsertUser")]
+    #[derive(Debug)]
     struct User {
-        #[ormlite(primary_key)]
         id: i32,
         discord_id: i32,
         name: String,
@@ -52,10 +49,4 @@ mod person {
 
 #[tokio::main]
 async fn main() {
-    let connection = ormlite::postgres::PgConnection::connect(
-        "postgres://username:password@localhost/nicknamer",
-    )
-    .await
-    .expect("Failed to connect to the database");
-    println!("Nicknamer server is running...");
 }
