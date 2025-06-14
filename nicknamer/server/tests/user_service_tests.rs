@@ -29,7 +29,6 @@ async fn setup_db(
 async fn setup() -> anyhow::Result<TestContext> {
     // Allow multiple calls to init for tests.
     let _ = tracing_subscriber::fmt()
-        .with_env_filter("debug")
         .try_init();
     let container = setup_container().await?;
     let db = setup_db(&container).await?;
