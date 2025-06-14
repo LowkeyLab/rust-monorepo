@@ -2073,7 +2073,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "nicknamer"
+name = "nicknamer-bot"
 version = "0.1.0"
 dependencies = [
  "anyhow",

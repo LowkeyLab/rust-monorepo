@@ -1,4 +1,3 @@
-
 mod person {
     #[derive(Debug)]
     struct User {
@@ -48,5 +47,4 @@ mod person {
 }
 
 #[tokio::main]
-async fn main() {
-}
+async fn main() {}
