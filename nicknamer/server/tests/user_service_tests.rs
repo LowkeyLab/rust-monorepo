@@ -38,12 +38,19 @@ async fn setup() -> anyhow::Result<TestContext> {
 async fn test_user_registration() {
     let state = setup().await.expect("Failed to setup test context");
     let user_service = UserService::new(&state.db);
-    let user = user_service
-        .create_user(123456789, "TestUser".to_string())
+    let discord_id = 123456789;
+    let name = "TestUser".to_string();
+    let created_user = user_service
+        .create_user(discord_id, name.clone())
         .await
         .expect("Failed to create user");
-    assert_eq!(user.get_discord_id(), 123456789);
-    assert_eq!(user.get_name(), "TestUser");
+
+    let expected_user = nicknamer_server::user::User::new(
+        created_user.get_id(), // The ID is generated, so we use the created user's ID
+        discord_id,
+        name,
+    );
+    assert_eq!(created_user, expected_user);
 }
 
 #[tokio::test]
@@ -52,12 +59,16 @@ async fn test_update_user_name_successfully() {
     let user_service = UserService::new(&state.db);
 
     // Create a user to edit
+    let initial_discord_id = 987654321;
+    let initial_name = "InitialName".to_string();
     let initial_user = user_service
-        .create_user(987654321, "InitialName".to_string())
+        .create_user(initial_discord_id, initial_name.clone())
         .await
         .expect("Failed to create user");
-    assert_eq!(initial_user.get_discord_id(), 987654321);
-    assert_eq!(initial_user.get_name(), "InitialName");
+
+    let expected_initial_user =
+        nicknamer_server::user::User::new(initial_user.get_id(), initial_discord_id, initial_name);
+    assert_eq!(initial_user, expected_initial_user);
 
     // Edit the user's name
     let new_name = "UpdatedName".to_string();
@@ -66,9 +77,12 @@ async fn test_update_user_name_successfully() {
         .await
         .expect("Failed to update user name");
 
-    assert_eq!(updated_user.get_discord_id(), initial_user.get_discord_id());
-    assert_eq!(updated_user.get_name(), new_name);
-    assert_eq!(updated_user.get_id(), initial_user.get_id());
+    let expected_updated_user = nicknamer_server::user::User::new(
+        initial_user.get_id(), // ID remains the same
+        initial_discord_id,    // Discord ID remains the same
+        new_name,
+    );
+    assert_eq!(updated_user, expected_updated_user);
 }
 
 #[tokio::test]
@@ -102,12 +116,17 @@ async fn can_get_all_users() {
     let user_service = UserService::new(&state.db);
 
     // Create a couple of users
-    let user1 = user_service
-        .create_user(1, "UserOne".to_string())
+    let user1_discord_id = 1;
+    let user1_name = "UserOne".to_string();
+    let created_user1 = user_service
+        .create_user(user1_discord_id, user1_name.clone())
         .await
         .expect("Failed to create user1");
-    let user2 = user_service
-        .create_user(2, "UserTwo".to_string())
+
+    let user2_discord_id = 2;
+    let user2_name = "UserTwo".to_string();
+    let created_user2 = user_service
+        .create_user(user2_discord_id, user2_name.clone())
         .await
         .expect("Failed to create user2");
 
@@ -117,16 +136,14 @@ async fn can_get_all_users() {
         .expect("Failed to get all users");
 
     assert_eq!(users.len(), 2);
-    assert!(
-        users
-            .iter()
-            .any(|u| u.get_id() == user1.get_id() && u.get_name() == user1.get_name())
-    );
-    assert!(
-        users
-            .iter()
-            .any(|u| u.get_id() == user2.get_id() && u.get_name() == user2.get_name())
-    );
+
+    let expected_user1 =
+        nicknamer_server::user::User::new(created_user1.get_id(), user1_discord_id, user1_name);
+    let expected_user2 =
+        nicknamer_server::user::User::new(created_user2.get_id(), user2_discord_id, user2_name);
+
+    assert!(users.contains(&expected_user1));
+    assert!(users.contains(&expected_user2));
 }
 
 #[tokio::test]
