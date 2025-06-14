@@ -2131,7 +2131,6 @@ dependencies = [
  "migration",
  "mockall",
  "sea-orm",
- "sea-orm-migration",
  "serde",
  "testcontainers-modules",
  "tokio",
