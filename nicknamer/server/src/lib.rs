@@ -1,3 +1,5 @@
+use migration::MigratorTrait;
+use sea_orm::Database;
 use tracing::info;
 
 pub mod config {
@@ -140,6 +142,8 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind(addr).await?;
     info!("Web server running on http://{}", addr);
 
+    let db = Database::connect(&config.db_url).await?;
+    migration::Migrator::up(&db, None).await?;
     axum::serve(listener, app.into_make_service()).await?;
     Ok(())
 }
