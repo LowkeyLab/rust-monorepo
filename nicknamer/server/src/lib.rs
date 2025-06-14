@@ -47,12 +47,6 @@ pub mod user {
         pub fn get_id(&self) -> u32 {
             self.id
         }
-        pub fn get_discord_id(&self) -> u64 {
-            self.discord_id
-        }
-        pub fn get_name(&self) -> &str {
-            &self.name
-        }
     }
     pub struct UserService<'a> {
         db: &'a sea_orm::DatabaseConnection,
