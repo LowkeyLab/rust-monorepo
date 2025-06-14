@@ -95,3 +95,49 @@ async fn test_update_user_name_fails_if_user_not_found() {
         );
     }
 }
+
+#[tokio::test]
+async fn can_get_all_users() {
+    let state = setup().await.expect("Failed to setup test context");
+    let user_service = UserService::new(&state.db);
+
+    // Create a couple of users
+    let user1 = user_service
+        .create_user(1, "UserOne".to_string())
+        .await
+        .expect("Failed to create user1");
+    let user2 = user_service
+        .create_user(2, "UserTwo".to_string())
+        .await
+        .expect("Failed to create user2");
+
+    let users = user_service
+        .get_all_users()
+        .await
+        .expect("Failed to get all users");
+
+    assert_eq!(users.len(), 2);
+    assert!(
+        users
+            .iter()
+            .any(|u| u.get_id() == user1.get_id() && u.get_name() == user1.get_name())
+    );
+    assert!(
+        users
+            .iter()
+            .any(|u| u.get_id() == user2.get_id() && u.get_name() == user2.get_name())
+    );
+}
+
+#[tokio::test]
+async fn get_all_users_returns_empty_vec_when_no_users() {
+    let state = setup().await.expect("Failed to setup test context");
+    let user_service = UserService::new(&state.db);
+
+    let users = user_service
+        .get_all_users()
+        .await
+        .expect("Failed to get all users");
+
+    assert!(users.is_empty());
+}

@@ -115,5 +115,21 @@ pub mod user {
                 updated_model.name,
             ))
         }
+
+        /// Retrieves all users from the database.
+        ///
+        /// # Returns
+        ///
+        /// A `Result` containing a vector of `User` if successful, or an error otherwise.
+        #[tracing::instrument(skip(self))]
+        pub async fn get_all_users(&self) -> anyhow::Result<Vec<User>> {
+            let users = user::Entity::find()
+                .all(self.db)
+                .await?
+                .into_iter()
+                .map(|model| User::new(model.id as u32, model.discord_id as u64, model.name))
+                .collect();
+            Ok(users)
+        }
     }
 }
