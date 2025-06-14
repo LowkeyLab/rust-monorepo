@@ -1,3 +1,5 @@
+use tracing::info;
+
 pub mod config {
     use dotenvy::dotenv_iter;
     use serde::Deserialize;
@@ -5,6 +7,7 @@ pub mod config {
     #[derive(Deserialize, Debug)]
     pub struct Config {
         pub db_url: String,
+        pub port: u16,
     }
 
     impl Config {
@@ -132,4 +135,21 @@ pub mod user {
             Ok(users)
         }
     }
+}
+
+pub async fn start_web_server() -> anyhow::Result<()> {
+    use axum::Router;
+    use config::Config;
+
+    let config = Config::new();
+    let app = Router::new();
+
+    let addr = std::net::SocketAddr::from(([0, 0, 0, 0], config.port));
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await?;
+    info!("Web server running on http://{}", addr);
+
+    axum::serve(listener, app.into_make_service())
+        .await?;
+    Ok(())
 }
