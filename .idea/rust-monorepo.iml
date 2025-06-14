@@ -10,7 +10,12 @@
       <sourceFolder url="file://$MODULE_DIR$/grrs/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/grrs/tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/nicknamer/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/nicknamer-server/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/nicknamer-server/tests" isTestSource="true" />
+      <excludeFolder url="file://$MODULE_DIR$/nicknamer-server/target" />
+      <excludeFolder url="file://$MODULE_DIR$/nicknamer/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
+      <excludeFolder url="file://$MODULE_DIR$/task-cli/target" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

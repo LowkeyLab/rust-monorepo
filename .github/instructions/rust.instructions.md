@@ -4,7 +4,7 @@ applyTo: "**/*.rs"
 ---
 # Rust Quality Gatekeeper – Copilot Instructions
 
-Before returning any code, ensure all the following guidelines are strictly followed. If any guideline is not met, do not return the code and instead provide an error message indicating the issue.
+Follow these instructions exactly. Do not deviate from them.
 
 ## Commands
 
@@ -31,3 +31,5 @@ cargo make dev-test-flow
 *   Sort functions and methods by usage: function A that calls function B should be placed before function B.
 
 Only return code that passes all checks above. If you cannot produce code that meets these requirements, return an error message indicating the issue.
+
+Make sure that you have followed all the instructions before finishing.
