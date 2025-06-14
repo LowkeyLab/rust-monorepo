@@ -2101,7 +2101,6 @@ dependencies = [
  "axum",
  "mockall",
  "sea-orm",
- "testcontainers",
  "testcontainers-modules",
  "tokio",
  "uuid",
