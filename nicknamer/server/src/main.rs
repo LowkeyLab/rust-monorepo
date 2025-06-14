@@ -1,12 +1,11 @@
-use tracing::info;
 use sea_orm_migration::prelude::*;
+use tracing::info;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
     let cfg = config::Config::new();
-    let db = sea_orm::Database::connect(&cfg.db_url)
-        .await?;
+    let db = sea_orm::Database::connect(&cfg.db_url).await?;
     let schema_manager = sea_orm_migration::SchemaManager::new(&db);
     migration::Migrator::refresh(&db).await?;
     Ok(())
