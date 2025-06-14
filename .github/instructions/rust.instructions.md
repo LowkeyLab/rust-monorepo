@@ -9,10 +9,8 @@ Follow these instructions exactly. Do not deviate from them.
 ## Commands
 
 Run the following commands in the terminal to ensure the code meets the quality standards:
-```bash
-cargo make clippy
-cargo make dev-test-flow
-```
+1. `cargo make clippy`
+2. `cargo make`
 
 ## Error Handling
 *   Avoid logging. Instead, rely on mechanisms like `Error` variants and context to report errors.
