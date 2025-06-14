@@ -54,7 +54,7 @@ async fn test_user_registration() {
 }
 
 #[tokio::test]
-async fn test_update_user_name_successfully() {
+async fn can_update_user_name() {
     let state = setup().await.expect("Failed to setup test context");
     let user_service = UserService::new(&state.db);
 
