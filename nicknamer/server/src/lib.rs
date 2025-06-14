@@ -137,19 +137,15 @@ pub mod user {
     }
 }
 
-pub async fn start_web_server() -> anyhow::Result<()> {
+pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
     use axum::Router;
-    use config::Config;
 
-    let config = Config::new();
     let app = Router::new();
 
     let addr = std::net::SocketAddr::from(([0, 0, 0, 0], config.port));
-    let listener = tokio::net::TcpListener::bind(addr)
-        .await?;
+    let listener = tokio::net::TcpListener::bind(addr).await?;
     info!("Web server running on http://{}", addr);
 
-    axum::serve(listener, app.into_make_service())
-        .await?;
+    axum::serve(listener, app.into_make_service()).await?;
     Ok(())
 }

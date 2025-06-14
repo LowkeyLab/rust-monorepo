@@ -1,7 +1,6 @@
-use sea_orm_migration::prelude::*;
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
-    nicknamer_server::start_web_server().await
+    let config = nicknamer_server::config::Config::new();
+    nicknamer_server::start_web_server(config).await
 }
