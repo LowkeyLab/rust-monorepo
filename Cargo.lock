@@ -2103,6 +2103,9 @@ dependencies = [
  "sea-orm",
  "testcontainers-modules",
  "tokio",
+ "tracing",
+ "tracing-futures",
+ "tracing-subscriber",
  "uuid",
 ]
 
