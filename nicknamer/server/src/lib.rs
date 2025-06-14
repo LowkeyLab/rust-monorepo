@@ -11,7 +11,7 @@ pub mod config {
     }
 
     impl Config {
-        pub fn new() -> Self {
+        pub fn from_env() -> Self {
             let iter = dotenv_iter()
                 .expect("Failed to load .env file")
                 .map(|res| res.expect("Failed to read environment variable"));
@@ -21,7 +21,7 @@ pub mod config {
 
     impl Default for Config {
         fn default() -> Self {
-            Self::new()
+            Self::from_env()
         }
     }
 }
