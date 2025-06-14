@@ -20,8 +20,8 @@ Run the following commands in the terminal to ensure the code meets the quality 
 *   Use `///` for doc comments and ensure they follow Rust's documentation conventions.
 
 ## Code Style
-*   Run `cargo fmt` to format the code consistently.
 *   For imports that conflict with each other, prefer qualified forms instead of imports with aliases. For example, use `std::io::Write;` instead of `use std::io::Write as IoWrite;`.
+*   Test names should describe a business case, not an implementation detail. For example, use `can_create_user` instead of `test_create_user_success`.
 
 ## Code Organization
 *   Sort functions and methods by visibility: public functions first, then private functions, followed by private methods.
