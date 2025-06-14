@@ -37,7 +37,7 @@ async fn setup() -> anyhow::Result<TestContext> {
 }
 
 #[tokio::test]
-async fn test_create_user() -> anyhow::Result<()> {
+async fn test_user_registration() -> anyhow::Result<()> {
     let state = setup().await?;
     let user_service = UserService::new(&state.db);
     let user = user_service
@@ -45,5 +45,56 @@ async fn test_create_user() -> anyhow::Result<()> {
         .await?;
     assert_eq!(user.get_discord_id(), 123456789);
     assert_eq!(user.get_name(), "TestUser");
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_update_user_name_successfully() -> anyhow::Result<()> {
+    let state = setup().await?;
+    let user_service = UserService::new(&state.db);
+
+    // Create a user to edit
+    let initial_user = user_service
+        .create_user(987654321, "InitialName".to_string())
+        .await?;
+    assert_eq!(initial_user.get_discord_id(), 987654321);
+    assert_eq!(initial_user.get_name(), "InitialName");
+
+    // Edit the user's name
+    let new_name = "UpdatedName".to_string();
+    let updated_user = user_service
+        .edit_user_name_by_id(initial_user.get_id(), new_name.clone())
+        .await?;
+
+    assert_eq!(updated_user.get_discord_id(), initial_user.get_discord_id());
+    assert_eq!(updated_user.get_name(), new_name);
+    assert_eq!(updated_user.get_id(), initial_user.get_id());
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_update_user_name_fails_if_user_not_found() -> anyhow::Result<()> {
+    let state = setup().await?;
+    let user_service = UserService::new(&state.db);
+
+    // Create a user to ensure there's some data, but we'll use a different ID for the failing test
+    let initial_user = user_service
+        .create_user(111222333, "SomeUser".to_string())
+        .await?;
+
+    // Verify that an error is returned if the user ID does not exist
+    let non_existent_id = initial_user.get_id() + 1; // Assuming this ID won't exist
+    let result = user_service
+        .edit_user_name_by_id(non_existent_id, "AnotherName".to_string())
+        .await;
+    assert!(result.is_err());
+    if let Err(e) = result {
+        assert_eq!(
+            e.to_string(),
+            format!("User with ID {} not found", non_existent_id)
+        );
+    }
+
     Ok(())
 }

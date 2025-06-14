@@ -40,6 +40,10 @@ pub mod user {
                 name,
             }
         }
+        /// Returns the ID of the user.
+        pub fn get_id(&self) -> u32 {
+            self.id
+        }
         pub fn get_discord_id(&self) -> u64 {
             self.discord_id
         }
@@ -63,8 +67,44 @@ pub mod user {
                 name: ActiveValue::Set(name.clone()),
                 ..Default::default()
             };
-            active_model.insert(self.db).await?;
-            Ok(User::new(0, discord_id, name))
+            let created_model = active_model.insert(self.db).await?;
+            Ok(User::new(
+                created_model.id as u32,
+                created_model.discord_id as u64,
+                created_model.name,
+            ))
+        }
+
+        /// Edits a user's name by their ID.
+        ///
+        /// # Arguments
+        ///
+        /// * `id` - The ID of the user to edit.
+        /// * `new_name` - The new name for the user.
+        ///
+        /// # Returns
+        ///
+        /// A `Result` containing the updated `User` if successful, or an error otherwise.
+        #[tracing::instrument(skip(self))]
+        pub async fn edit_user_name_by_id(
+            &self,
+            id: u32,
+            new_name: String,
+        ) -> anyhow::Result<User> {
+            let user_to_update = user::Entity::find_by_id(id as i32)
+                .one(self.db)
+                .await?
+                .ok_or_else(|| anyhow::anyhow!("User with ID {} not found", id))?;
+
+            let mut active_model: user::ActiveModel = user_to_update.into();
+            active_model.name = ActiveValue::Set(new_name.clone());
+            let updated_model = active_model.update(self.db).await?;
+
+            Ok(User::new(
+                updated_model.id as u32,
+                updated_model.discord_id as u64,
+                updated_model.name,
+            ))
         }
     }
 }
