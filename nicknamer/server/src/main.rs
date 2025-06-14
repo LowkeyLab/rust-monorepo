@@ -6,7 +6,6 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
     let cfg = config::Config::new();
     let db = sea_orm::Database::connect(&cfg.db_url).await?;
-    let schema_manager = sea_orm_migration::SchemaManager::new(&db);
     migration::Migrator::up(&db, None).await?;
     Ok(())
 }
