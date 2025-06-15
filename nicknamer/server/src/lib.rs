@@ -3,8 +3,8 @@ use sea_orm::Database;
 use tracing::info;
 
 pub mod config {
-    use dotenvy::dotenv_iter;
     use serde::Deserialize;
+    use tracing::info;
 
     #[derive(Deserialize, Debug)]
     pub struct Config {
@@ -14,16 +14,12 @@ pub mod config {
 
     impl Config {
         pub fn from_env() -> Self {
-            let iter = dotenv_iter()
-                .expect("Failed to load .env file")
-                .map(|res| res.expect("Failed to read environment variable"));
-            envy::from_iter(iter).expect("Failed to parse environment variables into Config")
-        }
-    }
+            match dotenvy::dotenv() {
+                Ok(_) => info!("Loaded environment variables from .env file"),
+                Err(e) => info!("Failed to load .env file: {}", e),
+            };
 
-    impl Default for Config {
-        fn default() -> Self {
-            Self::from_env()
+            envy::from_env().expect("Failed to load configuration from environment variables")
         }
     }
 }
