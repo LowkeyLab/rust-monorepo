@@ -135,14 +135,16 @@ pub mod user {
 pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
     use axum::Router;
 
-    let app = Router::new();
-
-    let addr = std::net::SocketAddr::from(([0, 0, 0, 0], config.port));
-    let listener = tokio::net::TcpListener::bind(addr).await?;
-    info!("Web server running on http://{}", addr);
+    let app = Router::new().route("/health", axum::routing::get(health_check));
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", config.port)).await?;
 
     let db = Database::connect(&config.db_url).await?;
     migration::Migrator::up(&db, None).await?;
     axum::serve(listener, app.into_make_service()).await?;
     Ok(())
+}
+
+#[tracing::instrument]
+async fn health_check() -> &'static str {
+    "OK"
 }
