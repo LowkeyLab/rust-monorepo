@@ -1,6 +1,3 @@
-use migration::MigratorTrait;
-use sea_orm::Database;
-
 pub mod config {
     use serde::Deserialize;
     #[derive(Deserialize, Debug)]
@@ -125,22 +122,40 @@ pub mod user {
     }
 }
 
-#[tracing::instrument]
-pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
-    use axum::Router;
+pub mod web {
+    use migration::MigratorTrait;
+    use sea_orm::Database;
 
-    let app = Router::new().route("/health", axum::routing::get(health_check));
-    let server_address = format!("0.0.0.0:{}", config.port);
-    let listener = tokio::net::TcpListener::bind(&server_address).await?;
-    tracing::info!("Web server running on http://{}", server_address);
+    use crate::config;
 
-    let db = Database::connect(&config.db_url).await?;
-    migration::Migrator::up(&db, None).await?;
-    axum::serve(listener, app).await?;
-    Ok(())
-}
+    #[tracing::instrument]
+    pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
+        use axum::Router;
 
-#[tracing::instrument]
-async fn health_check() -> &'static str {
-    "OK"
+        let app = Router::new().route("/health", axum::routing::get(health_check));
+        let server_address = format!("0.0.0.0:{}", config.port);
+        let listener = tokio::net::TcpListener::bind(&server_address).await?;
+        tracing::info!("Web server running on http://{}", server_address);
+
+        let db = Database::connect(&config.db_url).await?;
+        migration::Migrator::up(&db, None).await?;
+        axum::serve(listener, app).await?;
+        Ok(())
+    }
+
+    #[tracing::instrument]
+    async fn health_check() -> &'static str {
+        "OK"
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[tokio::test]
+        async fn test_health_check() {
+            let response = health_check().await;
+            assert_eq!(response, "OK");
+        }
+    }
 }
