@@ -1,6 +1,5 @@
 use migration::MigratorTrait;
 use sea_orm::Database;
-use tracing::info;
 
 pub mod config {
     use serde::Deserialize;
