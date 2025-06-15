@@ -135,7 +135,9 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
     use axum::Router;
 
     let app = Router::new().route("/health", axum::routing::get(health_check));
-    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", config.port)).await?;
+    let server_address = format!("0.0.0.0:{}", config.port);
+    let listener = tokio::net::TcpListener::bind(&server_address).await?;
+    tracing::info!("Web server running on http://{}", server_address);
 
     let db = Database::connect(&config.db_url).await?;
     migration::Migrator::up(&db, None).await?;
