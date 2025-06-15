@@ -123,6 +123,8 @@ pub mod user {
 }
 
 pub mod web {
+    use askama::Template;
+    use axum::response::IntoResponse;
     use migration::MigratorTrait;
     use sea_orm::Database;
 
@@ -132,7 +134,9 @@ pub mod web {
     pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
         use axum::Router;
 
-        let app = Router::new().route("/health", axum::routing::get(health_check));
+        let app = Router::new()
+            .route("/health", axum::routing::get(health_check))
+            .route("/", axum::routing::get(welcome));
         let server_address = format!("0.0.0.0:{}", config.port);
         let listener = tokio::net::TcpListener::bind(&server_address).await?;
         tracing::info!("Web server running on http://{}", server_address);
@@ -148,6 +152,14 @@ pub mod web {
         "OK"
     }
 
+    async fn welcome() -> impl IntoResponse {
+        IndexTemplate.render().unwrap()
+    }
+
+    #[derive(Template)]
+    #[template(path = "index.html")]
+    struct IndexTemplate;
+
     #[cfg(test)]
     mod tests {
         use super::*;
@@ -156,6 +168,10 @@ pub mod web {
         async fn test_health_check() {
             let response = health_check().await;
             assert_eq!(response, "OK");
+        }
+
+        async fn test_welcome() {
+            
         }
     }
 }
