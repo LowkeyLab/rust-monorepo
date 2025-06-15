@@ -4,23 +4,25 @@ use tracing::info;
 
 pub mod config {
     use serde::Deserialize;
-    use tracing::info;
-
     #[derive(Deserialize, Debug)]
     pub struct Config {
+        #[serde(default = "default_db_url")]
         pub db_url: String,
+        #[serde(default = "default_port")]
         pub port: u16,
     }
 
     impl Config {
         pub fn from_env() -> Self {
-            match dotenvy::dotenv() {
-                Ok(_) => info!("Loaded environment variables from .env file"),
-                Err(e) => info!("Failed to load .env file: {}", e),
-            };
-
             envy::from_env().expect("Failed to load configuration from environment variables")
         }
+    }
+
+    fn default_db_url() -> String {
+        "postgres://user:password@localhost/nicknamer".to_string()
+    }
+    fn default_port() -> u16 {
+        8080
     }
 }
 pub mod entities;
@@ -129,6 +131,7 @@ pub mod user {
     }
 }
 
+#[tracing::instrument]
 pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
     use axum::Router;
 
