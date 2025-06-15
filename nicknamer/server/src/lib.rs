@@ -140,7 +140,7 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
 
     let db = Database::connect(&config.db_url).await?;
     migration::Migrator::up(&db, None).await?;
-    axum::serve(listener, app.into_make_service()).await?;
+    axum::serve(listener, app).await?;
     Ok(())
 }
 
