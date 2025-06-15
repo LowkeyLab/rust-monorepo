@@ -1,26 +1,19 @@
-use migration::MigratorTrait;
-use sea_orm::Database;
-use tracing::info;
-
 pub mod config {
     use serde::Deserialize;
-    use tracing::info;
-
     #[derive(Deserialize, Debug)]
     pub struct Config {
         pub db_url: String,
+        #[serde(default = "default_port")]
         pub port: u16,
     }
 
     impl Config {
         pub fn from_env() -> Self {
-            match dotenvy::dotenv() {
-                Ok(_) => info!("Loaded environment variables from .env file"),
-                Err(e) => info!("Failed to load .env file: {}", e),
-            };
-
             envy::from_env().expect("Failed to load configuration from environment variables")
         }
+    }
+    fn default_port() -> u16 {
+        8080
     }
 }
 pub mod entities;
@@ -129,17 +122,40 @@ pub mod user {
     }
 }
 
-pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
-    use axum::Router;
+pub mod web {
+    use migration::MigratorTrait;
+    use sea_orm::Database;
 
-    let app = Router::new();
+    use crate::config;
 
-    let addr = std::net::SocketAddr::from(([0, 0, 0, 0], config.port));
-    let listener = tokio::net::TcpListener::bind(addr).await?;
-    info!("Web server running on http://{}", addr);
+    #[tracing::instrument]
+    pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
+        use axum::Router;
 
-    let db = Database::connect(&config.db_url).await?;
-    migration::Migrator::up(&db, None).await?;
-    axum::serve(listener, app.into_make_service()).await?;
-    Ok(())
+        let app = Router::new().route("/health", axum::routing::get(health_check));
+        let server_address = format!("0.0.0.0:{}", config.port);
+        let listener = tokio::net::TcpListener::bind(&server_address).await?;
+        tracing::info!("Web server running on http://{}", server_address);
+
+        let db = Database::connect(&config.db_url).await?;
+        migration::Migrator::up(&db, None).await?;
+        axum::serve(listener, app).await?;
+        Ok(())
+    }
+
+    #[tracing::instrument]
+    async fn health_check() -> &'static str {
+        "OK"
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[tokio::test]
+        async fn test_health_check() {
+            let response = health_check().await;
+            assert_eq!(response, "OK");
+        }
+    }
 }

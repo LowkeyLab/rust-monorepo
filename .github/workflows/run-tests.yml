@@ -21,7 +21,7 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@9d7e65c320fdb52dcd45ffaa68deb6c02c8754d9
       - uses: davidB/rust-cargo-make@4be7185ac95f20945b64d772e7f6f09e1bd753b6
       - name: Run CI
-        run: cargo make workspace-ci-flow
+        run: cargo make --profile ci workspace-ci-flow
       - uses: taiki-e/install-action@92f69c195229fe62d58b4d697ab4bc75def98e76
         with:
           tool: cargo-llvm-cov

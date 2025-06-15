@@ -2126,7 +2126,6 @@ dependencies = [
  "anyhow",
  "askama",
  "axum",
- "dotenvy",
  "envy",
  "migration",
  "mockall",
