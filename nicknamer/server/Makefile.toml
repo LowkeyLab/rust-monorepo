@@ -1,2 +1,14 @@
+env_files = [
+   { path = "./.env", profile = "development"},
+]
+
 [env]
 CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
+
+[tasks.run]
+command = "cargo"
+args = [
+    "run",
+    "--bin",
+    "nicknamer_server",
+]
