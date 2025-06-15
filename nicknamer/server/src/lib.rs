@@ -124,6 +124,7 @@ pub mod user {
 
 pub mod web {
     use askama::Template;
+    use axum::response::Html;
     use axum::response::IntoResponse;
     use migration::MigratorTrait;
     use sea_orm::Database;
@@ -153,7 +154,7 @@ pub mod web {
     }
 
     async fn welcome() -> impl IntoResponse {
-        IndexTemplate.render().unwrap()
+        Html(IndexTemplate.render().unwrap())
     }
 
     #[derive(Template)]
@@ -170,8 +171,16 @@ pub mod web {
             assert_eq!(response, "OK");
         }
 
-        async fn test_welcome() {
-            
+        #[tokio::test]
+        async fn renders_welcome_page_with_html_content_type() {
+            let response = welcome().await.into_response();
+            let content_type = response.headers().get(axum::http::header::CONTENT_TYPE);
+            assert_eq!(
+                content_type,
+                Some(&axum::http::HeaderValue::from_static(
+                    "text/html; charset=utf-8"
+                ))
+            );
         }
     }
 }
