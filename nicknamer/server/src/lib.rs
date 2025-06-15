@@ -5,7 +5,6 @@ pub mod config {
     use serde::Deserialize;
     #[derive(Deserialize, Debug)]
     pub struct Config {
-        #[serde(default = "default_db_url")]
         pub db_url: String,
         #[serde(default = "default_port")]
         pub port: u16,
@@ -15,10 +14,6 @@ pub mod config {
         pub fn from_env() -> Self {
             envy::from_env().expect("Failed to load configuration from environment variables")
         }
-    }
-
-    fn default_db_url() -> String {
-        "postgres://user:password@localhost/nicknamer".to_string()
     }
     fn default_port() -> u16 {
         8080
