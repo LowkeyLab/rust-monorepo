@@ -127,18 +127,41 @@ pub mod user {
 pub mod web {
     use askama::Template;
     use axum::extract::{Extension, Form};
-    use axum::response::Html;
-    use axum::response::IntoResponse;
+    use axum::http::StatusCode;
+    use axum::response::{Html, IntoResponse, Response};
     use migration::MigratorTrait;
     use sea_orm::Database;
     use std::sync::Arc;
 
     use crate::config;
 
+    /// Custom error type for web handler operations.
     #[derive(Debug, thiserror::Error)]
-    enum Errors {
-        #[error("Template rendering error")]
-        TemplateRenderingError,
+    enum WebError {
+        /// Represents an error during template rendering.
+        /// The specific `askama::Error` is captured as the source of this error.
+        #[error("Template rendering failed")]
+        Template(#[from] askama::Error),
+    }
+
+    impl IntoResponse for WebError {
+        fn into_response(self) -> Response {
+            // The error itself (self) and its source (self.source()) are available
+            // for any higher-level error reporting or logging mechanisms configured
+            // in the application (e.g., a tracing subscriber).
+            // This IntoResponse implementation focuses on providing a user-friendly
+            // error page without exposing internal error details.
+
+            let user_facing_error_message = "An unexpected error occurred while processing your request. Please try again later.";
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Html(format!(
+                    "<h1>Internal Server Error</h1><p>{}</p>",
+                    user_facing_error_message
+                )),
+            )
+                .into_response()
+        }
     }
 
     /// Represents the login request payload.
@@ -181,22 +204,24 @@ pub mod web {
     async fn login_handler(
         Extension(config): Extension<Arc<config::Config>>,
         Form(payload): Form<LoginRequest>,
-    ) -> impl IntoResponse {
+    ) -> Result<Html<String>, WebError> {
         if payload.username == config.admin_username && payload.password == config.admin_password {
-            Html(
-                LoginSuccessTemplate {
-                    name: &payload.username,
-                }
-                .render()
-                .unwrap(),
-            )
+            LoginSuccessTemplate {
+                name: &payload.username,
+            }
+            .render()
+            .map(Html)
+            .map_err(WebError::from)
         } else {
-            Html(LoginFailureTemplate.render().unwrap())
+            LoginFailureTemplate
+                .render()
+                .map(Html)
+                .map_err(WebError::from)
         }
     }
 
-    async fn welcome() -> impl IntoResponse {
-        Html(IndexTemplate.render().unwrap())
+    async fn welcome() -> Result<Html<String>, WebError> {
+        IndexTemplate.render().map(Html).map_err(WebError::from)
     }
 
     #[derive(Template)]
@@ -299,7 +324,18 @@ pub mod web {
 
         #[tokio::test]
         async fn renders_welcome_page_with_html_content_type() {
-            let response = welcome().await.into_response();
+            let result = welcome().await;
+            assert!(
+                result.is_ok(),
+                "welcome() returned an error: {:?}",
+                result.err()
+            );
+            let response = result.unwrap().into_response();
+            assert_eq!(
+                response.status(),
+                StatusCode::OK,
+                "Welcome handler should return OK for this test"
+            );
             let content_type = response.headers().get(axum::http::header::CONTENT_TYPE);
             assert_eq!(
                 content_type,
