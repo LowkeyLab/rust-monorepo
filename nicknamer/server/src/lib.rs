@@ -177,7 +177,13 @@ pub mod web {
         Form(payload): Form<LoginRequest>,
     ) -> impl IntoResponse {
         if payload.username == config.admin_username && payload.password == config.admin_password {
-            Html(LoginSuccessTemplate.render().unwrap())
+            Html(
+                LoginSuccessTemplate {
+                    name: &payload.username,
+                }
+                .render()
+                .unwrap(),
+            )
         } else {
             Html(LoginFailureTemplate.render().unwrap())
         }
@@ -193,7 +199,9 @@ pub mod web {
 
     #[derive(Template)]
     #[template(path = "login_success.html")]
-    struct LoginSuccessTemplate;
+    struct LoginSuccessTemplate<'a> {
+        name: &'a str,
+    }
 
     #[derive(Template)]
     #[template(path = "login_failure.html")]
@@ -247,7 +255,10 @@ pub mod web {
             let body = axum::body::to_bytes(response.into_body(), usize::MAX)
                 .await
                 .unwrap();
-            assert_eq!(body, LoginSuccessTemplate.render().unwrap());
+            assert_eq!(
+                body,
+                LoginSuccessTemplate { name: "admin" }.render().unwrap()
+            );
         }
 
         #[tokio::test]
