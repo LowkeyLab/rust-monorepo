@@ -126,25 +126,40 @@ pub mod user {
 
 pub mod web {
     use askama::Template;
+    use axum::extract::{Extension, Form}; // Added for Extension and Form
+    use axum::http::StatusCode;
     use axum::response::Html;
     use axum::response::IntoResponse;
     use migration::MigratorTrait;
     use sea_orm::Database;
+    use std::sync::Arc; // Added for Arc // Added for StatusCode
 
     use crate::config;
+
+    /// Represents the login request payload.
+    #[derive(serde::Deserialize, Debug)]
+    struct LoginRequest {
+        username: String,
+        password: String,
+    }
 
     #[tracing::instrument]
     pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
         use axum::Router;
 
+        let shared_config = Arc::new(config); // Wrap config in Arc
+
         let app = Router::new()
             .route("/health", axum::routing::get(health_check))
-            .route("/", axum::routing::get(welcome));
-        let server_address = format!("0.0.0.0:{}", config.port);
+            .route("/", axum::routing::get(welcome))
+            .route("/login", axum::routing::post(login_handler)) // Add login route
+            .layer(Extension(shared_config.clone())); // Add config as an extension
+
+        let server_address = format!("0.0.0.0:{}", shared_config.port);
         let listener = tokio::net::TcpListener::bind(&server_address).await?;
         tracing::info!("Web server running on http://{}", server_address);
 
-        let db = Database::connect(&config.db_url).await?;
+        let db = Database::connect(&shared_config.db_url).await?;
         migration::Migrator::up(&db, None).await?;
         axum::serve(listener, app).await?;
         Ok(())
@@ -153,6 +168,20 @@ pub mod web {
     #[tracing::instrument]
     async fn health_check() -> &'static str {
         "OK"
+    }
+
+    /// Handles the login request.
+    /// Checks submitted username and password against admin credentials.
+    #[tracing::instrument(skip(config, payload))]
+    async fn login_handler(
+        Extension(config): Extension<Arc<config::Config>>,
+        Form(payload): Form<LoginRequest>,
+    ) -> impl IntoResponse {
+        if payload.username == config.admin_username && payload.password == config.admin_password {
+            (StatusCode::OK, "Login successful").into_response()
+        } else {
+            (StatusCode::UNAUTHORIZED, "Invalid credentials").into_response()
+        }
     }
 
     async fn welcome() -> impl IntoResponse {
