@@ -126,13 +126,12 @@ pub mod user {
 
 pub mod web {
     use askama::Template;
-    use axum::extract::{Extension, Form}; // Added for Extension and Form
-    use axum::http::StatusCode;
+    use axum::extract::{Extension, Form};
     use axum::response::Html;
     use axum::response::IntoResponse;
     use migration::MigratorTrait;
     use sea_orm::Database;
-    use std::sync::Arc; // Added for Arc // Added for StatusCode
+    use std::sync::Arc;
 
     use crate::config;
 
@@ -178,9 +177,11 @@ pub mod web {
         Form(payload): Form<LoginRequest>,
     ) -> impl IntoResponse {
         if payload.username == config.admin_username && payload.password == config.admin_password {
-            (StatusCode::OK, "Login successful").into_response()
+            Html(
+                "<div class=\"card w-full max-w-sm shadow-2xl bg-base-100\"><div class=\"card-body items-center text-center\"><h2 class=\"card-title\">Login Successful!</h2><p>Welcome, admin!</p><div class=\"card-actions justify-end\"><a href=\"/name\" class=\"btn btn-primary\">Go to Namer</a></div></div></div>",
+            )
         } else {
-            (StatusCode::UNAUTHORIZED, "Invalid credentials").into_response()
+            Html("<div class=\"alert alert-error\">Invalid credentials</div>") // This will be part of the form if hx-target is the form itself and hx-swap is outerHTML
         }
     }
 
@@ -195,11 +196,88 @@ pub mod web {
     #[cfg(test)]
     mod tests {
         use super::*;
+        use crate::config::Config;
+        use axum::Router;
+        use axum::body::Body;
+        use axum::http::{Request, StatusCode};
+        use tower::ServiceExt; // for `oneshot`
+
+        async fn test_app(config: Config) -> axum::Router {
+            Router::new()
+                .route("/login", axum::routing::post(login_handler))
+                .layer(Extension(Arc::new(config)))
+        }
 
         #[tokio::test]
         async fn test_health_check() {
             let response = health_check().await;
             assert_eq!(response, "OK");
+        }
+
+        #[tokio::test]
+        async fn login_handler_successful_login() {
+            let config = Config {
+                db_url: "".to_string(),
+                port: 8080,
+                admin_username: "admin".to_string(),
+                admin_password: "password".to_string(),
+            };
+            let app = test_app(config).await;
+
+            let response = app
+                .oneshot(
+                    Request::builder()
+                        .method("POST")
+                        .uri("/login")
+                        .header("content-type", "application/x-www-form-urlencoded")
+                        .body(Body::from("username=admin&password=password"))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::OK);
+
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            assert_eq!(
+                body,
+                "<div class=\"card w-full max-w-sm shadow-2xl bg-base-100\"><div class=\"card-body items-center text-center\"><h2 class=\"card-title\">Login Successful!</h2><p>Welcome, admin!</p><div class=\"card-actions justify-end\"><a href=\"/name\" class=\"btn btn-primary\">Go to Namer</a></div></div></div>"
+            );
+        }
+
+        #[tokio::test]
+        async fn login_handler_invalid_credentials() {
+            let config = Config {
+                db_url: "".to_string(),
+                port: 8080,
+                admin_username: "admin".to_string(),
+                admin_password: "password".to_string(),
+            };
+            let app = test_app(config).await;
+
+            let response = app
+                .oneshot(
+                    Request::builder()
+                        .method("POST")
+                        .uri("/login")
+                        .header("content-type", "application/x-www-form-urlencoded")
+                        .body(Body::from("username=wrong&password=wrong"))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::OK); // Axum returns OK with HTML body for Form errors by default
+
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            assert_eq!(
+                body,
+                "<div class=\"alert alert-error\">Invalid credentials</div>"
+            );
         }
 
         #[tokio::test]

@@ -18,9 +18,19 @@
         <span class="mx-auto text-xl font-bold">Nicknamer Admin Panel</span>
       </div>
 
-      <div class="min-h-screen bg-base-200 flex flex-col justify-center items-center">
-        <div class="card w-full max-w-sm shadow-2xl bg-base-100">
-          <form class="card-body">
+      <div
+        class="min-h-screen bg-base-200 flex flex-col justify-center items-center"
+      >
+        <div
+          id="login-widget"
+          class="card w-full max-w-sm shadow-2xl bg-base-100"
+        >
+          <form
+            hx-post="/login"
+            hx-target="#login-widget"
+            hx-swap="outerHTML"
+            class="card-body"
+          >
             <h2 class="card-title text-2xl font-bold text-center">Login</h2>
             <div class="form-control">
               <label class="label">
@@ -28,6 +38,7 @@
               </label>
               <input
                 type="text"
+                name="username"
                 placeholder="username"
                 class="input input-bordered"
                 required
@@ -39,6 +50,7 @@
               </label>
               <input
                 type="password"
+                name="password"
                 placeholder="password"
                 class="input input-bordered"
                 required
