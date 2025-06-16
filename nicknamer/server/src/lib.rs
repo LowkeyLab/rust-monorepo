@@ -135,6 +135,12 @@ pub mod web {
 
     use crate::config;
 
+    #[derive(Debug, thiserror::Error)]
+    enum Errors {
+        #[error("Template rendering error")]
+        TemplateRenderingError,
+    }
+
     /// Represents the login request payload.
     #[derive(serde::Deserialize, Debug)]
     struct LoginRequest {

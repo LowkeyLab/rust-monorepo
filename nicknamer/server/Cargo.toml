@@ -19,6 +19,7 @@ sea-orm = { version = "1.1.12", features = [
     "macros",
 ] }
 serde = "1.0.219"
+thiserror = "2.0.12"
 tokio = "1.45.1"
 tower = { version = "0.4", features = ["util"] }
 tracing = "0.1.41"
