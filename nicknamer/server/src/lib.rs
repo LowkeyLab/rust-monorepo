@@ -155,7 +155,7 @@ pub mod web {
             .route("/login", axum::routing::post(login_handler)) // Add login route
             .layer(Extension(shared_config.clone())); // Add config as an extension
 
-        let server_address = format!("0.0.0.0:{}", shared_config.port);
+        let server_address = format!("0.0.0.0:{}", &shared_config.port);
         let listener = tokio::net::TcpListener::bind(&server_address).await?;
         tracing::info!("Web server running on http://{}", server_address);
 
