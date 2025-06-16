@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nicknamer</title>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <link
+      href="https://cdn.jsdelivr.net/npm/daisyui@5"
+      rel="stylesheet"
+      type="text/css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  </head>
+  <body class="bg-base-200">
+    <div class="container mx-auto p-4">
+      <div class="navbar bg-base-100 rounded-box shadow-lg">
+        <span class="mx-auto text-xl font-bold">Nicknamer Admin Panel</span>
+      </div>
+
+      <div
+        class="min-h-screen bg-base-200 flex flex-col justify-center items-center"
+      >
+        <div
+          id="login-widget"
+          class="card w-full max-w-sm shadow-2xl bg-base-100"
+        >
+          <form
+            hx-post="/login"
+            hx-target="#login-widget"
+            hx-swap="outerHTML"
+            class="card-body"
+          >
+            <h2 class="card-title text-2xl font-bold text-center">Login</h2>
+            <div class="form-control">
+              <label class="label" for="username">
+                <span class="label-text">Username</span>
+              </label>
+              <input
+                type="text"
+                name="username"
+                id="username"
+                placeholder="username"
+                class="input input-bordered"
+                required
+              />
+            </div>
+            <div class="form-control">
+              <label class="label" for="password">
+                <span class="label-text">Password</span>
+              </label>
+              <input
+                type="password"
+                name="password"
+                id="password"
+                placeholder="password"
+                class="input input-bordered"
+                required
+              />
+            </div>
+            <div class="form-control mt-6">
+              <button class="btn btn-primary">Login</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <footer class="footer footer-center p-4 bg-base-300 text-base-content">
+        <aside>
+          <p>
+            Made with ❤️ by
+            <a
+              href="https://github.com/tacascer"
+              target="_blank"
+              rel="noopener noreferrer"
+              >tacascer</a
+            >
+          </p>
+        </aside>
+      </footer>
+    </div>
+  </body>
+</html>

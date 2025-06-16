@@ -5,6 +5,8 @@ pub mod config {
         pub db_url: String,
         #[serde(default = "default_port")]
         pub port: u16,
+        pub admin_username: String,
+        pub admin_password: String,
     }
 
     impl Config {
@@ -123,21 +125,69 @@ pub mod user {
 }
 
 pub mod web {
+    use askama::Template;
+    use axum::extract::{Extension, Form};
+    use axum::http::StatusCode;
+    use axum::response::{Html, IntoResponse, Response};
     use migration::MigratorTrait;
     use sea_orm::Database;
+    use std::sync::Arc;
 
     use crate::config;
+
+    /// Custom error type for web handler operations.
+    #[derive(Debug, thiserror::Error)]
+    enum WebError {
+        /// Represents an error during template rendering.
+        /// The specific `askama::Error` is captured as the source of this error.
+        #[error("Template rendering failed")]
+        Template(#[from] askama::Error),
+    }
+
+    impl IntoResponse for WebError {
+        fn into_response(self) -> Response {
+            // The error itself (self) and its source (self.source()) are available
+            // for any higher-level error reporting or logging mechanisms configured
+            // in the application (e.g., a tracing subscriber).
+            // This IntoResponse implementation focuses on providing a user-friendly
+            // error page without exposing internal error details.
+
+            let user_facing_error_message = "An unexpected error occurred while processing your request. Please try again later.";
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Html(format!(
+                    "<h1>Internal Server Error</h1><p>{}</p>",
+                    user_facing_error_message
+                )),
+            )
+                .into_response()
+        }
+    }
+
+    /// Represents the login request payload.
+    #[derive(serde::Deserialize, Debug)]
+    struct LoginRequest {
+        username: String,
+        password: String,
+    }
 
     #[tracing::instrument]
     pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
         use axum::Router;
 
-        let app = Router::new().route("/health", axum::routing::get(health_check));
-        let server_address = format!("0.0.0.0:{}", config.port);
+        let shared_config = Arc::new(config); // Wrap config in Arc
+
+        let app = Router::new()
+            .route("/health", axum::routing::get(health_check))
+            .route("/", axum::routing::get(welcome))
+            .route("/login", axum::routing::post(login_handler)) // Add login route
+            .layer(Extension(shared_config.clone())); // Add config as an extension
+
+        let server_address = format!("0.0.0.0:{}", &shared_config.port);
         let listener = tokio::net::TcpListener::bind(&server_address).await?;
         tracing::info!("Web server running on http://{}", server_address);
 
-        let db = Database::connect(&config.db_url).await?;
+        let db = Database::connect(&shared_config.db_url).await?;
         migration::Migrator::up(&db, None).await?;
         axum::serve(listener, app).await?;
         Ok(())
@@ -148,14 +198,169 @@ pub mod web {
         "OK"
     }
 
+    /// Handles the login request.
+    /// Checks submitted username and password against admin credentials.
+    #[tracing::instrument(skip(config, payload))]
+    async fn login_handler(
+        Extension(config): Extension<Arc<config::Config>>,
+        Form(payload): Form<LoginRequest>,
+    ) -> Result<Html<String>, WebError> {
+        if payload.username == config.admin_username && payload.password == config.admin_password {
+            LoginSuccessTemplate {
+                name: &payload.username,
+            }
+            .render()
+            .map(Html)
+            .map_err(WebError::from)
+        } else {
+            LoginFailureTemplate
+                .render()
+                .map(Html)
+                .map_err(WebError::from)
+        }
+    }
+
+    async fn welcome() -> Result<Html<String>, WebError> {
+        IndexTemplate.render().map(Html).map_err(WebError::from)
+    }
+
+    #[derive(Template)]
+    #[template(path = "index.html")]
+    struct IndexTemplate;
+
+    #[derive(Template)]
+    #[template(path = "login_success.html")]
+    struct LoginSuccessTemplate<'a> {
+        name: &'a str,
+    }
+
+    #[derive(Template)]
+    #[template(path = "login_failure.html")]
+    struct LoginFailureTemplate;
+
     #[cfg(test)]
     mod tests {
         use super::*;
+        use crate::config::Config;
+        use axum::Router;
+        use axum::body::Body;
+        use axum::http::{Request, StatusCode};
+        use tower::ServiceExt; // for `oneshot`
+
+        async fn test_app(config: Config) -> axum::Router {
+            Router::new()
+                .route("/login", axum::routing::post(login_handler))
+                .layer(Extension(Arc::new(config)))
+        }
 
         #[tokio::test]
         async fn test_health_check() {
             let response = health_check().await;
             assert_eq!(response, "OK");
+        }
+
+        #[tokio::test]
+        async fn login_handler_successful_login() {
+            let config = Config {
+                db_url: "".to_string(),
+                port: 8080,
+                admin_username: "admin".to_string(),
+                admin_password: "password".to_string(),
+            };
+            let app = test_app(config).await;
+
+            let response = app
+                .oneshot(
+                    Request::builder()
+                        .method("POST")
+                        .uri("/login")
+                        .header("content-type", "application/x-www-form-urlencoded")
+                        .body(Body::from("username=admin&password=password"))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::OK);
+
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            assert_eq!(
+                body,
+                LoginSuccessTemplate { name: "admin" }.render().unwrap()
+            );
+        }
+
+        #[tokio::test]
+        async fn login_handler_invalid_credentials() {
+            let config = Config {
+                db_url: "".to_string(),
+                port: 8080,
+                admin_username: "admin".to_string(),
+                admin_password: "password".to_string(),
+            };
+            let app = test_app(config).await;
+
+            let response = app
+                .oneshot(
+                    Request::builder()
+                        .method("POST")
+                        .uri("/login")
+                        .header("content-type", "application/x-www-form-urlencoded")
+                        .body(Body::from("username=wrong&password=wrong"))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::OK); // Axum returns OK with HTML body for Form errors by default
+
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            assert_eq!(body, LoginFailureTemplate.render().unwrap());
+        }
+
+        #[tokio::test]
+        async fn renders_welcome_page_with_html_content_type() {
+            let result = welcome().await;
+            assert!(
+                result.is_ok(),
+                "welcome() returned an error: {:?}",
+                result.err()
+            );
+            let response = result.unwrap().into_response();
+            assert_eq!(
+                response.status(),
+                StatusCode::OK,
+                "Welcome handler should return OK for this test"
+            );
+            let content_type = response.headers().get(axum::http::header::CONTENT_TYPE);
+            assert_eq!(
+                content_type,
+                Some(&axum::http::HeaderValue::from_static(
+                    "text/html; charset=utf-8"
+                ))
+            );
+        }
+
+        #[tokio::test]
+        async fn web_error_template_into_response_returns_internal_server_error() {
+            // Simulate a template rendering error using askama::Error::Custom
+            let custom_error_message = "Simulated template rendering failure".to_string();
+            let template_error = askama::Error::Custom(custom_error_message.into());
+
+            let web_error = WebError::Template(template_error);
+            let response = web_error.into_response();
+
+            assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let expected_error_message = "<h1>Internal Server Error</h1><p>An unexpected error occurred while processing your request. Please try again later.</p>";
+            assert_eq!(std::str::from_utf8(&body).unwrap(), expected_error_message);
         }
     }
 }

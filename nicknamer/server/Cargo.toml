@@ -3,17 +3,25 @@ name = "nicknamer_server"
 version = "0.1.0"
 edition = "2024"
 
+[dev-dependencies]
+mockall = "0.13.1"
+testcontainers-modules = { version = "0.12.1", features = ["postgres"] }
+
 [dependencies]
 anyhow = "1.0.98"
 askama = "0.14.0"
 axum = "0.8.4"
 envy = "0.4.2"
 migration = { version = "0.1.0", path = "./migration" }
-mockall = "0.13.1"
-sea-orm = { version = "1.1.12", features = ["sqlx-postgres", "runtime-tokio-rustls", "macros"] }
+sea-orm = { version = "1.1.12", features = [
+    "sqlx-postgres",
+    "runtime-tokio-rustls",
+    "macros",
+] }
 serde = "1.0.219"
-testcontainers-modules = { version = "0.12.1", features = ["postgres"] }
+thiserror = "2.0.12"
 tokio = "1.45.1"
+tower = { version = "0.4", features = ["util"] }
 tracing = "0.1.41"
 tracing-futures = "0.2.5"
 tracing-subscriber = "0.3.19"
