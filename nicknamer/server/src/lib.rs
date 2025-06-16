@@ -344,5 +344,23 @@ pub mod web {
                 ))
             );
         }
+
+        #[tokio::test]
+        async fn web_error_template_into_response_returns_internal_server_error() {
+            // Simulate a template rendering error using askama::Error::Custom
+            let custom_error_message = "Simulated template rendering failure".to_string();
+            let template_error = askama::Error::Custom(custom_error_message.into());
+
+            let web_error = WebError::Template(template_error);
+            let response = web_error.into_response();
+
+            assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let expected_error_message = "<h1>Internal Server Error</h1><p>An unexpected error occurred while processing your request. Please try again later.</p>";
+            assert_eq!(std::str::from_utf8(&body).unwrap(), expected_error_message);
+        }
     }
 }
