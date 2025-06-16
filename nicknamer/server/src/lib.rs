@@ -177,11 +177,9 @@ pub mod web {
         Form(payload): Form<LoginRequest>,
     ) -> impl IntoResponse {
         if payload.username == config.admin_username && payload.password == config.admin_password {
-            Html(
-                "<div class=\"card w-full max-w-sm shadow-2xl bg-base-100\"><div class=\"card-body items-center text-center\"><h2 class=\"card-title\">Login Successful!</h2><p>Welcome, admin!</p><div class=\"card-actions justify-end\"><a href=\"/name\" class=\"btn btn-primary\">Go to Namer</a></div></div></div>",
-            )
+            Html(LoginSuccessTemplate.render().unwrap())
         } else {
-            Html("<div class=\"alert alert-error\">Invalid credentials</div>") // This will be part of the form if hx-target is the form itself and hx-swap is outerHTML
+            Html(LoginFailureTemplate.render().unwrap())
         }
     }
 
@@ -192,6 +190,14 @@ pub mod web {
     #[derive(Template)]
     #[template(path = "index.html")]
     struct IndexTemplate;
+
+    #[derive(Template)]
+    #[template(path = "login_success.html")]
+    struct LoginSuccessTemplate;
+
+    #[derive(Template)]
+    #[template(path = "login_failure.html")]
+    struct LoginFailureTemplate;
 
     #[cfg(test)]
     mod tests {
@@ -241,10 +247,7 @@ pub mod web {
             let body = axum::body::to_bytes(response.into_body(), usize::MAX)
                 .await
                 .unwrap();
-            assert_eq!(
-                body,
-                "<div class=\"card w-full max-w-sm shadow-2xl bg-base-100\"><div class=\"card-body items-center text-center\"><h2 class=\"card-title\">Login Successful!</h2><p>Welcome, admin!</p><div class=\"card-actions justify-end\"><a href=\"/name\" class=\"btn btn-primary\">Go to Namer</a></div></div></div>"
-            );
+            assert_eq!(body, LoginSuccessTemplate.render().unwrap());
         }
 
         #[tokio::test]
@@ -274,10 +277,7 @@ pub mod web {
             let body = axum::body::to_bytes(response.into_body(), usize::MAX)
                 .await
                 .unwrap();
-            assert_eq!(
-                body,
-                "<div class=\"alert alert-error\">Invalid credentials</div>"
-            );
+            assert_eq!(body, LoginFailureTemplate.render().unwrap());
         }
 
         #[tokio::test]
