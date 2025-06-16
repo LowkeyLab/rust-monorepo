@@ -5,6 +5,8 @@ pub mod config {
         pub db_url: String,
         #[serde(default = "default_port")]
         pub port: u16,
+        pub admin_username: String,
+        pub admin_password: String,
     }
 
     impl Config {
