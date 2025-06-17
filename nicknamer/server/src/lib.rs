@@ -338,12 +338,15 @@ pub mod web {
                 .await
                 .unwrap();
 
-            assert_eq!(response.status(), StatusCode::OK); // Axum returns OK with HTML body for Form errors by default
+            assert_eq!(response.status(), StatusCode::OK);
 
             let body = axum::body::to_bytes(response.into_body(), usize::MAX)
                 .await
                 .unwrap();
-            assert_eq!(body, LoginFailureTemplate.render().unwrap());
+            let rendered_failure = LoginFailureTemplate.render().unwrap();
+            assert_eq!(body, rendered_failure);
+            // Verify the error message is included in the response
+            assert!(rendered_failure.contains("Login failed. Please try again."));
         }
 
         #[tokio::test]
