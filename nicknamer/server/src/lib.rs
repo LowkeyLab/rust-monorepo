@@ -1,5 +1,6 @@
 pub mod config {
     use serde::Deserialize;
+
     #[derive(Deserialize, Debug)]
     pub struct Config {
         pub db_url: String,
@@ -10,10 +11,17 @@ pub mod config {
     }
 
     impl Config {
-        pub fn from_env() -> Self {
-            envy::from_env().expect("Failed to load configuration from environment variables")
+        /// Loads configuration from environment variables.
+        pub fn from_env() -> anyhow::Result<Self> {
+            let settings = config::Config::builder()
+                .add_source(config::Environment::default())
+                .build()?;
+
+            let config: Config = settings.try_deserialize()?;
+            Ok(config)
         }
     }
+
     fn default_port() -> u16 {
         8080
     }
