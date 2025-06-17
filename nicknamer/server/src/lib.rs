@@ -122,31 +122,6 @@ pub mod user {
             Ok(users)
         }
     }
-
-    pub struct UserController<'a> {
-        user_service: UserService<'a>,
-    }
-
-    impl UserController<'_> {
-        pub fn new(user_service: UserService) -> UserController {
-            UserController { user_service }
-        }
-
-        /// Handles the creation of a new user.
-        ///
-        /// # Arguments
-        ///
-        /// * `discord_id` - The Discord ID of the user.
-        /// * `name` - The name of the user.
-        ///
-        /// # Returns
-        ///
-        /// A `Result` containing the created `User` if successful, or an error otherwise.
-        #[tracing::instrument(skip(self))]
-        pub async fn create_user(&self, discord_id: u64, name: String) -> anyhow::Result<User> {
-            self.user_service.create_user(discord_id, name).await
-        }
-    }
 }
 
 pub mod web {
