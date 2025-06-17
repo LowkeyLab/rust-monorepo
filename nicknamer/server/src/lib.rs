@@ -135,8 +135,8 @@ pub mod user {
 pub mod web {
     use askama::Template;
     use axum::extract::{Form, State};
-    use axum::http::StatusCode;
-    use axum::response::Html;
+    use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
+    use axum::response::{Html, IntoResponse, Response};
     use migration::MigratorTrait;
     use sea_orm::Database;
     use std::sync::Arc;
@@ -223,21 +223,29 @@ pub mod web {
     async fn login_handler(
         State(state): State<AppState>,
         Form(payload): Form<LoginRequest>,
-    ) -> Result<Html<String>, WebError> {
+    ) -> Result<Response, WebError> {
         if payload.username == state.config.admin_username
             && payload.password == state.config.admin_password
         {
-            LoginSuccessTemplate {
+            let html = LoginSuccessTemplate {
                 name: &payload.username,
             }
             .render()
-            .map(Html)
-            .map_err(WebError::from)
+            .map_err(WebError::from)?;
+
+            Ok(Html(html).into_response())
         } else {
-            LoginFailureTemplate
-                .render()
-                .map(Html)
-                .map_err(WebError::from)
+            let error_message = LoginErrorMessageTemplate.render().map_err(WebError::from)?;
+
+            let mut headers = HeaderMap::new();
+            headers.insert(
+                HeaderName::from_static("hx-retarget"),
+                HeaderValue::from_static("#login-message"),
+            );
+
+            let mut response = Html(error_message).into_response();
+            response.headers_mut().extend(headers);
+            Ok(response)
         }
     }
 
@@ -256,8 +264,8 @@ pub mod web {
     }
 
     #[derive(Template)]
-    #[template(path = "login_failure.html")]
-    struct LoginFailureTemplate;
+    #[template(path = "login_error_message.html")]
+    struct LoginErrorMessageTemplate;
 
     #[cfg(test)]
     mod tests {
@@ -340,13 +348,27 @@ pub mod web {
 
             assert_eq!(response.status(), StatusCode::OK);
 
+            // Check HX-Retarget header
+            let hx_retarget = response.headers().get("hx-retarget");
+            assert_eq!(
+                hx_retarget,
+                Some(&axum::http::HeaderValue::from_static("#login-message"))
+            );
+
+            // Check HX-Reswap header
+            let hx_reswap = response.headers().get("hx-reswap");
+            assert_eq!(
+                hx_reswap,
+                Some(&axum::http::HeaderValue::from_static("innerHTML"))
+            );
+
             let body = axum::body::to_bytes(response.into_body(), usize::MAX)
                 .await
                 .unwrap();
-            let rendered_failure = LoginFailureTemplate.render().unwrap();
-            assert_eq!(body, rendered_failure);
+            let rendered_error = LoginErrorMessageTemplate.render().unwrap();
+            assert_eq!(body, rendered_error);
             // Verify the error message is included in the response
-            assert!(rendered_failure.contains("Login failed. Please try again."));
+            assert!(rendered_error.contains("Login failed. Please try again."));
         }
 
         #[tokio::test]
