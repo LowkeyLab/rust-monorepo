@@ -156,6 +156,8 @@ pub mod web {
     use axum::response::{Html, IntoResponse, Response};
     use migration::MigratorTrait;
     use sea_orm::Database;
+    use tower::ServiceBuilder;
+    use tower_http::trace::TraceLayer;
     use std::sync::Arc;
 
     use crate::config;
@@ -206,7 +208,11 @@ pub mod web {
             .route("/health", axum::routing::get(health_check))
             .route("/", axum::routing::get(welcome))
             .route("/login", axum::routing::post(login_handler)) // Add login route
-            .layer(Extension(shared_config.clone())); // Add config as an extension
+            .layer(
+                ServiceBuilder::new()
+                .layer(Extension(shared_config.clone())) // Add config as an extension
+                .layer(TraceLayer::new_for_http())
+            );
 
         let server_address = format!("0.0.0.0:{}", &shared_config.port);
         let listener = tokio::net::TcpListener::bind(&server_address).await?;
