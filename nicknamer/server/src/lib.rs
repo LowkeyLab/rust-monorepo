@@ -156,9 +156,9 @@ pub mod web {
     use axum::response::{Html, IntoResponse, Response};
     use migration::MigratorTrait;
     use sea_orm::Database;
+    use std::sync::Arc;
     use tower::ServiceBuilder;
     use tower_http::trace::TraceLayer;
-    use std::sync::Arc;
 
     use crate::config;
 
@@ -208,6 +208,9 @@ pub mod web {
         use axum::Router;
 
         let shared_config = Arc::new(config);
+        let state = State {
+            config: shared_config.clone(),
+        };
 
         let app = Router::new()
             .route("/health", axum::routing::get(health_check))
@@ -215,8 +218,8 @@ pub mod web {
             .route("/login", axum::routing::post(login_handler)) // Add login route
             .layer(
                 ServiceBuilder::new()
-                .layer(Extension(shared_config.clone())) // Add config as an extension
-                .layer(TraceLayer::new_for_http())
+                    .layer(Extension(state)) // Use State struct here
+                    .layer(TraceLayer::new_for_http()),
             );
 
         let server_address = format!("0.0.0.0:{}", &shared_config.port);
@@ -236,12 +239,14 @@ pub mod web {
 
     /// Handles the login request.
     /// Checks submitted username and password against admin credentials.
-    #[tracing::instrument(skip(config, payload))]
+    #[tracing::instrument(skip(state, payload))]
     async fn login_handler(
-        Extension(config): Extension<Arc<config::Config>>,
+        Extension(state): Extension<State>, // Use State struct here
         Form(payload): Form<LoginRequest>,
     ) -> Result<Html<String>, WebError> {
-        if payload.username == config.admin_username && payload.password == config.admin_password {
+        if payload.username == state.config.admin_username
+            && payload.password == state.config.admin_password
+        {
             LoginSuccessTemplate {
                 name: &payload.username,
             }
@@ -284,9 +289,12 @@ pub mod web {
         use tower::ServiceExt; // for `oneshot`
 
         async fn test_app(config: Config) -> axum::Router {
+            let state = State {
+                config: Arc::new(config),
+            };
             Router::new()
                 .route("/login", axum::routing::post(login_handler))
-                .layer(Extension(Arc::new(config)))
+                .layer(Extension(state)) // Use State struct here
         }
 
         #[tokio::test]
