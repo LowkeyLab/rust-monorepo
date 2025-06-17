@@ -191,6 +191,11 @@ pub mod web {
         }
     }
 
+    #[derive(Clone)]
+    struct State {
+        config: Arc<config::Config>,
+    }
+
     /// Represents the login request payload.
     #[derive(serde::Deserialize, Debug)]
     struct LoginRequest {
