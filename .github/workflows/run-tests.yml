@@ -19,7 +19,7 @@ jobs:
         with:
           fetch-depth: 0
       - uses: actions-rust-lang/setup-rust-toolchain@9d7e65c320fdb52dcd45ffaa68deb6c02c8754d9
-      - uses: davidB/rust-cargo-make@4be7185ac95f20945b64d772e7f6f09e1bd753b6
+      - uses: davidB/rust-cargo-make@4bd87af33dd577d5f0ee26fad296e6b526fedc9e
       - name: Run CI
         run: cargo make --profile ci workspace-ci-flow
       - uses: taiki-e/install-action@7b20dfd705618832f20d29066e34aa2f2f6194c2
