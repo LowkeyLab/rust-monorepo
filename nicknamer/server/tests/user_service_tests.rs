@@ -14,7 +14,7 @@ pub struct TestContext {
 // 2. Define setup() function locally, using public functions from common module
 async fn setup() -> anyhow::Result<TestContext> {
     // Allow multiple calls to init for tests.
-    let _ = tracing_subscriber::fmt().try_init(); // Consider if this is still needed
+    let _ = tracing_subscriber::fmt().try_init();
     let container = common::setup_container().await?;
     let db = common::setup_db(&container).await?;
     Ok(TestContext { db, container })
