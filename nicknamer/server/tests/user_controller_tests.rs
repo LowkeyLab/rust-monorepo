@@ -1,7 +1,24 @@
 mod common;
 
-use crate::common::setup;
 use nicknamer_server::user::{User, UserController, UserService};
+use sea_orm::DatabaseConnection;
+use testcontainers_modules::{postgres, testcontainers}; // Add this line
+
+// 1. Define TestContext struct locally
+pub struct TestContext {
+    #[allow(dead_code)] // container is kept to ensure it's not dropped
+    pub container: testcontainers::ContainerAsync<postgres::Postgres>,
+    pub db: DatabaseConnection,
+}
+
+// 2. Define setup() function locally, using public functions from common module
+async fn setup() -> anyhow::Result<TestContext> {
+    // Allow multiple calls to init for tests.
+    let _ = tracing_subscriber::fmt().try_init(); // Consider if this is still needed or should be handled differently
+    let container = common::setup_container().await?;
+    let db = common::setup_db(&container).await?;
+    Ok(TestContext { db, container })
+}
 
 #[tokio::test]
 async fn can_create_user() {
