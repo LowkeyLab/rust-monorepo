@@ -126,12 +126,15 @@ pub mod user {
 
 pub mod web {
     use askama::Template;
-    use axum::extract::{Extension, Form};
+    use axum::extract::{Form, State};
     use axum::http::StatusCode;
-    use axum::response::{Html, IntoResponse, Response};
+    use axum::response::Html;
     use migration::MigratorTrait;
     use sea_orm::Database;
     use std::sync::Arc;
+    use tower::ServiceBuilder;
+    use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
+    use tracing::Level;
 
     use crate::config;
 
@@ -144,14 +147,8 @@ pub mod web {
         Template(#[from] askama::Error),
     }
 
-    impl IntoResponse for WebError {
-        fn into_response(self) -> Response {
-            // The error itself (self) and its source (self.source()) are available
-            // for any higher-level error reporting or logging mechanisms configured
-            // in the application (e.g., a tracing subscriber).
-            // This IntoResponse implementation focuses on providing a user-friendly
-            // error page without exposing internal error details.
-
+    impl axum::response::IntoResponse for WebError {
+        fn into_response(self) -> axum::response::Response {
             let user_facing_error_message = "An unexpected error occurred while processing your request. Please try again later.";
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -162,6 +159,11 @@ pub mod web {
             )
                 .into_response()
         }
+    }
+
+    #[derive(Clone)]
+    struct AppState {
+        config: Arc<config::Config>,
     }
 
     /// Represents the login request payload.
@@ -175,13 +177,24 @@ pub mod web {
     pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
         use axum::Router;
 
-        let shared_config = Arc::new(config); // Wrap config in Arc
+        let shared_config = Arc::new(config);
+        let state = AppState {
+            config: shared_config.clone(),
+        };
 
         let app = Router::new()
-            .route("/health", axum::routing::get(health_check))
-            .route("/", axum::routing::get(welcome))
-            .route("/login", axum::routing::post(login_handler)) // Add login route
-            .layer(Extension(shared_config.clone())); // Add config as an extension
+            .route("/health", axum::routing::get(health_check_handler))
+            .route("/", axum::routing::get(welcome_handler))
+            .route("/login", axum::routing::post(login_handler))
+            .with_state(state.clone())
+            .layer(
+                ServiceBuilder::new().layer(
+                    TraceLayer::new_for_http()
+                        .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
+                        .on_request(DefaultOnRequest::new().level(Level::INFO))
+                        .on_response(DefaultOnResponse::new().level(Level::INFO)),
+                ),
+            );
 
         let server_address = format!("0.0.0.0:{}", &shared_config.port);
         let listener = tokio::net::TcpListener::bind(&server_address).await?;
@@ -193,19 +206,19 @@ pub mod web {
         Ok(())
     }
 
-    #[tracing::instrument]
-    async fn health_check() -> &'static str {
+    async fn health_check_handler() -> &'static str {
         "OK"
     }
 
     /// Handles the login request.
     /// Checks submitted username and password against admin credentials.
-    #[tracing::instrument(skip(config, payload))]
     async fn login_handler(
-        Extension(config): Extension<Arc<config::Config>>,
+        State(state): State<AppState>,
         Form(payload): Form<LoginRequest>,
     ) -> Result<Html<String>, WebError> {
-        if payload.username == config.admin_username && payload.password == config.admin_password {
+        if payload.username == state.config.admin_username
+            && payload.password == state.config.admin_password
+        {
             LoginSuccessTemplate {
                 name: &payload.username,
             }
@@ -220,7 +233,7 @@ pub mod web {
         }
     }
 
-    async fn welcome() -> Result<Html<String>, WebError> {
+    async fn welcome_handler() -> Result<Html<String>, WebError> {
         IndexTemplate.render().map(Html).map_err(WebError::from)
     }
 
@@ -248,14 +261,17 @@ pub mod web {
         use tower::ServiceExt; // for `oneshot`
 
         async fn test_app(config: Config) -> axum::Router {
+            let state = AppState {
+                config: Arc::new(config),
+            };
             Router::new()
                 .route("/login", axum::routing::post(login_handler))
-                .layer(Extension(Arc::new(config)))
+                .with_state(state)
         }
 
         #[tokio::test]
         async fn test_health_check() {
-            let response = health_check().await;
+            let response = health_check_handler().await;
             assert_eq!(response, "OK");
         }
 
@@ -324,13 +340,14 @@ pub mod web {
 
         #[tokio::test]
         async fn renders_welcome_page_with_html_content_type() {
-            let result = welcome().await;
+            let result = welcome_handler().await;
             assert!(
                 result.is_ok(),
                 "welcome() returned an error: {:?}",
                 result.err()
             );
-            let response = result.unwrap().into_response();
+            let response: axum::response::Response =
+                axum::response::IntoResponse::into_response(result.unwrap());
             assert_eq!(
                 response.status(),
                 StatusCode::OK,
@@ -352,7 +369,7 @@ pub mod web {
             let template_error = askama::Error::Custom(custom_error_message.into());
 
             let web_error = WebError::Template(template_error);
-            let response = web_error.into_response();
+            let response = axum::response::IntoResponse::into_response(web_error);
 
             assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
 
