@@ -143,11 +143,7 @@ pub mod user {
         ///
         /// A `Result` containing the created `User` if successful, or an error otherwise.
         #[tracing::instrument(skip(self))]
-        pub async fn create_user(
-            &self,
-            discord_id: u64,
-            name: String,
-        ) -> anyhow::Result<User> {
+        pub async fn create_user(&self, discord_id: u64, name: String) -> anyhow::Result<User> {
             self.user_service.create_user(discord_id, name).await
         }
     }
