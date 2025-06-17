@@ -158,7 +158,8 @@ pub mod web {
     use sea_orm::Database;
     use std::sync::Arc;
     use tower::ServiceBuilder;
-    use tower_http::trace::TraceLayer;
+    use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
+    use tracing::Level;
 
     use crate::config;
 
@@ -213,13 +214,16 @@ pub mod web {
         };
 
         let app = Router::new()
-            .route("/health", axum::routing::get(health_check))
-            .route("/", axum::routing::get(welcome))
-            .route("/login", axum::routing::post(login_handler)) // Add login route
+            .route("/health", axum::routing::get(health_check_handler))
+            .route("/", axum::routing::get(welcome_handler))
+            .route("/login", axum::routing::post(login_handler))
             .layer(
-                ServiceBuilder::new()
-                    .layer(Extension(state)) // Use State struct here
-                    .layer(TraceLayer::new_for_http()),
+                ServiceBuilder::new().layer(Extension(state)).layer(
+                    TraceLayer::new_for_http()
+                        .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
+                        .on_request(DefaultOnRequest::new().level(Level::INFO))
+                        .on_response(DefaultOnResponse::new().level(Level::INFO)),
+                ),
             );
 
         let server_address = format!("0.0.0.0:{}", &shared_config.port);
@@ -232,14 +236,12 @@ pub mod web {
         Ok(())
     }
 
-    #[tracing::instrument]
-    async fn health_check() -> &'static str {
+    async fn health_check_handler() -> &'static str {
         "OK"
     }
 
     /// Handles the login request.
     /// Checks submitted username and password against admin credentials.
-    #[tracing::instrument(skip(state, payload))]
     async fn login_handler(
         Extension(state): Extension<State>, // Use State struct here
         Form(payload): Form<LoginRequest>,
@@ -261,7 +263,7 @@ pub mod web {
         }
     }
 
-    async fn welcome() -> Result<Html<String>, WebError> {
+    async fn welcome_handler() -> Result<Html<String>, WebError> {
         IndexTemplate.render().map(Html).map_err(WebError::from)
     }
 
@@ -299,7 +301,7 @@ pub mod web {
 
         #[tokio::test]
         async fn test_health_check() {
-            let response = health_check().await;
+            let response = health_check_handler().await;
             assert_eq!(response, "OK");
         }
 
@@ -368,7 +370,7 @@ pub mod web {
 
         #[tokio::test]
         async fn renders_welcome_page_with_html_content_type() {
-            let result = welcome().await;
+            let result = welcome_handler().await;
             assert!(
                 result.is_ok(),
                 "welcome() returned an error: {:?}",
