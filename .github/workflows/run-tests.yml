@@ -19,7 +19,7 @@ jobs:
         with:
           fetch-depth: 0
       - uses: actions-rust-lang/setup-rust-toolchain@fb51252c7ba57d633bc668f941da052e410add48
-      - uses: taiki-e/install-action@7b20dfd705618832f20d29066e34aa2f2f6194c2
+      - uses: taiki-e/install-action@dd154fff2f898f480894c915c12aa8782e93c71b
         with:
           tool: cargo-make,cargo-llvm-cov
       - name: Run CI
