@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions-rust-lang/setup-rust-toolchain@9d7e65c320fdb52dcd45ffaa68deb6c02c8754d9
+      - uses: actions-rust-lang/setup-rust-toolchain@fb51252c7ba57d633bc668f941da052e410add48
       - uses: davidB/rust-cargo-make@4be7185ac95f20945b64d772e7f6f09e1bd753b6
       - name: Run CI
         run: cargo make --profile ci workspace-ci-flow
