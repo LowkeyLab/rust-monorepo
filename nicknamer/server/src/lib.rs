@@ -135,8 +135,8 @@ pub mod user {
 pub mod web {
     use askama::Template;
     use axum::extract::{Form, State};
-    use axum::http::StatusCode;
-    use axum::response::Html;
+    use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
+    use axum::response::{Html, IntoResponse, Response};
     use migration::MigratorTrait;
     use sea_orm::Database;
     use std::sync::Arc;
@@ -196,12 +196,14 @@ pub mod web {
             .route("/login", axum::routing::post(login_handler))
             .with_state(state.clone())
             .layer(
-                ServiceBuilder::new().layer(
-                    TraceLayer::new_for_http()
-                        .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
-                        .on_request(DefaultOnRequest::new().level(Level::INFO))
-                        .on_response(DefaultOnResponse::new().level(Level::INFO)),
-                ),
+                ServiceBuilder::new()
+                    .layer(
+                        TraceLayer::new_for_http()
+                            .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
+                            .on_request(DefaultOnRequest::new().level(Level::INFO))
+                            .on_response(DefaultOnResponse::new().level(Level::INFO)),
+                    )
+                    .layer(middleware::CorsExposeLayer::new()),
             );
 
         let server_address = format!("0.0.0.0:{}", &shared_config.port);
@@ -223,21 +225,33 @@ pub mod web {
     async fn login_handler(
         State(state): State<AppState>,
         Form(payload): Form<LoginRequest>,
-    ) -> Result<Html<String>, WebError> {
+    ) -> Result<Response, WebError> {
         if payload.username == state.config.admin_username
             && payload.password == state.config.admin_password
         {
-            LoginSuccessTemplate {
+            let html = LoginSuccessTemplate {
                 name: &payload.username,
             }
             .render()
-            .map(Html)
-            .map_err(WebError::from)
+            .map_err(WebError::from)?;
+
+            Ok(Html(html).into_response())
         } else {
-            LoginFailureTemplate
-                .render()
-                .map(Html)
-                .map_err(WebError::from)
+            let error_message = LoginErrorMessageTemplate.render().map_err(WebError::from)?;
+
+            let mut headers = HeaderMap::new();
+            headers.insert(
+                HeaderName::from_static("hx-retarget"),
+                HeaderValue::from_static("#login-message"),
+            );
+            headers.insert(
+                HeaderName::from_static("hx-reswap"),
+                HeaderValue::from_static("outerHTML"),
+            );
+
+            let mut response = Html(error_message).into_response();
+            response.headers_mut().extend(headers);
+            Ok(response)
         }
     }
 
@@ -256,8 +270,8 @@ pub mod web {
     }
 
     #[derive(Template)]
-    #[template(path = "login_failure.html")]
-    struct LoginFailureTemplate;
+    #[template(path = "login_error_message.html")]
+    struct LoginErrorMessageTemplate;
 
     #[cfg(test)]
     mod tests {
@@ -338,12 +352,29 @@ pub mod web {
                 .await
                 .unwrap();
 
-            assert_eq!(response.status(), StatusCode::OK); // Axum returns OK with HTML body for Form errors by default
+            assert_eq!(response.status(), StatusCode::OK);
+
+            // Check HX-Retarget header
+            let hx_retarget = response.headers().get("hx-retarget");
+            assert_eq!(
+                hx_retarget,
+                Some(&axum::http::HeaderValue::from_static("#login-message"))
+            );
+
+            // Check HX-Reswap header
+            let hx_reswap = response.headers().get("hx-reswap");
+            assert_eq!(
+                hx_reswap,
+                Some(&axum::http::HeaderValue::from_static("outerHTML"))
+            );
 
             let body = axum::body::to_bytes(response.into_body(), usize::MAX)
                 .await
                 .unwrap();
-            assert_eq!(body, LoginFailureTemplate.render().unwrap());
+            let rendered_error = LoginErrorMessageTemplate.render().unwrap();
+            assert_eq!(body, rendered_error);
+            // Verify the error message is included in the response
+            assert!(rendered_error.contains("Login failed. Please try again."));
         }
 
         #[tokio::test]
@@ -386,6 +417,178 @@ pub mod web {
                 .unwrap();
             let expected_error_message = "<h1>Internal Server Error</h1><p>An unexpected error occurred while processing your request. Please try again later.</p>";
             assert_eq!(std::str::from_utf8(&body).unwrap(), expected_error_message);
+        }
+    }
+
+    mod middleware {
+        use axum::http::{HeaderName, HeaderValue, Request, Response};
+        use pin_project_lite::pin_project;
+        use std::future::Future;
+        use std::pin::Pin;
+        use std::task::{Context, Poll};
+        use tower::{Layer, Service};
+
+        /// Layer that adds CORS headers to expose HTMX headers
+        #[derive(Clone, Default)]
+        pub struct CorsExposeLayer;
+
+        impl CorsExposeLayer {
+            /// Creates a new CorsExposeLayer
+            pub fn new() -> Self {
+                Self
+            }
+        }
+
+        impl<S> Layer<S> for CorsExposeLayer {
+            type Service = CorsExposeService<S>;
+
+            fn layer(&self, inner: S) -> Self::Service {
+                CorsExposeService { inner }
+            }
+        }
+
+        /// Service that adds Access-Control-Expose-Headers to responses
+        #[derive(Clone)]
+        pub struct CorsExposeService<S> {
+            inner: S,
+        }
+
+        impl<S, ReqBody, ResBody> Service<Request<ReqBody>> for CorsExposeService<S>
+        where
+            S: Service<Request<ReqBody>, Response = Response<ResBody>>,
+        {
+            type Response = Response<ResBody>;
+            type Error = S::Error;
+            type Future = CorsExposeFuture<S::Future>;
+
+            fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+                self.inner.poll_ready(cx)
+            }
+
+            fn call(&mut self, request: Request<ReqBody>) -> Self::Future {
+                CorsExposeFuture {
+                    future: self.inner.call(request),
+                }
+            }
+        }
+
+        pin_project! {
+            /// Future that resolves to a response with CORS headers added
+            pub struct CorsExposeFuture<F> {
+                #[pin]
+                future: F,
+            }
+        }
+
+        impl<F, ResBody, E> Future for CorsExposeFuture<F>
+        where
+            F: Future<Output = Result<Response<ResBody>, E>>,
+        {
+            type Output = Result<Response<ResBody>, E>;
+
+            fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+                let this = self.project();
+                match this.future.poll(cx) {
+                    Poll::Ready(Ok(mut response)) => {
+                        // Add the Access-Control-Expose-Headers header
+                        response.headers_mut().insert(
+                            HeaderName::from_static("access-control-expose-headers"),
+                            HeaderValue::from_static("hx-retarget,hx-reswap"),
+                        );
+                        Poll::Ready(Ok(response))
+                    }
+                    Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
+                    Poll::Pending => Poll::Pending,
+                }
+            }
+        }
+
+        #[cfg(test)]
+        mod tests {
+            use super::*;
+            use axum::body::Body;
+            use axum::http::{Request, StatusCode};
+            use axum::{Router, response::Response};
+            use tower::ServiceExt;
+
+            #[tokio::test]
+            async fn cors_expose_layer_adds_header() {
+                let app = Router::new()
+                    .route("/test", axum::routing::get(|| async { "test response" }))
+                    .layer(CorsExposeLayer::new());
+
+                let response = app
+                    .oneshot(
+                        Request::builder()
+                            .method("GET")
+                            .uri("/test")
+                            .body(Body::empty())
+                            .unwrap(),
+                    )
+                    .await
+                    .unwrap();
+
+                assert_eq!(response.status(), StatusCode::OK);
+
+                let headers = response.headers();
+                let expose_headers = headers.get("access-control-expose-headers");
+                assert_eq!(
+                    expose_headers,
+                    Some(&axum::http::HeaderValue::from_static(
+                        "hx-retarget,hx-reswap"
+                    ))
+                );
+            }
+
+            #[tokio::test]
+            async fn cors_expose_layer_preserves_existing_headers() {
+                async fn handler_with_custom_header() -> Response<String> {
+                    let mut response = Response::new("test response".to_string());
+                    response.headers_mut().insert(
+                        "custom-header",
+                        axum::http::HeaderValue::from_static("custom-value"),
+                    );
+                    response
+                }
+
+                let app = Router::new()
+                    .route(
+                        "/test-with-headers",
+                        axum::routing::get(handler_with_custom_header),
+                    )
+                    .layer(CorsExposeLayer::new());
+
+                let response = app
+                    .oneshot(
+                        Request::builder()
+                            .method("GET")
+                            .uri("/test-with-headers")
+                            .body(Body::empty())
+                            .unwrap(),
+                    )
+                    .await
+                    .unwrap();
+
+                assert_eq!(response.status(), StatusCode::OK);
+
+                let headers = response.headers();
+
+                // Check that our CORS header was added
+                let expose_headers = headers.get("access-control-expose-headers");
+                assert_eq!(
+                    expose_headers,
+                    Some(&axum::http::HeaderValue::from_static(
+                        "hx-retarget,hx-reswap"
+                    ))
+                );
+
+                // Check that existing headers are preserved
+                let custom_header = headers.get("custom-header");
+                assert_eq!(
+                    custom_header,
+                    Some(&axum::http::HeaderValue::from_static("custom-value"))
+                );
+            }
         }
     }
 }
