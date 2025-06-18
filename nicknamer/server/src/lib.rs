@@ -195,14 +195,15 @@ pub mod web {
             .route("/", axum::routing::get(welcome_handler))
             .route("/login", axum::routing::post(login_handler))
             .with_state(state.clone())
-            .layer(middleware::CorsExposeLayer::new())
             .layer(
-                ServiceBuilder::new().layer(
-                    TraceLayer::new_for_http()
-                        .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
-                        .on_request(DefaultOnRequest::new().level(Level::INFO))
-                        .on_response(DefaultOnResponse::new().level(Level::INFO)),
-                ),
+                ServiceBuilder::new()
+                    .layer(
+                        TraceLayer::new_for_http()
+                            .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
+                            .on_request(DefaultOnRequest::new().level(Level::INFO))
+                            .on_response(DefaultOnResponse::new().level(Level::INFO)),
+                    )
+                    .layer(middleware::CorsExposeLayer::new()),
             );
 
         let server_address = format!("0.0.0.0:{}", &shared_config.port);
