@@ -181,16 +181,14 @@ pub mod web {
     pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
         use axum::Router;
 
-        let shared_config = Arc::new(config);
-        let state = AppState {
-            config: shared_config.clone(),
-        };
+        let server_address = format!("0.0.0.0:{}", &config.port);
+        let listener = tokio::net::TcpListener::bind(&server_address).await?;
+        tracing::info!("Web server running on http://{}", server_address);
+
+        let db = Database::connect(&config.db_url).await?;
+        migration::Migrator::up(&db, None).await?;
 
         let app = Router::new()
-            .route("/health", axum::routing::get(health_check_handler))
-            .route("/", axum::routing::get(welcome_handler))
-            .route("/login", axum::routing::post(login_handler))
-            .with_state(state.clone())
             .layer(
                 ServiceBuilder::new()
                     .layer(
@@ -200,14 +198,14 @@ pub mod web {
                             .on_response(DefaultOnResponse::new().level(Level::INFO)),
                     )
                     .layer(middleware::CorsExposeLayer::new()),
-            );
+            )
+            .route("/health", axum::routing::get(health_check_handler))
+            .route("/", axum::routing::get(welcome_handler))
+            .route("/login", axum::routing::post(login_handler))
+            .with_state(AppState {
+                config: Arc::new(config),
+            });
 
-        let server_address = format!("0.0.0.0:{}", &shared_config.port);
-        let listener = tokio::net::TcpListener::bind(&server_address).await?;
-        tracing::info!("Web server running on http://{}", server_address);
-
-        let db = Database::connect(&shared_config.db_url).await?;
-        migration::Migrator::up(&db, None).await?;
         axum::serve(listener, app).await?;
         Ok(())
     }
