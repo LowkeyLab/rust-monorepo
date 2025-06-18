@@ -69,7 +69,7 @@ pub mod user {
         /// A `Result` containing the created `User` if successful, or an error otherwise.
         #[tracing::instrument(skip(self))]
         pub async fn create_user(&self, discord_id: u64, name: String) -> anyhow::Result<User> {
-            let active_model = user::ActiveModel {
+            let active_model = name::ActiveModel {
                 discord_id: ActiveValue::Set(discord_id as i64),
                 name: ActiveValue::Set(name.clone()),
                 ..Default::default()
@@ -98,12 +98,12 @@ pub mod user {
             id: u32,
             new_name: String,
         ) -> anyhow::Result<User> {
-            let user_to_update = user::Entity::find_by_id(id as i32)
+            let user_to_update = name::Entity::find_by_id(id as i32)
                 .one(self.db)
                 .await?
                 .ok_or_else(|| anyhow::anyhow!("User with ID {} not found", id))?;
 
-            let mut active_model: user::ActiveModel = user_to_update.into();
+            let mut active_model: name::ActiveModel = user_to_update.into();
             active_model.name = ActiveValue::Set(new_name.clone());
             let updated_model = active_model.update(self.db).await?;
 
@@ -121,7 +121,7 @@ pub mod user {
         /// A `Result` containing a vector of `User` if successful, or an error otherwise.
         #[tracing::instrument(skip(self))]
         pub async fn get_all_users(&self) -> anyhow::Result<Vec<User>> {
-            let users = user::Entity::find()
+            let users = name::Entity::find()
                 .all(self.db)
                 .await?
                 .into_iter()
