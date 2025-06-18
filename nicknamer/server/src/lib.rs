@@ -244,6 +244,10 @@ pub mod web {
                 HeaderName::from_static("hx-retarget"),
                 HeaderValue::from_static("#login-message"),
             );
+            headers.insert(
+                HeaderName::from_static("hx-reswap"),
+                HeaderValue::from_static("outerHTML"),
+            );
 
             let mut response = Html(error_message).into_response();
             response.headers_mut().extend(headers);
@@ -355,6 +359,13 @@ pub mod web {
             assert_eq!(
                 hx_retarget,
                 Some(&axum::http::HeaderValue::from_static("#login-message"))
+            );
+
+            // Check HX-Reswap header
+            let hx_reswap = response.headers().get("hx-reswap");
+            assert_eq!(
+                hx_reswap,
+                Some(&axum::http::HeaderValue::from_static("outerHTML"))
             );
 
             let body = axum::body::to_bytes(response.into_body(), usize::MAX)
@@ -482,7 +493,7 @@ pub mod web {
                         // Add the Access-Control-Expose-Headers header
                         response.headers_mut().insert(
                             HeaderName::from_static("access-control-expose-headers"),
-                            HeaderValue::from_static("hx-retarget"),
+                            HeaderValue::from_static("hx-retarget,hx-reswap"),
                         );
                         Poll::Ready(Ok(response))
                     }
@@ -523,7 +534,9 @@ pub mod web {
                 let expose_headers = headers.get("access-control-expose-headers");
                 assert_eq!(
                     expose_headers,
-                    Some(&axum::http::HeaderValue::from_static("hx-retarget"))
+                    Some(&axum::http::HeaderValue::from_static(
+                        "hx-retarget,hx-reswap"
+                    ))
                 );
             }
 
@@ -564,7 +577,9 @@ pub mod web {
                 let expose_headers = headers.get("access-control-expose-headers");
                 assert_eq!(
                     expose_headers,
-                    Some(&axum::http::HeaderValue::from_static("hx-retarget"))
+                    Some(&axum::http::HeaderValue::from_static(
+                        "hx-retarget,hx-reswap"
+                    ))
                 );
 
                 // Check that existing headers are preserved
