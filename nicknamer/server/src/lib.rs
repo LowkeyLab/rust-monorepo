@@ -27,16 +27,16 @@ pub mod config {
     }
 }
 pub mod entities;
-pub mod user {
+pub mod name {
     use crate::entities::*;
     use sea_orm::*;
     #[derive(Debug, PartialEq, Clone, Eq, Hash)]
-    pub struct User {
+    pub struct Name {
         id: u32,
         discord_id: u64,
         name: String,
     }
-    impl User {
+    impl Name {
         pub fn new(id: u32, discord_id: u64, name: String) -> Self {
             Self {
                 id,
@@ -44,21 +44,21 @@ pub mod user {
                 name,
             }
         }
-        /// Returns the ID of the user.
+        /// Returns the ID of the name.
         pub fn get_id(&self) -> u32 {
             self.id
         }
     }
-    pub struct UserService<'a> {
+    pub struct NameService<'a> {
         db: &'a sea_orm::DatabaseConnection,
     }
 
-    impl UserService<'_> {
-        pub fn new(db: &sea_orm::DatabaseConnection) -> UserService {
-            UserService { db }
+    impl NameService<'_> {
+        pub fn new(db: &sea_orm::DatabaseConnection) -> NameService {
+            NameService { db }
         }
 
-        /// Creates a new user in the database.
+        /// Creates a new name entry in the database.
         /// # Arguments
         ///
         /// * `discord_id` - The Discord ID of the user.
@@ -66,68 +66,64 @@ pub mod user {
         ///
         /// # Returns
         ///
-        /// A `Result` containing the created `User` if successful, or an error otherwise.
+        /// A `Result` containing the created `Name` if successful, or an error otherwise.
         #[tracing::instrument(skip(self))]
-        pub async fn create_user(&self, discord_id: u64, name: String) -> anyhow::Result<User> {
-            let active_model = user::ActiveModel {
+        pub async fn create_name(&self, discord_id: u64, name: String) -> anyhow::Result<Name> {
+            let active_model = name::ActiveModel {
                 discord_id: ActiveValue::Set(discord_id as i64),
                 name: ActiveValue::Set(name.clone()),
                 ..Default::default()
             };
             let created_model = active_model.insert(self.db).await?;
-            Ok(User::new(
+            Ok(Name::new(
                 created_model.id as u32,
                 created_model.discord_id as u64,
                 created_model.name,
             ))
         }
 
-        /// Edits a user's name by their ID.
+        /// Edits a name entry by their ID.
         ///
         /// # Arguments
         ///
-        /// * `id` - The ID of the user to edit.
-        /// * `new_name` - The new name for the user.
+        /// * `id` - The ID of the name entry to edit.
+        /// * `new_name` - The new name for the entry.
         ///
         /// # Returns
         ///
-        /// A `Result` containing the updated `User` if successful, or an error otherwise.
+        /// A `Result` containing the updated `Name` if successful, or an error otherwise.
         #[tracing::instrument(skip(self))]
-        pub async fn edit_user_name_by_id(
-            &self,
-            id: u32,
-            new_name: String,
-        ) -> anyhow::Result<User> {
-            let user_to_update = user::Entity::find_by_id(id as i32)
+        pub async fn edit_name_by_id(&self, id: u32, new_name: String) -> anyhow::Result<Name> {
+            let name_to_update = name::Entity::find_by_id(id as i32)
                 .one(self.db)
                 .await?
-                .ok_or_else(|| anyhow::anyhow!("User with ID {} not found", id))?;
+                .ok_or_else(|| anyhow::anyhow!("Name entry with ID {} not found", id))?;
 
-            let mut active_model: user::ActiveModel = user_to_update.into();
+            let mut active_model: name::ActiveModel = name_to_update.into();
             active_model.name = ActiveValue::Set(new_name.clone());
             let updated_model = active_model.update(self.db).await?;
 
-            Ok(User::new(
+            Ok(Name::new(
                 updated_model.id as u32,
                 updated_model.discord_id as u64,
                 updated_model.name,
             ))
         }
 
-        /// Retrieves all users from the database.
+        /// Retrieves all name entries from the database.
         ///
         /// # Returns
         ///
-        /// A `Result` containing a vector of `User` if successful, or an error otherwise.
+        /// A `Result` containing a vector of `Name` if successful, or an error otherwise.
         #[tracing::instrument(skip(self))]
-        pub async fn get_all_users(&self) -> anyhow::Result<Vec<User>> {
-            let users = user::Entity::find()
+        pub async fn get_all_names(&self) -> anyhow::Result<Vec<Name>> {
+            let names = name::Entity::find()
                 .all(self.db)
                 .await?
                 .into_iter()
-                .map(|model| User::new(model.id as u32, model.discord_id as u64, model.name))
+                .map(|model| Name::new(model.id as u32, model.discord_id as u64, model.name))
                 .collect();
-            Ok(users)
+            Ok(names)
         }
     }
 }
@@ -292,13 +288,13 @@ pub mod web {
         }
 
         #[tokio::test]
-        async fn test_health_check() {
+        async fn can_check_health() {
             let response = health_check_handler().await;
             assert_eq!(response, "OK");
         }
 
         #[tokio::test]
-        async fn login_handler_successful_login() {
+        async fn can_login_with_valid_credentials() {
             let config = Config {
                 db_url: "".to_string(),
                 port: 8080,
@@ -331,7 +327,7 @@ pub mod web {
         }
 
         #[tokio::test]
-        async fn login_handler_invalid_credentials() {
+        async fn can_reject_invalid_credentials() {
             let config = Config {
                 db_url: "".to_string(),
                 port: 8080,
@@ -378,7 +374,7 @@ pub mod web {
         }
 
         #[tokio::test]
-        async fn renders_welcome_page_with_html_content_type() {
+        async fn can_render_welcome_page_with_correct_content_type() {
             let result = welcome_handler().await;
             assert!(
                 result.is_ok(),
@@ -402,7 +398,7 @@ pub mod web {
         }
 
         #[tokio::test]
-        async fn web_error_template_into_response_returns_internal_server_error() {
+        async fn can_handle_template_error_with_internal_server_error() {
             // Simulate a template rendering error using askama::Error::Custom
             let custom_error_message = "Simulated template rendering failure".to_string();
             let template_error = askama::Error::Custom(custom_error_message.into());
@@ -512,7 +508,7 @@ pub mod web {
             use tower::ServiceExt;
 
             #[tokio::test]
-            async fn cors_expose_layer_adds_header() {
+            async fn can_add_cors_expose_header() {
                 let app = Router::new()
                     .route("/test", axum::routing::get(|| async { "test response" }))
                     .layer(CorsExposeLayer::new());
@@ -541,7 +537,7 @@ pub mod web {
             }
 
             #[tokio::test]
-            async fn cors_expose_layer_preserves_existing_headers() {
+            async fn can_preserve_existing_headers_when_adding_cors() {
                 async fn handler_with_custom_header() -> Response<String> {
                     let mut response = Response::new("test response".to_string());
                     response.headers_mut().insert(
