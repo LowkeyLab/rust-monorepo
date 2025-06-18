@@ -141,6 +141,7 @@ pub mod web {
     use tracing::Level;
 
     use crate::config;
+    use crate::web::middleware::CorsExposeLayer;
 
     /// Custom error type for web handler operations.
     #[derive(Debug, thiserror::Error)]
@@ -187,18 +188,17 @@ pub mod web {
 
         let db = Database::connect(&config.db_url).await?;
         migration::Migrator::up(&db, None).await?;
-
-        let app = Router::new()
+        tracing::info!("Database migrations applied successfully");
+        let middleware = ServiceBuilder::new()
             .layer(
-                ServiceBuilder::new()
-                    .layer(
-                        TraceLayer::new_for_http()
-                            .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
-                            .on_request(DefaultOnRequest::new().level(Level::INFO))
-                            .on_response(DefaultOnResponse::new().level(Level::INFO)),
-                    )
-                    .layer(middleware::CorsExposeLayer::new()),
+                TraceLayer::new_for_http()
+                    .make_span_with(DefaultMakeSpan::default().level(Level::INFO))
+                    .on_request(DefaultOnRequest::default())
+                    .on_response(DefaultOnResponse::default()),
             )
+            .layer(CorsExposeLayer::new());
+        let app = Router::new()
+            .layer(middleware)
             .route("/health", axum::routing::get(health_check_handler))
             .route("/", axum::routing::get(welcome_handler))
             .route("/login", axum::routing::post(login_handler))
@@ -421,7 +421,6 @@ pub mod web {
         use std::pin::Pin;
         use std::task::{Context, Poll};
         use tower::{Layer, Service};
-
         /// Layer that adds CORS headers to expose HTMX headers
         #[derive(Clone, Default)]
         pub struct CorsExposeLayer;
