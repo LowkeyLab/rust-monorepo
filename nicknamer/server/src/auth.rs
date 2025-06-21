@@ -3,6 +3,7 @@ use axum::Router;
 use axum::extract::{Form, State};
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
 use axum::response::{Html, IntoResponse, Response};
+use axum_extra::extract::CookieJar;
 use jsonwebtoken::encode;
 use std::sync::Arc;
 
@@ -73,16 +74,37 @@ impl axum::response::IntoResponse for AuthError {
 /// Checks submitted username and password against admin credentials.
 pub async fn login_handler(
     State(state): State<Arc<AuthState>>,
+    jar: CookieJar,
     Form(payload): Form<LoginRequest>,
-) -> Result<Response, AuthError> {
+) -> Result<(CookieJar, Response), AuthError> {
     if payload.username == state.admin_username && payload.password == state.admin_password {
+        // Generate JWT token
+        let jwt_token = encode_jwt(payload.username.clone(), state.jwt_secret.clone())
+            .await
+            .map_err(|_| {
+                AuthError::Template(askama::Error::Custom(
+                    "Failed to generate JWT token".to_string().into(),
+                ))
+            })?;
+
+        // Create cookie with JWT token
+        let cookie = axum_extra::extract::cookie::Cookie::build(("auth_token", jwt_token))
+            .http_only(true)
+            .secure(false) // Set to true in production with HTTPS
+            .same_site(axum_extra::extract::cookie::SameSite::Lax)
+            .max_age(time::Duration::hours(24))
+            .path("/")
+            .build();
+
+        let updated_jar = jar.add(cookie);
+
         let html = LoginSuccessTemplate {
             name: &payload.username,
         }
         .render()
         .map_err(AuthError::from)?;
 
-        Ok(Html(html).into_response())
+        Ok((updated_jar, Html(html).into_response()))
     } else {
         let error_message = LoginErrorMessageTemplate
             .render()
@@ -100,7 +122,7 @@ pub async fn login_handler(
 
         let mut response = Html(error_message).into_response();
         response.headers_mut().extend(headers);
-        Ok(response)
+        Ok((jar, response))
     }
 }
 
@@ -118,6 +140,7 @@ async fn encode_jwt(username: String, jwt_secret: String) -> anyhow::Result<Stri
     Ok(jwt)
 }
 
+#[allow(dead_code)]
 async fn decode_jwt(token: &str, jwt_secret: &str) -> anyhow::Result<Claims> {
     let token_data = jsonwebtoken::decode(
         token,
@@ -177,6 +200,27 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
+
+        // Check that the auth_token cookie was set
+        let set_cookie_headers: Vec<_> = response.headers().get_all("set-cookie").iter().collect();
+        assert!(
+            !set_cookie_headers.is_empty(),
+            "Expected Set-Cookie header to be present"
+        );
+
+        let cookie_header = set_cookie_headers[0].to_str().unwrap();
+        assert!(
+            cookie_header.contains("auth_token="),
+            "Expected auth_token cookie to be set"
+        );
+        assert!(
+            cookie_header.contains("HttpOnly"),
+            "Expected HttpOnly flag to be set"
+        );
+        assert!(
+            cookie_header.contains("Path=/"),
+            "Expected Path to be set to /"
+        );
 
         let body = axum::body::to_bytes(response.into_body(), usize::MAX)
             .await
