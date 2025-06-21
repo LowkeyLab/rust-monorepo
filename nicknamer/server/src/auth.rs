@@ -134,14 +134,36 @@ pub async fn login_handler(
 ) -> Result<(CookieJar, Response), AuthError> {
     // Check if user is already logged in
     if let Some(Extension(user)) = current_user {
-        let html = LoginSuccessTemplate {
-            name: &user.username,
-        }
-        .render()
-        .map_err(AuthError::from)?;
-
-        return Ok((jar, Html(html).into_response()));
+        return handle_already_logged_in_user(jar, &user).await;
     }
+
+    handle_login_attempt(state, jar, payload).await
+}
+
+/// Handles the case when a user is already logged in.
+/// Returns a success response with the current user's information.
+#[tracing::instrument(skip(jar))]
+async fn handle_already_logged_in_user(
+    jar: CookieJar,
+    user: &CurrentUser,
+) -> Result<(CookieJar, Response), AuthError> {
+    let html = LoginSuccessTemplate {
+        name: &user.username,
+    }
+    .render()
+    .map_err(AuthError::from)?;
+
+    Ok((jar, Html(html).into_response()))
+}
+
+/// Handles a login attempt when the user is not logged in.
+/// Validates credentials and either returns success with JWT token or error response.
+#[tracing::instrument(skip(state, jar, payload))]
+async fn handle_login_attempt(
+    state: Arc<AuthState>,
+    jar: CookieJar,
+    payload: LoginRequest,
+) -> Result<(CookieJar, Response), AuthError> {
     if payload.username == state.admin_username && payload.password == state.admin_password {
         // Generate JWT token
         let jwt_token = encode_jwt(payload.username.clone(), &state.jwt_secret)
