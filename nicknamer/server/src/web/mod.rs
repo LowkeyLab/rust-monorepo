@@ -1,20 +1,26 @@
 use askama::Template;
 use axum::extract::Extension;
 use axum::http::StatusCode;
+use axum::middleware::{from_fn, from_fn_with_state};
 use axum::response::Html;
 use migration::MigratorTrait;
 use sea_orm::Database;
 use std::sync::Arc;
+use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
 
-use crate::auth::{AuthState, CurrentUser, auth_middleware, create_login_router};
+use crate::auth::{
+    AuthState, CurrentUser, auth_user_middleware, create_login_router, login_redirect_middleware,
+};
 use crate::config::{self, Config};
+use crate::name::{NameState, create_name_router};
 
 pub mod middleware;
 
 #[derive(Clone)]
 pub struct AppState {
     pub config: Arc<Config>,
+    pub db: Arc<sea_orm::DatabaseConnection>,
 }
 
 /// Custom error type for web handler operations.
@@ -41,7 +47,7 @@ impl axum::response::IntoResponse for WebError {
     }
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip(config))]
 pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
     use axum::Router;
 
@@ -59,17 +65,34 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
     // Create the login router with AuthState
     let login_router = create_login_router(auth_state.clone());
 
-    let main_router = Router::new()
+    let name_state = NameState { db: Arc::new(db) };
+
+    // Create name router with database connection
+    let name_router = create_name_router(name_state);
+
+    let protected_routes = Router::new().merge(name_router).layer(
+        ServiceBuilder::new()
+            .layer(from_fn_with_state(auth_state.clone(), auth_user_middleware))
+            .layer(from_fn(login_redirect_middleware)),
+    );
+
+    let public_routes = Router::new()
         .route("/health", axum::routing::get(health_check_handler))
         .route("/", axum::routing::get(welcome_handler))
-        .layer(axum::middleware::from_fn_with_state(
-            auth_state.clone(),
-            auth_middleware,
-        ))
-        .layer(TraceLayer::new_for_http());
-
-    // Create main router and merge with login router
-    let app = Router::new().merge(main_router).merge(login_router);
+        .merge(login_router)
+        .layer(
+            ServiceBuilder::new()
+                .layer(from_fn_with_state(auth_state.clone(), auth_user_middleware)),
+        );
+    // Create main router and merge with login router and name router
+    let app = Router::new()
+        .merge(protected_routes)
+        .merge(public_routes)
+        .layer(
+            ServiceBuilder::new()
+                .layer(TraceLayer::new_for_http())
+                .layer(from_fn(middleware::cors_expose_headers)),
+        );
 
     axum::serve(listener, app).await?;
     Ok(())
