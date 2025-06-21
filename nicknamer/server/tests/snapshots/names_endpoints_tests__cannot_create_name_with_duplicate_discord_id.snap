@@ -1,0 +1,8 @@
+---
+source: nicknamer/server/tests/names_endpoints_tests.rs
+expression: snapshot_data
+---
+test_context: duplicate_discord_id_error
+status: 400
+content_type: text/html; charset=utf-8
+html_body: "<h1>Error</h1><p>A name entry already exists for this Discord ID. Please use a different Discord ID.</p>"

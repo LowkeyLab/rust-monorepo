@@ -15,10 +15,6 @@ Run the following commands in the terminal to ensure the code meets the quality 
 1. `cargo make clippy`
 2. `cargo make`
 
-## Snapshot Tests
-
-For projects that use insta for snapshot testing, ensure that all snapshots are reviewed. Run `cargo insta test --accept` to accept all snapshots.
-
 ## Error Handling
 
 - Avoid logging. Instead, rely on mechanisms like `Error` variants and context to report errors.

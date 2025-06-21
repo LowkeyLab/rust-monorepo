@@ -363,3 +363,57 @@ async fn post_endpoint_returns_table_fragment_not_full_page() {
 
     assert_yaml_snapshot!(snapshot_data);
 }
+
+#[tokio::test]
+async fn cannot_create_name_with_duplicate_discord_id() {
+    let state = setup().await.expect("Failed to setup test context");
+
+    let name_state = NameState {
+        db: Arc::new(state.db),
+    };
+    let app = create_name_router(name_state.clone());
+
+    // First, create a name with a specific Discord ID
+    let form_data = "discord_id=123456789&name=FirstUser";
+    let request = Request::builder()
+        .method(Method::POST)
+        .uri("/names")
+        .header("content-type", "application/x-www-form-urlencoded")
+        .body(Body::from(form_data))
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    // Now try to create another name with the same Discord ID
+    let duplicate_form_data = "discord_id=123456789&name=SecondUser";
+    let app2 = create_name_router(name_state.clone());
+    let duplicate_request = Request::builder()
+        .method(Method::POST)
+        .uri("/names")
+        .header("content-type", "application/x-www-form-urlencoded")
+        .body(Body::from(duplicate_form_data))
+        .unwrap();
+
+    let duplicate_response = app2.oneshot(duplicate_request).await.unwrap();
+
+    // Should return 400 Bad Request for duplicate Discord ID
+    assert_eq!(duplicate_response.status(), StatusCode::BAD_REQUEST);
+
+    let body = axum::body::to_bytes(duplicate_response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    // Verify the error message is user-friendly
+    assert!(body_text.contains("A name entry already exists for this Discord ID"));
+
+    let snapshot_data = HttpResponseSnapshot::new(
+        body_text,
+        StatusCode::BAD_REQUEST,
+        Some("text/html; charset=utf-8"),
+        "duplicate_discord_id_error",
+    );
+
+    assert_yaml_snapshot!(snapshot_data);
+}

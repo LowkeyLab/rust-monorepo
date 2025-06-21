@@ -72,6 +72,11 @@ impl NameService<'_> {
     /// A `Result` containing the created `Name` if successful, or an error otherwise.
     #[tracing::instrument(skip(self))]
     pub async fn create_name(&self, discord_id: u64, name: String) -> anyhow::Result<Name> {
+        // Check if Discord ID already exists
+        if self.discord_id_exists(discord_id).await? {
+            return Err(anyhow::anyhow!("Discord ID {} already exists", discord_id));
+        }
+
         let active_model = name::ActiveModel {
             discord_id: ActiveValue::Set(discord_id as i64),
             name: ActiveValue::Set(name.clone()),
@@ -128,6 +133,24 @@ impl NameService<'_> {
             .collect();
         Ok(names)
     }
+
+    /// Checks if a name entry with the given Discord ID already exists.
+    ///
+    /// # Arguments
+    ///
+    /// * `discord_id` - The Discord ID to check for.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing `true` if the Discord ID exists, `false` otherwise, or an error.
+    #[tracing::instrument(skip(self))]
+    pub async fn discord_id_exists(&self, discord_id: u64) -> anyhow::Result<bool> {
+        let existing_name = name::Entity::find()
+            .filter(name::Column::DiscordId.eq(discord_id as i64))
+            .one(self.db)
+            .await?;
+        Ok(existing_name.is_some())
+    }
 }
 
 /// Custom error type for name handler operations.
@@ -139,16 +162,28 @@ enum NameError {
     /// Represents a database error.
     #[error("Database error")]
     Database(#[from] anyhow::Error),
+    /// Represents a duplicate Discord ID error.
+    #[error("A name entry already exists for this Discord ID")]
+    DuplicateDiscordId,
 }
 
 impl axum::response::IntoResponse for NameError {
     fn into_response(self) -> axum::response::Response {
-        let user_facing_error_message =
-            "An unexpected error occurred while processing your request. Please try again later.";
+        let (status_code, user_facing_error_message) = match self {
+            NameError::DuplicateDiscordId => (
+                StatusCode::BAD_REQUEST,
+                "A name entry already exists for this Discord ID. Please use a different Discord ID.",
+            ),
+            _ => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "An unexpected error occurred while processing your request. Please try again later.",
+            ),
+        };
+
         (
-            StatusCode::INTERNAL_SERVER_ERROR,
+            status_code,
             Html(format!(
-                "<h1>Internal Server Error</h1><p>{}</p>",
+                "<h1>Error</h1><p>{}</p>",
                 user_facing_error_message
             )),
         )
@@ -200,12 +235,23 @@ async fn create_name_handler(
     Form(form): Form<CreateNameForm>,
 ) -> Result<Html<String>, NameError> {
     let name_service = NameService::new(&state.db);
-    name_service.create_name(form.discord_id, form.name).await?;
 
-    // Return the updated names table only
-    let names = name_service.get_all_names().await?;
-    let template = NamesTableTemplate::new(names);
-    template.render().map(Html).map_err(NameError::from)
+    match name_service.create_name(form.discord_id, form.name).await {
+        Ok(_) => {
+            // Return the updated names table only
+            let names = name_service.get_all_names().await?;
+            let template = NamesTableTemplate::new(names);
+            template.render().map(Html).map_err(NameError::from)
+        }
+        Err(err) => {
+            // Check if the error is about duplicate Discord ID
+            if err.to_string().contains("already exists") {
+                Err(NameError::DuplicateDiscordId)
+            } else {
+                Err(NameError::Database(err))
+            }
+        }
+    }
 }
 
 /// Handler for serving the add name form.

@@ -179,3 +179,29 @@ async fn can_handle_empty_names_list() {
 
     assert!(names.is_empty());
 }
+
+#[tokio::test]
+async fn cannot_create_name_with_duplicate_discord_id() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_service = NameService::new(&state.db);
+    let discord_id = 123456789;
+
+    // First name creation should succeed
+    let first_name = name_service
+        .create_name(discord_id, "FirstUser".to_string())
+        .await
+        .expect("Failed to create first name");
+
+    assert_eq!(first_name.discord_id(), discord_id);
+    assert_eq!(first_name.name(), "FirstUser");
+
+    // Second name creation with same Discord ID should fail
+    let second_creation_result = name_service
+        .create_name(discord_id, "SecondUser".to_string())
+        .await;
+
+    assert!(second_creation_result.is_err());
+    if let Err(e) = second_creation_result {
+        assert!(e.to_string().contains("already exists"));
+    }
+}
