@@ -6,7 +6,9 @@ use axum::middleware::{self, Next, from_fn_with_state};
 use axum::response::{Html, IntoResponse, Response};
 use axum_extra::extract::CookieJar;
 use jsonwebtoken::encode;
+use tracing::Level;
 use std::sync::Arc;
+use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
 
 use crate::config::Config;
 use crate::web::middleware::cors_expose_headers;
@@ -49,6 +51,12 @@ pub fn create_login_router(state: AuthState) -> Router<()> {
     Router::new()
         .route("/login", axum::routing::post(login_handler))
         .with_state(state.clone())
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(DefaultMakeSpan::default().level(Level::INFO))
+                .on_request(DefaultOnRequest::default())
+                .on_response(DefaultOnResponse::default()),
+        )
         .layer(from_fn_with_state(state.clone(), auth_middleware))
         .layer(middleware::from_fn(cors_expose_headers))
 }
