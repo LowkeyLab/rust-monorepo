@@ -144,7 +144,7 @@ impl NameService<'_> {
     ///
     /// A `Result` containing `true` if the Discord ID exists, `false` otherwise, or an error.
     #[tracing::instrument(skip(self))]
-    pub async fn discord_id_exists(&self, discord_id: u64) -> anyhow::Result<bool> {
+    async fn discord_id_exists(&self, discord_id: u64) -> anyhow::Result<bool> {
         let existing_name = name::Entity::find()
             .filter(name::Column::DiscordId.eq(discord_id as i64))
             .one(self.db)
