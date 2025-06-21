@@ -9,7 +9,9 @@ use std::sync::Arc;
 use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
 
-use crate::auth::{AuthState, CurrentUser, auth_middleware, create_login_router};
+use crate::auth::{
+    AuthState, CurrentUser, auth_user_middleware, create_login_router, login_redirect_middleware,
+};
 use crate::config::{self, Config};
 use crate::name::{NameState, create_name_router};
 
@@ -77,8 +79,9 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
         .layer(from_fn(middleware::cors_expose_headers))
         .layer(axum::middleware::from_fn_with_state(
             auth_state.clone(),
-            auth_middleware,
-        ));
+            auth_user_middleware,
+        ))
+        .layer(axum::middleware::from_fn(login_redirect_middleware));
     // Create main router and merge with login router and name router
     let app = Router::new()
         .merge(main_router)

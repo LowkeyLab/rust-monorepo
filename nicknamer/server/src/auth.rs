@@ -53,13 +53,26 @@ pub fn create_login_router(state: Arc<AuthState>) -> Router<()> {
 }
 
 /// Authentication middleware that checks for valid JWT tokens and sets CurrentUser extension.
-/// Redirects unauthenticated users to the login page for protected routes.
-pub async fn auth_middleware(
+/// This middleware only populates the CurrentUser extension and does not perform redirects.
+pub async fn auth_user_middleware(
     State(state): State<Arc<AuthState>>,
     jar: CookieJar,
     mut request: Request,
     next: Next,
 ) -> Response {
+    if let Some(token_cookie) = jar.get("auth_token") {
+        if let Ok(claims) = decode_jwt(token_cookie.value(), &state.jwt_secret).await {
+            let current_user = CurrentUser::new(claims.username);
+            request.extensions_mut().insert(current_user);
+        }
+    }
+
+    next.run(request).await
+}
+
+/// Login redirect middleware that redirects unauthenticated users to the login page.
+/// This middleware should be applied after auth_user_middleware to check for CurrentUser extension.
+pub async fn login_redirect_middleware(request: Request, next: Next) -> Response {
     let uri_path = request.uri().path();
 
     // Routes that don't require authentication
@@ -67,16 +80,11 @@ pub async fn auth_middleware(
 
     let is_public_route = public_routes.iter().any(|&route| uri_path == route);
 
-    if let Some(token_cookie) = jar.get("auth_token") {
-        if let Ok(claims) = decode_jwt(token_cookie.value(), &state.jwt_secret).await {
-            let current_user = CurrentUser::new(claims.username);
-            request.extensions_mut().insert(current_user);
-            return next.run(request).await;
-        }
-    }
+    // Check if user is authenticated by looking for CurrentUser extension
+    let is_authenticated = request.extensions().get::<CurrentUser>().is_some();
 
     // If no valid authentication and accessing a protected route, redirect to login
-    if !is_public_route {
+    if !is_authenticated && !is_public_route {
         return axum::response::Redirect::to("/login").into_response();
     }
 
@@ -450,6 +458,73 @@ mod tests {
         assert!(body.contains("<form hx-post=\"/login\""));
         assert!(body.contains("name=\"username\""));
         assert!(body.contains("name=\"password\""));
+    }
+    #[tokio::test]
+    async fn auth_middlewares_work_together() {
+        use axum::body::Body;
+        use axum::http::{Request, StatusCode};
+        use axum::middleware::from_fn_with_state;
+        use tower::ServiceExt;
+
+        let config = Config {
+            db_url: "".to_string(),
+            port: 8080,
+            admin_username: "admin".to_string(),
+            admin_password: "password".to_string(),
+            jwt_secret: "test_secret".to_string(),
+        };
+
+        let auth_state = Arc::new(AuthState::from_config(&config));
+
+        // Create a test app with both middlewares in the correct order
+        // Note: Layers are applied in reverse order (bottom to top)
+        let app = axum::Router::new()
+            .route(
+                "/protected",
+                axum::routing::get(|| async { "Protected content" }),
+            )
+            .layer(axum::middleware::from_fn(login_redirect_middleware))
+            .layer(from_fn_with_state(auth_state.clone(), auth_user_middleware));
+
+        // Test 1: Unauthenticated request should redirect to login
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/protected")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::SEE_OTHER);
+        let location = response.headers().get("location").unwrap();
+        assert_eq!(location, "/login");
+
+        // Test 2: Authenticated request should allow access
+        let jwt_token = encode_jwt("admin".to_string(), &config.jwt_secret)
+            .await
+            .unwrap();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/protected")
+                    .header("cookie", format!("auth_token={}", jwt_token))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        assert_eq!(body, "Protected content");
     }
 }
 
