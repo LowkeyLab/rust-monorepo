@@ -12,3 +12,14 @@ args = [
     "--bin",
     "nicknamer_server",
 ]
+
+[tasks.insta-test]
+description = "Run Insta snapshot tests"
+command = "cargo"
+args = ["insta", "test"]
+
+[tasks.test]
+description = "Run all tests (unit, integration, snapshot)"
+dependencies = ["insta-test"]
+command = "cargo"
+args = ["test"]

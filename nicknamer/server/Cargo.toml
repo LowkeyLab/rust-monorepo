@@ -4,7 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dev-dependencies]
+insta = { version = "1.43.1", features = ["yaml"] }
 mockall = "0.13.1"
+regex = "1.0"
 testcontainers-modules = { version = "0.12.1", features = ["postgres"] }
 
 [dependencies]
