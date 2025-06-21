@@ -9,7 +9,7 @@ use tower_http::trace::TraceLayer;
 
 use crate::auth::{AuthState, CurrentUser, auth_middleware, create_login_router};
 use crate::config::{self, Config};
-use crate::name::create_name_router;
+use crate::name::{NameState, create_name_router};
 
 pub mod middleware;
 
@@ -61,23 +61,25 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
     // Create the login router with AuthState
     let login_router = create_login_router(auth_state.clone());
 
+    let name_state = NameState { db: Arc::new(db) };
+
     // Create name router with database connection
-    let name_router = create_name_router().layer(axum::extract::Extension(Arc::new(db)));
+    let name_router = create_name_router(name_state);
 
     let main_router = Router::new()
         .route("/health", axum::routing::get(health_check_handler))
-        .route("/", axum::routing::get(welcome_handler))
-        .layer(axum::middleware::from_fn_with_state(
-            auth_state.clone(),
-            auth_middleware,
-        ))
-        .layer(TraceLayer::new_for_http());
+        .route("/", axum::routing::get(welcome_handler));
 
     // Create main router and merge with login router and name router
     let app = Router::new()
         .merge(main_router)
         .merge(login_router)
-        .merge(name_router);
+        .merge(name_router)
+        .layer(axum::middleware::from_fn_with_state(
+            auth_state.clone(),
+            auth_middleware,
+        ))
+        .layer(TraceLayer::new_for_http());
 
     axum::serve(listener, app).await?;
     Ok(())

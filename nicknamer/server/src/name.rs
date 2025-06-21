@@ -1,8 +1,15 @@
-use crate::entities::*;
+use crate::{
+    auth::{AuthState, auth_middleware},
+    entities::*,
+};
 use askama::Template;
-use axum::{Router, extract::Extension, http::StatusCode, response::Html, routing::get};
+use axum::{
+    Router, extract::Extension, http::StatusCode, middleware::from_fn_with_state, response::Html,
+    routing::get,
+};
 use sea_orm::*;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub struct Name {
@@ -41,6 +48,10 @@ impl Name {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct NameState {
+    pub db: Arc<sea_orm::DatabaseConnection>,
+}
 pub struct NameService<'a> {
     db: &'a sea_orm::DatabaseConnection,
 }
@@ -169,6 +180,8 @@ async fn names_handler(
 }
 
 /// Creates and returns the name router with all name-related routes.
-pub fn create_name_router() -> Router {
-    Router::new().route("/names", get(names_handler))
+pub fn create_name_router(state: NameState) -> Router {
+    Router::new()
+        .route("/names", get(names_handler))
+        .with_state(state)
 }

@@ -48,15 +48,9 @@ impl AuthState {
 
 /// Creates a login router with authentication routes.
 pub fn create_login_router(state: Arc<AuthState>) -> Router<()> {
-    let middleware = ServiceBuilder::new()
-        .layer(TraceLayer::new_for_http())
-        .layer(from_fn_with_state(state.clone(), auth_middleware))
-        .layer(middleware::from_fn(cors_expose_headers));
-
     Router::new()
         .route("/login", axum::routing::post(login_handler))
         .with_state(state.clone())
-        .layer(middleware)
 }
 
 /// Authentication middleware that checks for valid JWT tokens and sets CurrentUser extension.
