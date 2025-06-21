@@ -58,6 +58,21 @@ impl Name {
 pub struct NameState {
     pub db: Arc<sea_orm::DatabaseConnection>,
 }
+
+/// Error type for NameService operations.
+#[derive(Debug, thiserror::Error)]
+pub enum NameServiceError {
+    /// Represents a duplicate Discord ID error.
+    #[error("Discord ID {0} already exists")]
+    DuplicateDiscordId(u64),
+    /// Represents a database error.
+    #[error("Database error: {0}")]
+    Database(#[from] sea_orm::DbErr),
+    /// Represents a name not found error.
+    #[error("Name entry with ID {0} not found")]
+    NameNotFound(u32),
+}
+
 pub struct NameService<'a> {
     db: &'a sea_orm::DatabaseConnection,
 }
@@ -77,10 +92,14 @@ impl NameService<'_> {
     ///
     /// A `Result` containing the created `Name` if successful, or an error otherwise.
     #[tracing::instrument(skip(self))]
-    pub async fn create_name(&self, discord_id: u64, name: String) -> anyhow::Result<Name> {
+    pub async fn create_name(
+        &self,
+        discord_id: u64,
+        name: String,
+    ) -> Result<Name, NameServiceError> {
         // Check if Discord ID already exists
         if self.discord_id_exists(discord_id).await? {
-            return Err(anyhow::anyhow!("Discord ID {} already exists", discord_id));
+            return Err(NameServiceError::DuplicateDiscordId(discord_id));
         }
 
         let active_model = name::ActiveModel {
@@ -107,11 +126,15 @@ impl NameService<'_> {
     ///
     /// A `Result` containing the updated `Name` if successful, or an error otherwise.
     #[tracing::instrument(skip(self))]
-    pub async fn edit_name_by_id(&self, id: u32, new_name: String) -> anyhow::Result<Name> {
+    pub async fn edit_name_by_id(
+        &self,
+        id: u32,
+        new_name: String,
+    ) -> Result<Name, NameServiceError> {
         let name_to_update = name::Entity::find_by_id(id as i32)
             .one(self.db)
             .await?
-            .ok_or_else(|| anyhow::anyhow!("Name entry with ID {} not found", id))?;
+            .ok_or(NameServiceError::NameNotFound(id))?;
 
         let mut active_model: name::ActiveModel = name_to_update.into();
         active_model.name = ActiveValue::Set(new_name.clone());
@@ -130,7 +153,7 @@ impl NameService<'_> {
     ///
     /// A `Result` containing a vector of `Name` if successful, or an error otherwise.
     #[tracing::instrument(skip(self))]
-    pub async fn get_all_names(&self) -> anyhow::Result<Vec<Name>> {
+    pub async fn get_all_names(&self) -> Result<Vec<Name>, NameServiceError> {
         let names = name::Entity::find()
             .all(self.db)
             .await?
@@ -150,7 +173,7 @@ impl NameService<'_> {
     ///
     /// A `Result` containing `true` if the Discord ID exists, `false` otherwise, or an error.
     #[tracing::instrument(skip(self))]
-    async fn discord_id_exists(&self, discord_id: u64) -> anyhow::Result<bool> {
+    async fn discord_id_exists(&self, discord_id: u64) -> Result<bool, NameServiceError> {
         let existing_name = name::Entity::find()
             .filter(name::Column::DiscordId.eq(discord_id as i64))
             .one(self.db)
@@ -168,6 +191,9 @@ enum NameError {
     /// Represents a database error.
     #[error("Database error")]
     Database(#[from] anyhow::Error),
+    /// Represents a name service error.
+    #[error("Name service error")]
+    Service(#[from] NameServiceError),
     /// Represents a duplicate Discord ID error.
     #[error("A name entry already exists for this Discord ID")]
     DuplicateDiscordId,
@@ -271,14 +297,8 @@ async fn create_name_handler(
 
             Ok(Html(table_html))
         }
-        Err(err) => {
-            // Check if the error is about duplicate Discord ID
-            if err.to_string().contains("already exists") {
-                Err(NameError::DuplicateDiscordId)
-            } else {
-                Err(NameError::Database(err))
-            }
-        }
+        Err(NameServiceError::DuplicateDiscordId(_)) => Err(NameError::DuplicateDiscordId),
+        Err(err) => Err(NameError::Service(err)),
     }
 }
 
