@@ -1,8 +1,9 @@
 use axum::body::Body;
 use axum::http::{Method, Request, StatusCode};
 use insta::assert_yaml_snapshot;
-use nicknamer_server::name::{NameService, NameState, create_name_router};
-use sea_orm::DatabaseConnection;
+use nicknamer_server::entities::name;
+use nicknamer_server::name::{NameState, create_name_router};
+use sea_orm::{ActiveModelTrait, DatabaseConnection, Set};
 use serde::Serialize;
 use std::sync::Arc;
 use testcontainers_modules::{postgres, testcontainers};
@@ -61,17 +62,20 @@ async fn setup() -> anyhow::Result<TestContext> {
 
 /// Test helper to create test names in the database.
 async fn create_test_names(db: &DatabaseConnection) {
-    let name_service = NameService::new(db);
+    let name1 = name::ActiveModel {
+        discord_id: Set(123456789),
+        name: Set("TestUser1".to_string()),
+        ..Default::default()
+    };
 
-    let _name1 = name_service
-        .create_name(123456789, "TestUser1".to_string())
-        .await
-        .unwrap();
+    let name2 = name::ActiveModel {
+        discord_id: Set(987654321),
+        name: Set("TestUser2".to_string()),
+        ..Default::default()
+    };
 
-    let _name2 = name_service
-        .create_name(987654321, "TestUser2".to_string())
-        .await
-        .unwrap();
+    let _result1 = name1.insert(db).await.unwrap();
+    let _result2 = name2.insert(db).await.unwrap();
 }
 
 #[tokio::test]
