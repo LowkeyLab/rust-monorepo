@@ -1,10 +1,12 @@
 use askama::Template;
 use axum::extract::Extension;
 use axum::http::StatusCode;
+use axum::middleware::from_fn;
 use axum::response::Html;
 use migration::MigratorTrait;
 use sea_orm::Database;
 use std::sync::Arc;
+use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
 
 use crate::auth::{AuthState, CurrentUser, auth_middleware, create_login_router};
@@ -70,16 +72,19 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
         .route("/health", axum::routing::get(health_check_handler))
         .route("/", axum::routing::get(welcome_handler));
 
+    let middleware = ServiceBuilder::new()
+        .layer(TraceLayer::new_for_http())
+        .layer(from_fn(middleware::cors_expose_headers))
+        .layer(axum::middleware::from_fn_with_state(
+            auth_state.clone(),
+            auth_middleware,
+        ));
     // Create main router and merge with login router and name router
     let app = Router::new()
         .merge(main_router)
         .merge(login_router)
         .merge(name_router)
-        .layer(axum::middleware::from_fn_with_state(
-            auth_state.clone(),
-            auth_middleware,
-        ))
-        .layer(TraceLayer::new_for_http());
+        .layer(middleware);
 
     axum::serve(listener, app).await?;
     Ok(())
