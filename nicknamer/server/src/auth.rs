@@ -1,13 +1,27 @@
 use askama::Template;
 use axum::Router;
-use axum::extract::{Form, State};
+use axum::extract::{Extension, Form, Request, State};
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
+use axum::middleware::{self, Next};
 use axum::response::{Html, IntoResponse, Response};
 use axum_extra::extract::CookieJar;
 use jsonwebtoken::encode;
 use std::sync::Arc;
 
 use crate::config::Config;
+
+/// Represents the currently authenticated user.
+#[derive(Debug, Clone)]
+pub struct CurrentUser {
+    pub username: String,
+}
+
+impl CurrentUser {
+    /// Creates a new CurrentUser instance.
+    pub fn new(username: String) -> Self {
+        Self { username }
+    }
+}
 
 /// Authentication state containing admin credentials and JWT secret.
 #[derive(Clone)]
@@ -33,6 +47,35 @@ pub fn create_login_router() -> Router<Arc<AuthState>> {
     Router::new().route("/login", axum::routing::post(login_handler))
 }
 
+/// Creates a router with authentication middleware.
+pub fn create_auth_router() -> Router<Arc<AuthState>> {
+    Router::new().layer(middleware::from_fn_with_state(
+        Arc::new(AuthState {
+            admin_username: String::new(),
+            admin_password: String::new(),
+            jwt_secret: String::new(),
+        }),
+        auth_middleware,
+    ))
+}
+
+/// Authentication middleware that checks for valid JWT tokens and sets CurrentUser extension.
+pub async fn auth_middleware(
+    State(state): State<Arc<AuthState>>,
+    jar: CookieJar,
+    mut request: Request,
+    next: Next,
+) -> Response {
+    if let Some(token_cookie) = jar.get("auth_token") {
+        if let Ok(claims) = decode_jwt(token_cookie.value(), &state.jwt_secret).await {
+            let current_user = CurrentUser::new(claims.username);
+            request.extensions_mut().insert(current_user);
+        }
+    }
+
+    next.run(request).await
+}
+
 /// Represents the login request payload.
 #[derive(serde::Deserialize, Debug)]
 pub struct LoginRequest {
@@ -41,7 +84,7 @@ pub struct LoginRequest {
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
-struct Claims {
+pub struct Claims {
     pub exp: usize,       // Expiry time of the token
     pub iat: usize,       // Issued at time of the token
     pub username: String, // Username of the authenticated user
@@ -76,11 +119,23 @@ impl axum::response::IntoResponse for AuthError {
 
 /// Handles the login request.
 /// Checks submitted username and password against admin credentials.
+/// If a user is already logged in, returns a success message.
 pub async fn login_handler(
     State(state): State<Arc<AuthState>>,
     jar: CookieJar,
+    current_user: Option<Extension<CurrentUser>>,
     Form(payload): Form<LoginRequest>,
 ) -> Result<(CookieJar, Response), AuthError> {
+    // Check if user is already logged in
+    if let Some(Extension(user)) = current_user {
+        let html = LoginSuccessTemplate {
+            name: &user.username,
+        }
+        .render()
+        .map_err(AuthError::from)?;
+
+        return Ok((jar, Html(html).into_response()));
+    }
     if payload.username == state.admin_username && payload.password == state.admin_password {
         // Generate JWT token
         let jwt_token = encode_jwt(payload.username.clone(), &state.jwt_secret)
@@ -126,7 +181,7 @@ pub async fn login_handler(
     }
 }
 
-async fn encode_jwt(username: String, jwt_secret: &str) -> anyhow::Result<String> {
+pub async fn encode_jwt(username: String, jwt_secret: &str) -> anyhow::Result<String> {
     let now = chrono::Utc::now();
     let expire = chrono::Duration::hours(24);
     let exp = (now + expire).timestamp() as usize;
@@ -141,7 +196,7 @@ async fn encode_jwt(username: String, jwt_secret: &str) -> anyhow::Result<String
 }
 
 #[allow(dead_code)]
-async fn decode_jwt(token: &str, jwt_secret: &str) -> anyhow::Result<Claims> {
+pub async fn decode_jwt(token: &str, jwt_secret: &str) -> anyhow::Result<Claims> {
     let token_data = jsonwebtoken::decode(
         token,
         &jsonwebtoken::DecodingKey::from_secret(jwt_secret.as_bytes()),
@@ -173,7 +228,22 @@ mod tests {
 
     async fn test_app(config: Config) -> axum::Router {
         let auth_state = Arc::new(AuthState::from_config(&config));
-        super::create_login_router().with_state(auth_state)
+        super::create_login_router()
+            .layer(middleware::from_fn_with_state(
+                auth_state.clone(),
+                super::auth_middleware,
+            ))
+            .with_state(auth_state)
+    }
+
+    async fn test_app_with_auth(config: Config) -> axum::Router {
+        let auth_state = Arc::new(AuthState::from_config(&config));
+        super::create_login_router()
+            .layer(middleware::from_fn_with_state(
+                auth_state.clone(),
+                super::auth_middleware,
+            ))
+            .with_state(auth_state)
     }
 
     #[tokio::test]
@@ -295,5 +365,46 @@ mod tests {
             .unwrap();
         let expected_error_message = "<h1>Internal Server Error</h1><p>An unexpected error occurred while processing your request. Please try again later.</p>";
         assert_eq!(std::str::from_utf8(&body).unwrap(), expected_error_message);
+    }
+
+    #[tokio::test]
+    async fn can_return_success_when_already_logged_in() {
+        let config = Config {
+            db_url: "".to_string(),
+            port: 8080,
+            admin_username: "admin".to_string(),
+            admin_password: "password".to_string(),
+            jwt_secret: "some_secret".to_string(),
+        };
+
+        // First, create a valid JWT token
+        let jwt_token = super::encode_jwt("admin".to_string(), &config.jwt_secret)
+            .await
+            .unwrap();
+
+        let app = test_app_with_auth(config).await;
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/login")
+                    .header("content-type", "application/x-www-form-urlencoded")
+                    .header("cookie", format!("auth_token={}", jwt_token))
+                    .body(Body::from("username=admin&password=password"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        assert_eq!(
+            body,
+            LoginSuccessTemplate { name: "admin" }.render().unwrap()
+        );
     }
 }
