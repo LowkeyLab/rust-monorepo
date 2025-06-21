@@ -8,8 +8,8 @@ use axum_extra::extract::CookieJar;
 use jsonwebtoken::encode;
 use std::sync::Arc;
 use tower::ServiceBuilder;
-use tower_http::trace::{DefaultOnRequest, DefaultOnResponse, MakeSpan, TraceLayer};
-use tracing::{info, Level, Span};
+use tower_http::trace::{MakeSpan, TraceLayer};
+use tracing::Span;
 
 use crate::config::Config;
 use crate::web::middleware::cors_expose_headers;
@@ -49,9 +49,7 @@ impl AuthState {
 /// Creates a login router with authentication routes.
 pub fn create_login_router(state: Arc<AuthState>) -> Router<()> {
     let middleware = ServiceBuilder::new()
-        .layer(
-            TraceLayer::new_for_http()
-        )
+        .layer(TraceLayer::new_for_http())
         .layer(from_fn_with_state(state.clone(), auth_middleware))
         .layer(middleware::from_fn(cors_expose_headers));
 

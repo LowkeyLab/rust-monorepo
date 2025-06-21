@@ -1,13 +1,13 @@
 use askama::Template;
+use axum::extract::Extension;
 use axum::http::StatusCode;
 use axum::response::Html;
 use migration::MigratorTrait;
 use sea_orm::Database;
 use std::sync::Arc;
-use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
-use tracing::Level;
+use tower_http::trace::TraceLayer;
 
-use crate::auth::{create_login_router, AuthState};
+use crate::auth::{AuthState, CurrentUser, auth_middleware, create_login_router};
 use crate::config::{self, Config};
 
 pub mod middleware;
@@ -62,10 +62,11 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
     let main_router = Router::new()
         .route("/health", axum::routing::get(health_check_handler))
         .route("/", axum::routing::get(welcome_handler))
-        .layer(
-            TraceLayer::new_for_http()
-        )
-        ;
+        .layer(axum::middleware::from_fn_with_state(
+            auth_state.clone(),
+            auth_middleware,
+        ))
+        .layer(TraceLayer::new_for_http());
 
     // Create main router and merge with login router
     let app = Router::new().merge(main_router).merge(login_router);
@@ -80,13 +81,27 @@ async fn health_check_handler() -> &'static str {
 }
 
 #[tracing::instrument]
-async fn welcome_handler() -> Result<Html<String>, WebError> {
-    IndexTemplate.render().map(Html).map_err(WebError::from)
+async fn welcome_handler(
+    current_user: Option<Extension<CurrentUser>>,
+) -> Result<Html<String>, WebError> {
+    let template = match current_user {
+        Some(Extension(user)) => IndexTemplate::new(Some(user.username.clone())),
+        None => IndexTemplate::new(None),
+    };
+    template.render().map(Html).map_err(WebError::from)
 }
 
 #[derive(Template)]
 #[template(path = "index.html")]
-struct IndexTemplate;
+struct IndexTemplate {
+    username: Option<String>,
+}
+
+impl IndexTemplate {
+    pub fn new(username: Option<String>) -> Self {
+        Self { username }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -101,7 +116,7 @@ mod tests {
 
     #[tokio::test]
     async fn can_render_welcome_page_with_correct_content_type() {
-        let result = welcome_handler().await;
+        let result = welcome_handler(None).await;
         assert!(
             result.is_ok(),
             "welcome() returned an error: {:?}",
