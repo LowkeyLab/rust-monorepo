@@ -1,14 +1,14 @@
 use askama::Template;
 use axum::Router;
-use axum::extract::{Extension, Form, Request, State};
+use axum::extract::{Extension, Form, MatchedPath, Request, State};
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
 use axum::middleware::{self, Next, from_fn_with_state};
 use axum::response::{Html, IntoResponse, Response};
 use axum_extra::extract::CookieJar;
 use jsonwebtoken::encode;
-use tracing::Level;
 use std::sync::Arc;
-use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
+use tower_http::trace::{DefaultOnRequest, DefaultOnResponse, MakeSpan, TraceLayer};
+use tracing::Span;
 
 use crate::config::Config;
 use crate::web::middleware::cors_expose_headers;
@@ -53,7 +53,7 @@ pub fn create_login_router(state: AuthState) -> Router<()> {
         .with_state(state.clone())
         .layer(
             TraceLayer::new_for_http()
-                .make_span_with(DefaultMakeSpan::default().level(Level::INFO))
+                .make_span_with(FilteredMakeSpan)
                 .on_request(DefaultOnRequest::default())
                 .on_response(DefaultOnResponse::default()),
         )
@@ -392,5 +392,41 @@ mod tests {
             body,
             LoginSuccessTemplate { name: "admin" }.render().unwrap()
         );
+    }
+}
+
+/// Custom span maker that filters sensitive data from login requests.
+/// This implementation avoids logging request bodies and cookies for security.
+#[derive(Clone, Debug)]
+pub struct FilteredMakeSpan;
+
+impl<B> MakeSpan<B> for FilteredMakeSpan {
+    fn make_span(&mut self, request: &axum::http::Request<B>) -> Span {
+        let uri = request.uri();
+        let method = request.method();
+        let matched_path = request
+            .extensions()
+            .get::<MatchedPath>()
+            .map(MatchedPath::as_str);
+
+        // For login routes, create a span without sensitive data
+        if uri.path() == "/login" {
+            tracing::info_span!(
+                "request",
+                method = %method,
+                uri = %uri,
+                matched_path,
+                sensitive_route = true,
+                // Explicitly omit headers, cookies, and body for login requests
+            )
+        } else {
+            // For non-sensitive routes, use standard logging
+            tracing::info_span!(
+                "request",
+                method = %method,
+                uri = %uri,
+                matched_path,
+            )
+        }
     }
 }
