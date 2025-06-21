@@ -1,0 +1,8 @@
+---
+source: nicknamer/server/tests/names_endpoints_tests.rs
+expression: snapshot_data
+---
+content_type: text/html; charset=utf-8
+html_body: "\n<div id=\"names-table\" class=\"overflow-x-auto\">\n  <table class=\"table table-zebra w-full\">\n    <thead>\n      <tr>\n        <th>ID</th>\n        <th>Discord ID</th>\n        <th>Name</th>\n      </tr>\n    </thead>\n    <tbody>\n      \n      <tr>\n        <td>1</td>\n        <td>555666777</td>\n        <td class=\"font-semibold\">NewTestUser</td>\n      </tr>\n      \n    </tbody>\n  </table>\n</div>\n\n<div class=\"stats stats-horizontal shadow mt-6\">\n  <div class=\"stat\">\n    <div class=\"stat-title\">Total Names</div>\n    <div class=\"stat-value\">1</div>\n    <div class=\"stat-desc\">Names in database</div>\n  </div>\n</div>\n"
+status: 200
+test_context: create_name_successfully

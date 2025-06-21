@@ -1,127 +1,35 @@
 use axum::body::Body;
 use axum::http::{Method, Request, StatusCode};
+use insta::assert_yaml_snapshot;
 use nicknamer_server::name::{Name, NameService, NameState, create_name_router};
 use sea_orm::DatabaseConnection;
+use serde_json::{Value, json};
 use std::sync::Arc;
 use testcontainers_modules::{postgres, testcontainers};
 use tower::ServiceExt;
 
 mod common;
 
-/// Helper to validate names page contains all expected names and structure.
-fn assert_names_page_contains_names(body_text: &str, expected_names: &[Name]) {
-    // Verify page structure
-    assert!(body_text.contains("Names Database"), "Missing page title");
-    assert!(body_text.contains("Stored Names"), "Missing section header");
-
-    if expected_names.is_empty() {
-        assert!(
-            body_text.contains("No names found in the database"),
-            "Missing empty state message"
-        );
-    } else {
-        // Verify all names are present
-        for name in expected_names {
-            assert!(
-                body_text.contains(name.name()),
-                "Missing name: {}",
-                name.name()
-            );
-            assert!(
-                body_text.contains(&name.discord_id().to_string()),
-                "Missing discord ID: {}",
-                name.discord_id()
-            );
-            assert!(
-                body_text.contains(&name.id().to_string()),
-                "Missing name ID: {}",
-                name.id()
-            );
-        }
-
-        // Verify count is correct
-        assert!(
-            body_text.contains("Total Names"),
-            "Missing total names label"
-        );
-        assert!(
-            body_text.contains(&expected_names.len().to_string()),
-            "Incorrect name count, expected: {}",
-            expected_names.len()
-        );
-    }
+/// Helper to create snapshot data from HTML response and metadata.
+fn create_html_snapshot_data(
+    body_text: &str,
+    status: StatusCode,
+    content_type: Option<&str>,
+    test_context: &str,
+) -> Value {
+    json!({
+        "test_context": test_context,
+        "status": status.as_u16(),
+        "content_type": content_type,
+        "html_body": normalize_html_for_snapshot(body_text)
+    })
 }
 
-/// Helper to validate table fragment contains expected names without full page structure.
-fn assert_table_fragment_contains_names(body_text: &str, expected_names: &[Name]) {
-    // Should contain table identifier
-    assert!(
-        body_text.contains(r#"id="names-table""#),
-        "Missing table ID"
-    );
-
-    if expected_names.is_empty() {
-        assert!(
-            body_text.contains("No names found in the database"),
-            "Missing empty state in table fragment"
-        );
-    } else {
-        // Verify all names are present
-        for name in expected_names {
-            assert!(
-                body_text.contains(name.name()),
-                "Missing name in table fragment: {}",
-                name.name()
-            );
-            assert!(
-                body_text.contains(&name.discord_id().to_string()),
-                "Missing discord ID in table fragment: {}",
-                name.discord_id()
-            );
-        }
-
-        // Verify count is present
-        assert!(
-            body_text.contains(&expected_names.len().to_string()),
-            "Missing correct count in table fragment: {}",
-            expected_names.len()
-        );
-    }
-
-    // Should NOT contain full page elements
-    assert!(
-        !body_text.contains("navbar"),
-        "Table fragment should not contain navbar"
-    );
-    assert!(
-        !body_text.contains("Names Database"),
-        "Table fragment should not contain page title"
-    );
-    assert!(
-        !body_text.contains("← Back"),
-        "Table fragment should not contain navigation"
-    );
-}
-
-/// Helper to validate add name form contains expected form elements.
-fn assert_add_name_form_is_valid(body_text: &str) {
-    let expected_elements = [
-        "Add New Name",
-        "Discord ID",
-        "Name",
-        "<form",
-        r#"hx-post="/names""#,
-        "input",
-        r#"type="submit""#,
-    ];
-
-    for element in expected_elements {
-        assert!(
-            body_text.contains(element),
-            "Add name form missing expected element: {}",
-            element
-        );
-    }
+/// Normalize HTML content for consistent snapshots by removing dynamic values.
+fn normalize_html_for_snapshot(html: &str) -> String {
+    // For now, return HTML as-is since we'll use deterministic test data
+    // In the future, we could add more sophisticated normalization
+    html.to_string()
 }
 
 /// Test context for endpoint tests.
@@ -160,7 +68,7 @@ async fn create_test_names(db: &DatabaseConnection) -> Vec<Name> {
 #[tokio::test]
 async fn can_display_names_table_when_names_exist() {
     let state = setup().await.expect("Failed to setup test context");
-    let test_names = create_test_names(&state.db).await;
+    let _test_names = create_test_names(&state.db).await;
 
     let name_state = NameState {
         db: Arc::new(state.db),
@@ -181,7 +89,14 @@ async fn can_display_names_table_when_names_exist() {
         .unwrap();
     let body_text = std::str::from_utf8(&body).unwrap();
 
-    assert_names_page_contains_names(body_text, &test_names);
+    let snapshot_data = create_html_snapshot_data(
+        body_text,
+        StatusCode::OK,
+        Some("text/html; charset=utf-8"),
+        "names_table_with_existing_names",
+    );
+
+    assert_yaml_snapshot!(snapshot_data);
 }
 
 #[tokio::test]
@@ -207,7 +122,14 @@ async fn can_display_empty_names_table_when_no_names_exist() {
         .unwrap();
     let body_text = std::str::from_utf8(&body).unwrap();
 
-    assert_names_page_contains_names(body_text, &[]);
+    let snapshot_data = create_html_snapshot_data(
+        body_text,
+        StatusCode::OK,
+        Some("text/html; charset=utf-8"),
+        "empty_names_table",
+    );
+
+    assert_yaml_snapshot!(snapshot_data);
 }
 
 #[tokio::test]
@@ -231,6 +153,20 @@ async fn names_endpoint_returns_correct_content_type() {
         response.headers().get("content-type").unwrap(),
         "text/html; charset=utf-8"
     );
+
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    let snapshot_data = create_html_snapshot_data(
+        body_text,
+        StatusCode::OK,
+        Some("text/html; charset=utf-8"),
+        "names_endpoint_content_type_check",
+    );
+
+    assert_yaml_snapshot!(snapshot_data);
 }
 
 #[tokio::test]
@@ -266,8 +202,14 @@ async fn can_create_name_successfully() {
     assert_eq!(names[0].name(), "NewTestUser");
     assert_eq!(names[0].discord_id(), 555666777);
 
-    // Verify the response contains the table fragment with the new name
-    assert_table_fragment_contains_names(body_text, &names);
+    let snapshot_data = create_html_snapshot_data(
+        body_text,
+        StatusCode::OK,
+        Some("text/html; charset=utf-8"),
+        "create_name_successfully",
+    );
+
+    assert_yaml_snapshot!(snapshot_data);
 }
 
 #[tokio::test]
@@ -302,8 +244,14 @@ async fn can_create_multiple_names_and_update_count() {
     let names = name_service.get_all_names().await.unwrap();
     assert_eq!(names.len(), 3);
 
-    // Verify the response contains the table fragment with all names
-    assert_table_fragment_contains_names(body_text, &names);
+    let snapshot_data = create_html_snapshot_data(
+        body_text,
+        StatusCode::OK,
+        Some("text/html; charset=utf-8"),
+        "create_multiple_names_update_count",
+    );
+
+    assert_yaml_snapshot!(snapshot_data);
 }
 
 #[tokio::test]
@@ -339,8 +287,14 @@ async fn can_handle_form_with_special_characters_in_name() {
     assert_eq!(names[0].name(), "User With Spaces!");
     assert_eq!(names[0].discord_id(), 888999000);
 
-    // Verify the response contains the table fragment with the special characters name
-    assert_table_fragment_contains_names(body_text, &names);
+    let snapshot_data = create_html_snapshot_data(
+        body_text,
+        StatusCode::OK,
+        Some("text/html; charset=utf-8"),
+        "form_with_special_characters",
+    );
+
+    assert_yaml_snapshot!(snapshot_data);
 }
 
 #[tokio::test]
@@ -370,7 +324,14 @@ async fn can_serve_add_name_form() {
         .unwrap();
     let body_text = std::str::from_utf8(&body).unwrap();
 
-    assert_add_name_form_is_valid(body_text);
+    let snapshot_data = create_html_snapshot_data(
+        body_text,
+        StatusCode::OK,
+        Some("text/html; charset=utf-8"),
+        "add_name_form",
+    );
+
+    assert_yaml_snapshot!(snapshot_data);
 }
 
 #[tokio::test]
@@ -406,6 +367,12 @@ async fn post_endpoint_returns_table_fragment_not_full_page() {
     assert_eq!(names[0].name(), "FragmentTestUser");
     assert_eq!(names[0].discord_id(), 777888999);
 
-    // Verify the response is a table fragment, not a full page
-    assert_table_fragment_contains_names(body_text, &names);
+    let snapshot_data = create_html_snapshot_data(
+        body_text,
+        StatusCode::OK,
+        Some("text/html; charset=utf-8"),
+        "table_fragment_not_full_page",
+    );
+
+    assert_yaml_snapshot!(snapshot_data);
 }
