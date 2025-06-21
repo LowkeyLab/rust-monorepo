@@ -9,7 +9,7 @@ use jsonwebtoken::encode;
 use std::sync::Arc;
 use tower::ServiceBuilder;
 use tower_http::trace::{DefaultOnRequest, DefaultOnResponse, MakeSpan, TraceLayer};
-use tracing::Span;
+use tracing::{Level, Span};
 
 use crate::config::Config;
 use crate::web::middleware::cors_expose_headers;
@@ -47,14 +47,13 @@ impl AuthState {
 }
 
 /// Creates a login router with authentication routes.
-pub fn create_login_router(state: AuthState) -> Router<()> {
-    let state = Arc::new(state);
+pub fn create_login_router(state: Arc<AuthState>) -> Router<()> {
     let middleware = ServiceBuilder::new()
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(FilteredMakeSpan)
-                .on_request(DefaultOnRequest::default())
-                .on_response(DefaultOnResponse::default()),
+                .on_request(DefaultOnRequest::default().level(Level::INFO))
+                .on_response(DefaultOnResponse::default().level(Level::INFO)),
         )
         .layer(from_fn_with_state(state.clone(), auth_middleware))
         .layer(middleware::from_fn(cors_expose_headers));
@@ -254,7 +253,7 @@ mod tests {
     use tower::ServiceExt; // for `oneshot`
 
     async fn test_app(config: Config) -> axum::Router {
-        let auth_state = AuthState::from_config(&config);
+        let auth_state = Arc::new(AuthState::from_config(&config));
         super::create_login_router(auth_state)
     }
 
