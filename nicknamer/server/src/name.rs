@@ -1,5 +1,8 @@
 use crate::entities::*;
+use askama::Template;
+use axum::{Router, extract::Extension, http::StatusCode, response::Html, routing::get};
 use sea_orm::*;
+use std::sync::Arc;
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub struct Name {
@@ -19,6 +22,21 @@ impl Name {
 
     /// Returns the ID of the name.
     pub fn get_id(&self) -> u32 {
+        self.id
+    }
+
+    /// Returns the Discord ID of the name.
+    pub fn discord_id(&self) -> u64 {
+        self.discord_id
+    }
+
+    /// Returns the name.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Returns the ID of the name.
+    pub fn id(&self) -> u32 {
         self.id
     }
 }
@@ -98,5 +116,170 @@ impl NameService<'_> {
             .map(|model| Name::new(model.id as u32, model.discord_id as u64, model.name))
             .collect();
         Ok(names)
+    }
+}
+
+/// Custom error type for name handler operations.
+#[derive(Debug, thiserror::Error)]
+enum NameError {
+    /// Represents an error during template rendering.
+    #[error("Template rendering failed")]
+    Template(#[from] askama::Error),
+    /// Represents a database error.
+    #[error("Database error")]
+    Database(#[from] anyhow::Error),
+}
+
+impl axum::response::IntoResponse for NameError {
+    fn into_response(self) -> axum::response::Response {
+        let user_facing_error_message =
+            "An unexpected error occurred while processing your request. Please try again later.";
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Html(format!(
+                "<h1>Internal Server Error</h1><p>{}</p>",
+                user_facing_error_message
+            )),
+        )
+            .into_response()
+    }
+}
+
+#[derive(Template)]
+#[template(path = "names.html")]
+struct NamesTemplate {
+    names: Vec<Name>,
+}
+
+impl NamesTemplate {
+    pub fn new(names: Vec<Name>) -> Self {
+        Self { names }
+    }
+}
+
+/// Handler for the /names endpoint that displays all names in a table.
+#[tracing::instrument(skip(db))]
+async fn names_handler(
+    Extension(db): Extension<Arc<DatabaseConnection>>,
+) -> Result<Html<String>, NameError> {
+    let name_service = NameService::new(&db);
+    let names = name_service.get_all_names().await?;
+    let template = NamesTemplate::new(names);
+    template.render().map(Html).map_err(NameError::from)
+}
+
+/// Creates and returns the name router with all name-related routes.
+pub fn create_name_router() -> Router {
+    Router::new().route("/names", get(names_handler))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::Request;
+    use migration::MigratorTrait;
+    use sea_orm::Database;
+    use tower::ServiceExt;
+
+    /// Test helper to create a test database connection.
+    async fn create_test_db() -> DatabaseConnection {
+        let db = Database::connect("sqlite::memory:").await.unwrap();
+        migration::Migrator::up(&db, None).await.unwrap();
+        db
+    }
+
+    /// Test helper to create test names in the database.
+    async fn create_test_names(db: &DatabaseConnection) -> Vec<Name> {
+        let name_service = NameService::new(db);
+
+        let name1 = name_service
+            .create_name(123456789, "TestUser1".to_string())
+            .await
+            .unwrap();
+
+        let name2 = name_service
+            .create_name(987654321, "TestUser2".to_string())
+            .await
+            .unwrap();
+
+        vec![name1, name2]
+    }
+
+    #[tokio::test]
+    async fn can_display_names_table_when_names_exist() {
+        let db = create_test_db().await;
+        let _test_names = create_test_names(&db).await;
+
+        let app = create_name_router().layer(Extension(Arc::new(db)));
+
+        let request = Request::builder()
+            .uri("/names")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let body_text = std::str::from_utf8(&body).unwrap();
+
+        // Check that the page contains the expected content
+        assert!(body_text.contains("Names Database"));
+        assert!(body_text.contains("Stored Names"));
+        assert!(body_text.contains("TestUser1"));
+        assert!(body_text.contains("TestUser2"));
+        assert!(body_text.contains("123456789"));
+        assert!(body_text.contains("987654321"));
+        assert!(body_text.contains("Total Names"));
+        assert!(body_text.contains("2")); // Should show count of 2 names
+    }
+
+    #[tokio::test]
+    async fn can_display_empty_names_table_when_no_names_exist() {
+        let db = create_test_db().await;
+
+        let app = create_name_router().layer(Extension(Arc::new(db)));
+
+        let request = Request::builder()
+            .uri("/names")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let body_text = std::str::from_utf8(&body).unwrap();
+
+        // Check that the page shows empty state
+        assert!(body_text.contains("Names Database"));
+        assert!(body_text.contains("No names found in the database"));
+    }
+
+    #[tokio::test]
+    async fn names_endpoint_returns_correct_content_type() {
+        let db = create_test_db().await;
+
+        let app = create_name_router().layer(Extension(Arc::new(db)));
+
+        let request = Request::builder()
+            .uri("/names")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get("content-type").unwrap(),
+            "text/html; charset=utf-8"
+        );
     }
 }

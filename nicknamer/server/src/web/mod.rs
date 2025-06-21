@@ -9,12 +9,14 @@ use tower_http::trace::TraceLayer;
 
 use crate::auth::{AuthState, CurrentUser, auth_middleware, create_login_router};
 use crate::config::{self, Config};
+use crate::name::create_name_router;
 
 pub mod middleware;
 
 #[derive(Clone)]
 pub struct AppState {
     pub config: Arc<Config>,
+    pub db: Arc<sea_orm::DatabaseConnection>,
 }
 
 /// Custom error type for web handler operations.
@@ -59,6 +61,9 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
     // Create the login router with AuthState
     let login_router = create_login_router(auth_state.clone());
 
+    // Create name router with database connection
+    let name_router = create_name_router().layer(axum::extract::Extension(Arc::new(db)));
+
     let main_router = Router::new()
         .route("/health", axum::routing::get(health_check_handler))
         .route("/", axum::routing::get(welcome_handler))
@@ -68,8 +73,11 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
         ))
         .layer(TraceLayer::new_for_http());
 
-    // Create main router and merge with login router
-    let app = Router::new().merge(main_router).merge(login_router);
+    // Create main router and merge with login router and name router
+    let app = Router::new()
+        .merge(main_router)
+        .merge(login_router)
+        .merge(name_router);
 
     axum::serve(listener, app).await?;
     Ok(())
