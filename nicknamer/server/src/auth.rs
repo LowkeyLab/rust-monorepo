@@ -73,18 +73,11 @@ pub async fn auth_user_middleware(
 /// Login redirect middleware that redirects unauthenticated users to the login page.
 /// This middleware should be applied after auth_user_middleware to check for CurrentUser extension.
 pub async fn login_redirect_middleware(request: Request, next: Next) -> Response {
-    let uri_path = request.uri().path();
-
-    // Routes that don't require authentication
-    let public_routes = ["/login", "/health"];
-
-    let is_public_route = public_routes.iter().any(|&route| uri_path == route);
-
     // Check if user is authenticated by looking for CurrentUser extension
     let is_authenticated = request.extensions().get::<CurrentUser>().is_some();
 
     // If no valid authentication and accessing a protected route, redirect to login
-    if !is_authenticated && !is_public_route {
+    if !is_authenticated {
         return axum::response::Redirect::to("/login").into_response();
     }
 

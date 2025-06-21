@@ -72,6 +72,12 @@ pub struct NameService<'a> {
     db: &'a sea_orm::DatabaseConnection,
 }
 
+impl From<name::Model> for Name {
+    fn from(model: name::Model) -> Self {
+        Name::new(model.id as u32, model.discord_id as u64, model.name)
+    }
+}
+
 impl NameService<'_> {
     pub fn new(db: &sea_orm::DatabaseConnection) -> NameService {
         NameService { db }
@@ -103,11 +109,7 @@ impl NameService<'_> {
             ..Default::default()
         };
         let created_model = active_model.insert(self.db).await?;
-        Ok(Name::new(
-            created_model.id as u32,
-            created_model.discord_id as u64,
-            created_model.name,
-        ))
+        Ok(Name::from(created_model))
     }
 
     /// Edits a name entry by their ID.
