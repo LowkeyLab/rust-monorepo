@@ -2,7 +2,7 @@ use askama::Template;
 use axum::Router;
 use axum::extract::{Extension, Form, MatchedPath, Request, State};
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
-use axum::middleware::{Next};
+use axum::middleware::Next;
 use axum::response::{Html, IntoResponse, Response};
 use axum_extra::extract::CookieJar;
 use jsonwebtoken::encode;
@@ -48,21 +48,36 @@ impl AuthState {
 pub fn create_login_router(state: Arc<AuthState>) -> Router<()> {
     Router::new()
         .route("/login", axum::routing::post(login_handler))
+        .route("/login", axum::routing::get(login_page_handler))
         .with_state(state.clone())
 }
 
 /// Authentication middleware that checks for valid JWT tokens and sets CurrentUser extension.
+/// Redirects unauthenticated users to the login page for protected routes.
 pub async fn auth_middleware(
     State(state): State<Arc<AuthState>>,
     jar: CookieJar,
     mut request: Request,
     next: Next,
 ) -> Response {
+    let uri_path = request.uri().path();
+
+    // Routes that don't require authentication
+    let public_routes = ["/login", "/health"];
+
+    let is_public_route = public_routes.iter().any(|&route| uri_path == route);
+
     if let Some(token_cookie) = jar.get("auth_token") {
         if let Ok(claims) = decode_jwt(token_cookie.value(), &state.jwt_secret).await {
             let current_user = CurrentUser::new(claims.username);
             request.extensions_mut().insert(current_user);
+            return next.run(request).await;
         }
+    }
+
+    // If no valid authentication and accessing a protected route, redirect to login
+    if !is_public_route {
+        return axum::response::Redirect::to("/login").into_response();
     }
 
     next.run(request).await
@@ -228,6 +243,17 @@ pub struct LoginSuccessTemplate<'a> {
 #[derive(Template)]
 #[template(path = "login_error_message.html")]
 pub struct LoginErrorMessageTemplate;
+
+#[derive(Template)]
+#[template(path = "login.html")]
+pub struct LoginTemplate;
+
+/// Handles GET requests to display the login page.
+#[tracing::instrument]
+pub async fn login_page_handler() -> Result<Html<String>, AuthError> {
+    let template = LoginTemplate;
+    template.render().map(Html).map_err(AuthError::from)
+}
 
 #[cfg(test)]
 mod tests {
@@ -404,6 +430,26 @@ mod tests {
             body,
             LoginSuccessTemplate { name: "admin" }.render().unwrap()
         );
+    }
+
+    #[tokio::test]
+    async fn can_display_login_page() {
+        let result = super::login_page_handler().await;
+        assert!(
+            result.is_ok(),
+            "login_page_handler returned an error: {:?}",
+            result.err()
+        );
+
+        let html = result.unwrap();
+        let body = html.0;
+
+        // Verify the page contains the login form
+        assert!(body.contains("<title>Login - Nicknamer</title>"));
+        assert!(body.contains("<h1 class=\"text-5xl font-bold mb-8\">Nicknamer</h1>"));
+        assert!(body.contains("<form hx-post=\"/login\""));
+        assert!(body.contains("name=\"username\""));
+        assert!(body.contains("name=\"password\""));
     }
 }
 
