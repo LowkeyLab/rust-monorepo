@@ -63,14 +63,8 @@
 
           <div id="add-name-form" class="mb-4"></div>
 
-          {% include "names/names_table.html" %}
-          <div class="stats stats-horizontal shadow mt-6">
-            <div class="stat">
-              <div class="stat-title">Total Names</div>
-              <div id="name-count" class="stat-value">{{ names.len() }}</div>
-              <div class="stat-desc">Names in database</div>
-            </div>
-          </div>
+          <div id="names-table">{% include "names/names_table.html" %}</div>
+          <div id="names_stat">{% include "names/names_stat.html" %}</div>
         </div>
       </div>
 
