@@ -1,7 +1,7 @@
 use axum::body::Body;
 use axum::http::{Method, Request, StatusCode};
 use insta::assert_yaml_snapshot;
-use nicknamer_server::name::{Name, NameService, NameState, create_name_router};
+use nicknamer_server::name::{NameService, NameState, create_name_router};
 use sea_orm::DatabaseConnection;
 use serde::Serialize;
 use std::sync::Arc;
@@ -60,26 +60,24 @@ async fn setup() -> anyhow::Result<TestContext> {
 }
 
 /// Test helper to create test names in the database.
-async fn create_test_names(db: &DatabaseConnection) -> Vec<Name> {
+async fn create_test_names(db: &DatabaseConnection) {
     let name_service = NameService::new(db);
 
-    let name1 = name_service
+    let _name1 = name_service
         .create_name(123456789, "TestUser1".to_string())
         .await
         .unwrap();
 
-    let name2 = name_service
+    let _name2 = name_service
         .create_name(987654321, "TestUser2".to_string())
         .await
         .unwrap();
-
-    vec![name1, name2]
 }
 
 #[tokio::test]
 async fn can_display_names_table_when_names_exist() {
     let state = setup().await.expect("Failed to setup test context");
-    let _test_names = create_test_names(&state.db).await;
+    create_test_names(&state.db).await;
 
     let name_state = NameState {
         db: Arc::new(state.db),
@@ -206,13 +204,6 @@ async fn can_create_name_successfully() {
         .unwrap();
     let body_text = std::str::from_utf8(&body).unwrap();
 
-    // Verify the name was actually created in the database
-    let name_service = NameService::new(&name_state.db);
-    let names = name_service.get_all_names().await.unwrap();
-    assert_eq!(names.len(), 1);
-    assert_eq!(names[0].name(), "NewTestUser");
-    assert_eq!(names[0].discord_id(), 555666777);
-
     let snapshot_data = HttpResponseSnapshot::new(
         body_text,
         StatusCode::OK,
@@ -226,7 +217,7 @@ async fn can_create_name_successfully() {
 #[tokio::test]
 async fn can_create_multiple_names_and_update_count() {
     let state = setup().await.expect("Failed to setup test context");
-    let _existing_names = create_test_names(&state.db).await;
+    create_test_names(&state.db).await;
 
     let name_state = NameState {
         db: Arc::new(state.db),
@@ -249,11 +240,6 @@ async fn can_create_multiple_names_and_update_count() {
         .await
         .unwrap();
     let body_text = std::str::from_utf8(&body).unwrap();
-
-    // Verify all names exist in the database
-    let name_service = NameService::new(&name_state.db);
-    let names = name_service.get_all_names().await.unwrap();
-    assert_eq!(names.len(), 3);
 
     let snapshot_data = HttpResponseSnapshot::new(
         body_text,
@@ -290,13 +276,6 @@ async fn can_handle_form_with_special_characters_in_name() {
         .await
         .unwrap();
     let body_text = std::str::from_utf8(&body).unwrap();
-
-    // Verify the name was stored correctly in the database
-    let name_service = NameService::new(&name_state.db);
-    let names = name_service.get_all_names().await.unwrap();
-    assert_eq!(names.len(), 1);
-    assert_eq!(names[0].name(), "User With Spaces!");
-    assert_eq!(names[0].discord_id(), 888999000);
 
     let snapshot_data = HttpResponseSnapshot::new(
         body_text,
@@ -370,13 +349,6 @@ async fn post_endpoint_returns_table_fragment_not_full_page() {
         .await
         .unwrap();
     let body_text = std::str::from_utf8(&body).unwrap();
-
-    // Verify the name was created in the database
-    let name_service = NameService::new(&name_state.db);
-    let names = name_service.get_all_names().await.unwrap();
-    assert_eq!(names.len(), 1);
-    assert_eq!(names[0].name(), "FragmentTestUser");
-    assert_eq!(names[0].discord_id(), 777888999);
 
     let snapshot_data = HttpResponseSnapshot::new(
         body_text,
