@@ -47,7 +47,7 @@ impl axum::response::IntoResponse for WebError {
     }
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip(config))]
 pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
     use axum::Router;
 
