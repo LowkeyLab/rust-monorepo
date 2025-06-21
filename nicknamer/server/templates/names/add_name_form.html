@@ -4,8 +4,8 @@
   <form
     hx-post="/names"
     hx-target="#names-table"
-    hx-swap="outerHTML"
-    hx-on::after-request="if(event.detail.successful) { this.reset(); }"
+    hx-swap="innerHTML"
+    hx-on::after-request="if(event.detail.successful) { this.innerHTML=''; }"
     hx-target-error="#error-message"
     class="space-y-4"
   >
