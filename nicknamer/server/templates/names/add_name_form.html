@@ -5,7 +5,8 @@
     hx-post="/names"
     hx-target="#names-table"
     hx-swap="outerHTML"
-    hx-on::after-request="if(event.detail.xhr.status === 200) { document.getElementById('add-name-form').innerHTML = ''; document.getElementById('error-message').innerHTML = ''; }"
+    hx-on::after-request="if(event.detail.successful) { this.reset(); }"
+    hx-target-error="#error-message"
     class="space-y-4"
   >
     <div class="form-control">

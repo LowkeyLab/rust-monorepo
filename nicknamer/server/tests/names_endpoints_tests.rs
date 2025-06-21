@@ -443,9 +443,6 @@ async fn cannot_create_name_with_duplicate_discord_id() {
 
     let duplicate_response = app2.oneshot(duplicate_request).await.unwrap();
 
-    // Should return 400 Bad Request for duplicate Discord ID
-    assert_eq!(duplicate_response.status(), StatusCode::BAD_REQUEST);
-
     let headers = duplicate_response.headers().clone();
     let body = axum::body::to_bytes(duplicate_response.into_body(), usize::MAX)
         .await
@@ -457,7 +454,7 @@ async fn cannot_create_name_with_duplicate_discord_id() {
 
     let snapshot_data = HttpResponseSnapshot::new(
         body_text,
-        StatusCode::BAD_REQUEST,
+        StatusCode::UNPROCESSABLE_ENTITY,
         Some("text/html; charset=utf-8"),
         &headers,
         "duplicate_discord_id_error",

@@ -1,6 +1,12 @@
 use crate::entities::*;
 use askama::Template;
-use axum::{Form, Router, extract::State, http::StatusCode, response::Html, routing::get};
+use axum::{
+    Form, Router,
+    extract::State,
+    http::{HeaderMap, HeaderName, HeaderValue, StatusCode},
+    response::Html,
+    routing::get,
+};
 use sea_orm::*;
 use serde::Deserialize;
 use std::sync::Arc;
@@ -171,7 +177,7 @@ impl axum::response::IntoResponse for NameError {
     fn into_response(self) -> axum::response::Response {
         let (status_code, user_facing_error_message) = match self {
             NameError::DuplicateDiscordId => (
-                StatusCode::BAD_REQUEST,
+                StatusCode::UNPROCESSABLE_ENTITY,
                 "A name entry already exists for this Discord ID. Please use a different Discord ID.",
             ),
             _ => (
@@ -185,12 +191,12 @@ impl axum::response::IntoResponse for NameError {
             Ok(rendered) => {
                 let mut response = (status_code, Html(rendered)).into_response();
                 // Add HTMX headers to retarget the error message to the error div
-                response
-                    .headers_mut()
-                    .insert("HX-Retarget", "#error-message".parse().unwrap());
-                response
-                    .headers_mut()
-                    .insert("HX-Reswap", "innerHTML".parse().unwrap());
+                let mut headers = HeaderMap::new();
+                headers.insert(
+                    HeaderName::from_static("hx-reswap"),
+                    HeaderValue::from_static("innerHTML"),
+                );
+                response.headers_mut().extend(headers);
                 response
             }
             Err(_) => {
@@ -200,12 +206,12 @@ impl axum::response::IntoResponse for NameError {
                 );
                 let mut response = (status_code, Html(fallback_html)).into_response();
                 // Add HTMX headers to retarget the error message to the error div
-                response
-                    .headers_mut()
-                    .insert("HX-Retarget", "#error-message".parse().unwrap());
-                response
-                    .headers_mut()
-                    .insert("HX-Reswap", "innerHTML".parse().unwrap());
+                let mut headers = HeaderMap::new();
+                headers.insert(
+                    HeaderName::from_static("hx-reswap"),
+                    HeaderValue::from_static("innerHTML"),
+                );
+                response.headers_mut().extend(headers);
                 response
             }
         }
