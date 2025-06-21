@@ -20,7 +20,6 @@
   <table class="table table-zebra w-full">
     <thead>
       <tr>
-        <th>ID</th>
         <th>Discord ID</th>
         <th>Name</th>
       </tr>
@@ -28,7 +27,6 @@
     <tbody>
       {% for name in names %}
       <tr>
-        <td>{{ name.id }}</td>
         <td>{{ name.discord_id }}</td>
         <td class="font-semibold">{{ name.name }}</td>
       </tr>
@@ -46,4 +44,3 @@
     <div class="stat-desc">Names in database</div>
   </div>
 </div>
-
