@@ -9,7 +9,7 @@ use jsonwebtoken::encode;
 use std::sync::Arc;
 use tower::ServiceBuilder;
 use tower_http::trace::{DefaultOnRequest, DefaultOnResponse, MakeSpan, TraceLayer};
-use tracing::{Level, Span};
+use tracing::{info, Level, Span};
 
 use crate::config::Config;
 use crate::web::middleware::cors_expose_headers;
@@ -51,9 +51,6 @@ pub fn create_login_router(state: Arc<AuthState>) -> Router<()> {
     let middleware = ServiceBuilder::new()
         .layer(
             TraceLayer::new_for_http()
-                .make_span_with(FilteredMakeSpan)
-                .on_request(DefaultOnRequest::default().level(Level::INFO))
-                .on_response(DefaultOnResponse::default().level(Level::INFO)),
         )
         .layer(from_fn_with_state(state.clone(), auth_middleware))
         .layer(middleware::from_fn(cors_expose_headers));

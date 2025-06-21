@@ -64,9 +64,6 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
         .route("/", axum::routing::get(welcome_handler))
         .layer(
             TraceLayer::new_for_http()
-                .make_span_with(DefaultMakeSpan::default().level(Level::INFO))
-                .on_request(DefaultOnRequest::default().level(Level::INFO))
-                .on_response(DefaultOnResponse::default().level(Level::INFO)),
         )
         ;
 
@@ -77,10 +74,12 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[tracing::instrument]
 async fn health_check_handler() -> &'static str {
     "OK"
 }
 
+#[tracing::instrument]
 async fn welcome_handler() -> Result<Html<String>, WebError> {
     IndexTemplate.render().map(Html).map_err(WebError::from)
 }
