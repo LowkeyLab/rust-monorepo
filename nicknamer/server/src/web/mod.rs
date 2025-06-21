@@ -86,7 +86,6 @@ struct IndexTemplate;
 mod tests {
     use super::*;
     use axum::http::StatusCode;
-    use axum::response::IntoResponse;
 
     #[tokio::test]
     async fn can_check_health() {
