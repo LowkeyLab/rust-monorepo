@@ -53,6 +53,10 @@ pub enum AuthError {
     /// The specific `askama::Error` is captured as the source of this error.
     #[error("Template rendering failed")]
     Template(#[from] askama::Error),
+    /// Represents an error during JWT operations.
+    /// The specific `jsonwebtoken::errors::Error` is captured as the source of this error.
+    #[error("JWT operation failed")]
+    JwtError,
 }
 
 impl axum::response::IntoResponse for AuthError {
@@ -79,13 +83,9 @@ pub async fn login_handler(
 ) -> Result<(CookieJar, Response), AuthError> {
     if payload.username == state.admin_username && payload.password == state.admin_password {
         // Generate JWT token
-        let jwt_token = encode_jwt(payload.username.clone(), state.jwt_secret.clone())
+        let jwt_token = encode_jwt(payload.username.clone(), &state.jwt_secret)
             .await
-            .map_err(|_| {
-                AuthError::Template(askama::Error::Custom(
-                    "Failed to generate JWT token".to_string().into(),
-                ))
-            })?;
+            .map_err(|_| AuthError::JwtError)?;
 
         // Create cookie with JWT token
         let cookie = axum_extra::extract::cookie::Cookie::build(("auth_token", jwt_token))
@@ -126,7 +126,7 @@ pub async fn login_handler(
     }
 }
 
-async fn encode_jwt(username: String, jwt_secret: String) -> anyhow::Result<String> {
+async fn encode_jwt(username: String, jwt_secret: &str) -> anyhow::Result<String> {
     let now = chrono::Utc::now();
     let expire = chrono::Duration::hours(24);
     let exp = (now + expire).timestamp() as usize;
