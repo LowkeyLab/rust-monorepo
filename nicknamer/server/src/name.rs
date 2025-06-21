@@ -182,15 +182,32 @@ impl axum::response::IntoResponse for NameError {
 
         let error_template = ErrorMessageTemplate::new(user_facing_error_message.to_string());
         match error_template.render() {
-            Ok(rendered) => (status_code, Html(rendered)).into_response(),
-            Err(_) => (
-                status_code,
-                Html(format!(
+            Ok(rendered) => {
+                let mut response = (status_code, Html(rendered)).into_response();
+                // Add HTMX headers to retarget the error message to the error div
+                response
+                    .headers_mut()
+                    .insert("HX-Retarget", "#error-message".parse().unwrap());
+                response
+                    .headers_mut()
+                    .insert("HX-Reswap", "innerHTML".parse().unwrap());
+                response
+            }
+            Err(_) => {
+                let fallback_html = format!(
                     "<div class=\"alert alert-error\"><span>{}</span></div>",
                     user_facing_error_message
-                )),
-            )
-                .into_response(),
+                );
+                let mut response = (status_code, Html(fallback_html)).into_response();
+                // Add HTMX headers to retarget the error message to the error div
+                response
+                    .headers_mut()
+                    .insert("HX-Retarget", "#error-message".parse().unwrap());
+                response
+                    .headers_mut()
+                    .insert("HX-Reswap", "innerHTML".parse().unwrap());
+                response
+            }
         }
     }
 }

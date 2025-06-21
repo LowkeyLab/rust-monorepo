@@ -5,8 +5,6 @@
     hx-post="/names"
     hx-target="#names-table"
     hx-swap="outerHTML"
-    hx-target-error="#error-message"
-    hx-swap-error="innerHTML"
     hx-on::after-request="if(event.detail.xhr.status === 200) { document.getElementById('add-name-form').innerHTML = ''; document.getElementById('error-message').innerHTML = ''; }"
     class="space-y-4"
   >
