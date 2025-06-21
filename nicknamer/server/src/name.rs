@@ -180,14 +180,18 @@ impl axum::response::IntoResponse for NameError {
             ),
         };
 
-        (
-            status_code,
-            Html(format!(
-                "<h1>Error</h1><p>{}</p>",
-                user_facing_error_message
-            )),
-        )
-            .into_response()
+        let error_template = ErrorMessageTemplate::new(user_facing_error_message.to_string());
+        match error_template.render() {
+            Ok(rendered) => (status_code, Html(rendered)).into_response(),
+            Err(_) => (
+                status_code,
+                Html(format!(
+                    "<div class=\"alert alert-error\"><span>{}</span></div>",
+                    user_facing_error_message
+                )),
+            )
+                .into_response(),
+        }
     }
 }
 
@@ -216,6 +220,18 @@ struct NamesTableTemplate {
 impl NamesTableTemplate {
     pub fn new(names: Vec<Name>) -> Self {
         Self { names }
+    }
+}
+
+#[derive(Template)]
+#[template(path = "names/error_message.html")]
+struct ErrorMessageTemplate {
+    message: String,
+}
+
+impl ErrorMessageTemplate {
+    pub fn new(message: String) -> Self {
+        Self { message }
     }
 }
 
