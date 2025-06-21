@@ -4,13 +4,11 @@ use axum::response::Html;
 use migration::MigratorTrait;
 use sea_orm::Database;
 use std::sync::Arc;
-use tower::ServiceBuilder;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
 use tracing::Level;
 
 use crate::auth::{AuthState, create_login_router};
 use crate::config::{self, Config};
-use crate::web::middleware::cors_expose_headers;
 
 pub mod middleware;
 
@@ -55,27 +53,24 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
     migration::Migrator::up(&db, None).await?;
     tracing::info!("Database migrations applied successfully");
 
-    let middleware = ServiceBuilder::new()
-        .layer(
-            TraceLayer::new_for_http()
-                .make_span_with(DefaultMakeSpan::default().level(Level::INFO))
-                .on_request(DefaultOnRequest::default())
-                .on_response(DefaultOnResponse::default()),
-        )
-        .layer(axum::middleware::from_fn(cors_expose_headers));
-
     // Create AuthState from config
     let auth_state = AuthState::from_config(&config);
 
     // Create the login router with AuthState
     let login_router = create_login_router(auth_state);
 
-    // Create main router and merge with login router
-    let app = Router::new()
-        .layer(middleware)
+    let main_router = Router::new()
         .route("/health", axum::routing::get(health_check_handler))
         .route("/", axum::routing::get(welcome_handler))
-        .merge(login_router);
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(DefaultMakeSpan::default().level(Level::INFO))
+                .on_request(DefaultOnRequest::default())
+                .on_response(DefaultOnResponse::default()),
+        );
+
+    // Create main router and merge with login router
+    let app = main_router.merge(login_router);
 
     axum::serve(listener, app).await?;
     Ok(())
