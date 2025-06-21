@@ -7,6 +7,7 @@ use axum::response::{Html, IntoResponse, Response};
 use axum_extra::extract::CookieJar;
 use jsonwebtoken::encode;
 use std::sync::Arc;
+use tower::ServiceBuilder;
 use tower_http::trace::{DefaultOnRequest, DefaultOnResponse, MakeSpan, TraceLayer};
 use tracing::Span;
 
@@ -48,9 +49,7 @@ impl AuthState {
 /// Creates a login router with authentication routes.
 pub fn create_login_router(state: AuthState) -> Router<()> {
     let state = Arc::new(state);
-    Router::new()
-        .route("/login", axum::routing::post(login_handler))
-        .with_state(state.clone())
+    let middleware = ServiceBuilder::new()
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(FilteredMakeSpan)
@@ -58,7 +57,12 @@ pub fn create_login_router(state: AuthState) -> Router<()> {
                 .on_response(DefaultOnResponse::default()),
         )
         .layer(from_fn_with_state(state.clone(), auth_middleware))
-        .layer(middleware::from_fn(cors_expose_headers))
+        .layer(middleware::from_fn(cors_expose_headers));
+
+    Router::new()
+        .route("/login", axum::routing::post(login_handler))
+        .with_state(state.clone())
+        .layer(middleware)
 }
 
 /// Authentication middleware that checks for valid JWT tokens and sets CurrentUser extension.

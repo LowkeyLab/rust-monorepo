@@ -70,7 +70,7 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
         );
 
     // Create main router and merge with login router
-    let app = main_router.merge(login_router);
+    let app = Router::new().merge(main_router).merge(login_router);
 
     axum::serve(listener, app).await?;
     Ok(())
