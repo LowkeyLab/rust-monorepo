@@ -1,7 +1,7 @@
 use askama::Template;
 use axum::extract::Extension;
 use axum::http::StatusCode;
-use axum::middleware::from_fn;
+use axum::middleware::{from_fn, from_fn_with_state};
 use axum::response::Html;
 use migration::MigratorTrait;
 use sea_orm::Database;
@@ -70,24 +70,29 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
     // Create name router with database connection
     let name_router = create_name_router(name_state);
 
-    let main_router = Router::new()
-        .route("/health", axum::routing::get(health_check_handler))
-        .route("/", axum::routing::get(welcome_handler));
+    let protected_routes = Router::new().merge(name_router).layer(
+        ServiceBuilder::new()
+            .layer(from_fn_with_state(auth_state.clone(), auth_user_middleware))
+            .layer(from_fn(login_redirect_middleware)),
+    );
 
-    let middleware = ServiceBuilder::new()
-        .layer(TraceLayer::new_for_http())
-        .layer(from_fn(middleware::cors_expose_headers))
-        .layer(axum::middleware::from_fn_with_state(
-            auth_state.clone(),
-            auth_user_middleware,
-        ))
-        .layer(axum::middleware::from_fn(login_redirect_middleware));
+    let public_routes = Router::new()
+        .route("/health", axum::routing::get(health_check_handler))
+        .route("/", axum::routing::get(welcome_handler))
+        .merge(login_router)
+        .layer(
+            ServiceBuilder::new()
+                .layer(from_fn_with_state(auth_state.clone(), auth_user_middleware)),
+        );
     // Create main router and merge with login router and name router
     let app = Router::new()
-        .merge(main_router)
-        .merge(login_router)
-        .merge(name_router)
-        .layer(middleware);
+        .merge(protected_routes)
+        .merge(public_routes)
+        .layer(
+            ServiceBuilder::new()
+                .layer(TraceLayer::new_for_http())
+                .layer(from_fn(middleware::cors_expose_headers)),
+        );
 
     axum::serve(listener, app).await?;
     Ok(())
