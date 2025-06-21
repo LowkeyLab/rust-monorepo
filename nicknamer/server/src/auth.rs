@@ -1,10 +1,36 @@
 use askama::Template;
+use axum::Router;
 use axum::extract::{Form, State};
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
 use axum::response::{Html, IntoResponse, Response};
 use jsonwebtoken::encode;
+use std::sync::Arc;
 
-use crate::web::AppState;
+use crate::config::Config;
+
+/// Authentication state containing admin credentials and JWT secret.
+#[derive(Clone)]
+pub struct AuthState {
+    pub admin_username: String,
+    pub admin_password: String,
+    pub jwt_secret: String,
+}
+
+impl AuthState {
+    /// Creates a new AuthState from the application config.
+    pub fn from_config(config: &Config) -> Self {
+        Self {
+            admin_username: config.admin_username.clone(),
+            admin_password: config.admin_password.clone(),
+            jwt_secret: config.jwt_secret.clone(),
+        }
+    }
+}
+
+/// Creates a login router with authentication routes.
+pub fn create_login_router() -> Router<Arc<AuthState>> {
+    Router::new().route("/login", axum::routing::post(login_handler))
+}
 
 /// Represents the login request payload.
 #[derive(serde::Deserialize, Debug)]
@@ -46,12 +72,10 @@ impl axum::response::IntoResponse for AuthError {
 /// Handles the login request.
 /// Checks submitted username and password against admin credentials.
 pub async fn login_handler(
-    State(state): State<AppState>,
+    State(state): State<Arc<AuthState>>,
     Form(payload): Form<LoginRequest>,
 ) -> Result<Response, AuthError> {
-    if payload.username == state.config.admin_username
-        && payload.password == state.config.admin_password
-    {
+    if payload.username == state.admin_username && payload.password == state.admin_password {
         let html = LoginSuccessTemplate {
             name: &payload.username,
         }
@@ -120,18 +144,13 @@ mod tests {
     use crate::config::Config;
 
     use super::*;
-    use axum::Router;
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
     use tower::ServiceExt; // for `oneshot`
 
     async fn test_app(config: Config) -> axum::Router {
-        let state = AppState {
-            config: Arc::new(config),
-        };
-        Router::new()
-            .route("/login", axum::routing::post(login_handler))
-            .with_state(state)
+        let auth_state = Arc::new(AuthState::from_config(&config));
+        super::create_login_router().with_state(auth_state)
     }
 
     #[tokio::test]

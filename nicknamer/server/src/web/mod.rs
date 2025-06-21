@@ -8,7 +8,7 @@ use tower::ServiceBuilder;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
 use tracing::Level;
 
-use crate::auth::login_handler;
+use crate::auth::{AuthState, create_login_router};
 use crate::config::{self, Config};
 use crate::web::middleware::cors_expose_headers;
 
@@ -54,6 +54,7 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
     let db = Database::connect(&config.db_url).await?;
     migration::Migrator::up(&db, None).await?;
     tracing::info!("Database migrations applied successfully");
+
     let middleware = ServiceBuilder::new()
         .layer(
             TraceLayer::new_for_http()
@@ -62,14 +63,25 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
                 .on_response(DefaultOnResponse::default()),
         )
         .layer(axum::middleware::from_fn(cors_expose_headers));
+
+    // Create AuthState from config
+    let auth_state = Arc::new(AuthState::from_config(&config));
+
+    // Create the login router with AuthState
+    let login_router = create_login_router().with_state(auth_state);
+
+    // Create the main app state
+    let app_state = AppState {
+        config: Arc::new(config),
+    };
+
+    // Create main router and merge with login router
     let app = Router::new()
         .layer(middleware)
         .route("/health", axum::routing::get(health_check_handler))
         .route("/", axum::routing::get(welcome_handler))
-        .route("/login", axum::routing::post(login_handler))
-        .with_state(AppState {
-            config: Arc::new(config),
-        });
+        .merge(login_router)
+        .with_state(app_state);
 
     axum::serve(listener, app).await?;
     Ok(())
