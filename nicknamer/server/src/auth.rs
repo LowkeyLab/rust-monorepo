@@ -2,13 +2,14 @@ use askama::Template;
 use axum::Router;
 use axum::extract::{Extension, Form, Request, State};
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
-use axum::middleware::{self, Next};
+use axum::middleware::{self, Next, from_fn_with_state};
 use axum::response::{Html, IntoResponse, Response};
 use axum_extra::extract::CookieJar;
 use jsonwebtoken::encode;
 use std::sync::Arc;
 
 use crate::config::Config;
+use crate::web::middleware::cors_expose_headers;
 
 /// Represents the currently authenticated user.
 #[derive(Debug, Clone)]
@@ -43,8 +44,13 @@ impl AuthState {
 }
 
 /// Creates a login router with authentication routes.
-pub fn create_login_router() -> Router<Arc<AuthState>> {
-    Router::new().route("/login", axum::routing::post(login_handler))
+pub fn create_login_router(state: AuthState) -> Router<()> {
+    let state = Arc::new(state);
+    Router::new()
+        .route("/login", axum::routing::post(login_handler))
+        .with_state(state.clone())
+        .layer(from_fn_with_state(state.clone(), auth_middleware))
+        .layer(middleware::from_fn(cors_expose_headers))
 }
 
 /// Authentication middleware that checks for valid JWT tokens and sets CurrentUser extension.
@@ -205,7 +211,6 @@ pub struct LoginErrorMessageTemplate;
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
 
     use crate::config::Config;
 
@@ -215,23 +220,8 @@ mod tests {
     use tower::ServiceExt; // for `oneshot`
 
     async fn test_app(config: Config) -> axum::Router {
-        let auth_state = Arc::new(AuthState::from_config(&config));
-        super::create_login_router()
-            .layer(middleware::from_fn_with_state(
-                auth_state.clone(),
-                super::auth_middleware,
-            ))
-            .with_state(auth_state)
-    }
-
-    async fn test_app_with_auth(config: Config) -> axum::Router {
-        let auth_state = Arc::new(AuthState::from_config(&config));
-        super::create_login_router()
-            .layer(middleware::from_fn_with_state(
-                auth_state.clone(),
-                super::auth_middleware,
-            ))
-            .with_state(auth_state)
+        let auth_state = AuthState::from_config(&config);
+        super::create_login_router(auth_state)
     }
 
     #[tokio::test]
@@ -370,7 +360,7 @@ mod tests {
             .await
             .unwrap();
 
-        let app = test_app_with_auth(config).await;
+        let app = test_app(config).await;
 
         let response = app
             .oneshot(

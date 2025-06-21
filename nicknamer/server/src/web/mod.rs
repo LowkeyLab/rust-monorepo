@@ -65,23 +65,17 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
         .layer(axum::middleware::from_fn(cors_expose_headers));
 
     // Create AuthState from config
-    let auth_state = Arc::new(AuthState::from_config(&config));
+    let auth_state = AuthState::from_config(&config);
 
     // Create the login router with AuthState
-    let login_router = create_login_router().with_state(auth_state);
-
-    // Create the main app state
-    let app_state = AppState {
-        config: Arc::new(config),
-    };
+    let login_router = create_login_router(auth_state);
 
     // Create main router and merge with login router
     let app = Router::new()
         .layer(middleware)
         .route("/health", axum::routing::get(health_check_handler))
         .route("/", axum::routing::get(welcome_handler))
-        .merge(login_router)
-        .with_state(app_state);
+        .merge(login_router);
 
     axum::serve(listener, app).await?;
     Ok(())
