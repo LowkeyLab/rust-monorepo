@@ -12,6 +12,7 @@ anyhow = "1.0.98"
 askama = "0.14.0"
 axum = "0.8.4"
 config = "0.15.11"
+jsonwebtoken = "9.3.1"
 migration = { version = "0.1.0", path = "./migration" }
 sea-orm = { version = "1.1.12", features = [
     "sqlx-postgres",

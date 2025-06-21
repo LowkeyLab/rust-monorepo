@@ -2,9 +2,8 @@ use askama::Template;
 use axum::extract::{Form, State};
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
 use axum::response::{Html, IntoResponse, Response};
-use std::sync::Arc;
 
-use crate::config::Config;
+use crate::web::AppState;
 
 /// Represents the login request payload.
 #[derive(serde::Deserialize, Debug)]
@@ -35,11 +34,6 @@ impl axum::response::IntoResponse for AuthError {
         )
             .into_response()
     }
-}
-
-#[derive(Clone)]
-pub struct AppState {
-    pub config: Arc<Config>,
 }
 
 /// Handles the login request.
@@ -91,6 +85,10 @@ pub struct LoginErrorMessageTemplate;
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
+    use crate::config::Config;
+
     use super::*;
     use axum::Router;
     use axum::body::Body;

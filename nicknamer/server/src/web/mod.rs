@@ -8,11 +8,16 @@ use tower::ServiceBuilder;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
 use tracing::Level;
 
-use crate::auth::{AppState, login_handler};
-use crate::config;
+use crate::auth::login_handler;
+use crate::config::{self, Config};
 use crate::web::middleware::cors_expose_headers;
 
 pub mod middleware;
+
+#[derive(Clone)]
+pub struct AppState {
+    pub config: Arc<Config>,
+}
 
 /// Custom error type for web handler operations.
 #[derive(Debug, thiserror::Error)]
