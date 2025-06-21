@@ -33,7 +33,7 @@ async fn can_register_name() {
         .expect("Failed to create name");
 
     let expected_name = nicknamer_server::name::Name::new(
-        created_name.get_id(), // The ID is generated, so we use the created name's ID
+        created_name.id(), // The ID is generated, so we use the created name's ID
         discord_id,
         name,
     );

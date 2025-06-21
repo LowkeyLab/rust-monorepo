@@ -33,11 +33,6 @@ impl Name {
         }
     }
 
-    /// Returns the ID of the name.
-    pub fn get_id(&self) -> u32 {
-        self.id
-    }
-
     /// Returns the Discord ID of the name.
     pub fn discord_id(&self) -> u64 {
         self.discord_id
