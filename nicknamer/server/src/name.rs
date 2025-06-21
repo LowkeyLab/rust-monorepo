@@ -1,8 +1,15 @@
 use crate::entities::*;
 use askama::Template;
-use axum::{Router, extract::State, http::StatusCode, response::Html, routing::get};
+use axum::{Form, Router, extract::State, http::StatusCode, response::Html, routing::get};
 use sea_orm::*;
+use serde::Deserialize;
 use std::sync::Arc;
+
+#[derive(Debug, Deserialize)]
+pub struct CreateNameForm {
+    discord_id: u64,
+    name: String,
+}
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub struct Name {
@@ -161,6 +168,22 @@ impl NamesTemplate {
     }
 }
 
+#[derive(Template)]
+#[template(path = "add_name_form.html")]
+struct AddNameFormTemplate;
+
+#[derive(Template)]
+#[template(path = "names_table.html")]
+struct NamesTableTemplate {
+    names: Vec<Name>,
+}
+
+impl NamesTableTemplate {
+    pub fn new(names: Vec<Name>) -> Self {
+        Self { names }
+    }
+}
+
 /// Handler for the /names endpoint that displays all names in a table.
 #[tracing::instrument(skip(state))]
 async fn names_handler(State(state): State<NameState>) -> Result<Html<String>, NameError> {
@@ -170,9 +193,32 @@ async fn names_handler(State(state): State<NameState>) -> Result<Html<String>, N
     template.render().map(Html).map_err(NameError::from)
 }
 
+/// Handler for creating a new name via POST request.
+#[tracing::instrument(skip(state))]
+async fn create_name_handler(
+    State(state): State<NameState>,
+    Form(form): Form<CreateNameForm>,
+) -> Result<Html<String>, NameError> {
+    let name_service = NameService::new(&state.db);
+    name_service.create_name(form.discord_id, form.name).await?;
+
+    // Return the updated names table only
+    let names = name_service.get_all_names().await?;
+    let template = NamesTableTemplate::new(names);
+    template.render().map(Html).map_err(NameError::from)
+}
+
+/// Handler for serving the add name form.
+#[tracing::instrument]
+async fn add_name_form_handler() -> Result<Html<String>, NameError> {
+    let template = AddNameFormTemplate;
+    template.render().map(Html).map_err(NameError::from)
+}
+
 /// Creates and returns the name router with all name-related routes.
 pub fn create_name_router(state: NameState) -> Router {
     Router::new()
-        .route("/names", get(names_handler))
+        .route("/names", get(names_handler).post(create_name_handler))
+        .route("/names/form", get(add_name_form_handler))
         .with_state(state)
 }
