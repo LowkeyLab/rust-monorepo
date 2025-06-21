@@ -2,6 +2,8 @@ use askama::Template;
 use axum::extract::{Form, State};
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
 use axum::response::{Html, IntoResponse, Response};
+use chrono::{Duration, Utc};
+use jsonwebtoken::{EncodingKey, Header, encode};
 
 use crate::web::AppState;
 
@@ -12,6 +14,12 @@ pub struct LoginRequest {
     pub password: String,
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+struct Claims {
+    pub exp: usize,       // Expiry time of the token
+    pub iat: usize,       // Issued at time of the token
+    pub username: String, // Username of the authenticated user
+}
 /// Custom error type for authentication operations.
 #[derive(Debug, thiserror::Error)]
 pub enum AuthError {
@@ -71,6 +79,29 @@ pub async fn login_handler(
         response.headers_mut().extend(headers);
         Ok(response)
     }
+}
+
+async fn encode_jwt(username: String, jwt_secret: String) -> anyhow::Result<String> {
+    let now = chrono::Utc::now();
+    let expire = chrono::Duration::hours(24);
+    let exp = (now + expire).timestamp() as usize;
+    let iat = now.timestamp() as usize;
+    let claims = Claims { exp, iat, username };
+    let jwt = encode(
+        &jsonwebtoken::Header::default(),
+        &claims,
+        &jsonwebtoken::EncodingKey::from_secret(jwt_secret.as_bytes()),
+    )?;
+    Ok(jwt)
+}
+
+async fn decode_jwt(token: &str, jwt_secret: &str) -> anyhow::Result<Claims> {
+    let token_data = jsonwebtoken::decode(
+        token,
+        &jsonwebtoken::DecodingKey::from_secret(jwt_secret.as_bytes()),
+        &jsonwebtoken::Validation::default(),
+    )?;
+    Ok(token_data.claims)
 }
 
 #[derive(Template)]

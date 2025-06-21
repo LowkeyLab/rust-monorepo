@@ -8,6 +8,7 @@ pub mod config {
         pub port: u16,
         pub admin_username: String,
         pub admin_password: String,
+        pub jwt_secret: String,
     }
 
     impl Config {
