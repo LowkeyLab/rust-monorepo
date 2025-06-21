@@ -258,18 +258,6 @@ impl ErrorMessageTemplate {
     }
 }
 
-#[derive(Template)]
-#[template(path = "names/names_stat.html")]
-struct NamesStatTemplate {
-    names: Vec<Name>,
-}
-
-impl NamesStatTemplate {
-    pub fn new(names: Vec<Name>) -> Self {
-        Self { names }
-    }
-}
-
 /// Handler for the /names endpoint that displays all names in a table.
 #[tracing::instrument(skip(state))]
 async fn names_handler(State(state): State<NameState>) -> Result<Html<String>, NameError> {
@@ -296,17 +284,7 @@ async fn create_name_handler(
             let table_template = NamesTableTemplate::new(names.clone());
             let table_html = table_template.render().map_err(NameError::from)?;
 
-            // Render the stats component for out-of-band swap
-            let stats_template = NamesStatTemplate::new(names);
-            let stats_html = stats_template.render().map_err(NameError::from)?;
-
-            // Combine the table HTML with the out-of-band stats update
-            let combined_html = format!(
-                "<div id=\"names-stat\" hx-swap-oob=\"true\">{}</div>{}",
-                stats_html, table_html
-            );
-
-            Ok(Html(combined_html))
+            Ok(Html(table_html))
         }
         Err(err) => {
             // Check if the error is about duplicate Discord ID
