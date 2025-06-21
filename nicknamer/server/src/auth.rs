@@ -2,17 +2,15 @@ use askama::Template;
 use axum::Router;
 use axum::extract::{Extension, Form, MatchedPath, Request, State};
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
-use axum::middleware::{self, Next, from_fn_with_state};
+use axum::middleware::{Next};
 use axum::response::{Html, IntoResponse, Response};
 use axum_extra::extract::CookieJar;
 use jsonwebtoken::encode;
 use std::sync::Arc;
-use tower::ServiceBuilder;
-use tower_http::trace::{MakeSpan, TraceLayer};
+use tower_http::trace::MakeSpan;
 use tracing::Span;
 
 use crate::config::Config;
-use crate::web::middleware::cors_expose_headers;
 
 /// Represents the currently authenticated user.
 #[derive(Debug, Clone)]
