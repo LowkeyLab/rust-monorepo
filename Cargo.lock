@@ -2208,7 +2208,6 @@ dependencies = [
  "regex",
  "sea-orm",
  "serde",
- "serde_json",
  "testcontainers-modules",
  "thiserror 2.0.12",
  "time",

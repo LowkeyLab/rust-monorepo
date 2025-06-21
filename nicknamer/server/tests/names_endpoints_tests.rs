@@ -3,26 +3,37 @@ use axum::http::{Method, Request, StatusCode};
 use insta::assert_yaml_snapshot;
 use nicknamer_server::name::{Name, NameService, NameState, create_name_router};
 use sea_orm::DatabaseConnection;
-use serde_json::{Value, json};
+use serde::Serialize;
 use std::sync::Arc;
 use testcontainers_modules::{postgres, testcontainers};
 use tower::ServiceExt;
 
 mod common;
 
-/// Helper to create snapshot data from HTML response and metadata.
-fn create_html_snapshot_data(
-    body_text: &str,
-    status: StatusCode,
-    content_type: Option<&str>,
-    test_context: &str,
-) -> Value {
-    json!({
-        "test_context": test_context,
-        "status": status.as_u16(),
-        "content_type": content_type,
-        "html_body": normalize_html_for_snapshot(body_text)
-    })
+/// HTTP response snapshot for testing endpoints.
+#[derive(Debug, Serialize)]
+struct HttpResponseSnapshot {
+    test_context: String,
+    status: u16,
+    content_type: Option<String>,
+    html_body: String,
+}
+
+impl HttpResponseSnapshot {
+    /// Create a new HTTP response snapshot.
+    fn new(
+        body_text: &str,
+        status: StatusCode,
+        content_type: Option<&str>,
+        test_context: &str,
+    ) -> Self {
+        Self {
+            test_context: test_context.to_string(),
+            status: status.as_u16(),
+            content_type: content_type.map(|s| s.to_string()),
+            html_body: normalize_html_for_snapshot(body_text),
+        }
+    }
 }
 
 /// Normalize HTML content for consistent snapshots by removing dynamic values.
@@ -89,7 +100,7 @@ async fn can_display_names_table_when_names_exist() {
         .unwrap();
     let body_text = std::str::from_utf8(&body).unwrap();
 
-    let snapshot_data = create_html_snapshot_data(
+    let snapshot_data = HttpResponseSnapshot::new(
         body_text,
         StatusCode::OK,
         Some("text/html; charset=utf-8"),
@@ -122,7 +133,7 @@ async fn can_display_empty_names_table_when_no_names_exist() {
         .unwrap();
     let body_text = std::str::from_utf8(&body).unwrap();
 
-    let snapshot_data = create_html_snapshot_data(
+    let snapshot_data = HttpResponseSnapshot::new(
         body_text,
         StatusCode::OK,
         Some("text/html; charset=utf-8"),
@@ -159,7 +170,7 @@ async fn names_endpoint_returns_correct_content_type() {
         .unwrap();
     let body_text = std::str::from_utf8(&body).unwrap();
 
-    let snapshot_data = create_html_snapshot_data(
+    let snapshot_data = HttpResponseSnapshot::new(
         body_text,
         StatusCode::OK,
         Some("text/html; charset=utf-8"),
@@ -202,7 +213,7 @@ async fn can_create_name_successfully() {
     assert_eq!(names[0].name(), "NewTestUser");
     assert_eq!(names[0].discord_id(), 555666777);
 
-    let snapshot_data = create_html_snapshot_data(
+    let snapshot_data = HttpResponseSnapshot::new(
         body_text,
         StatusCode::OK,
         Some("text/html; charset=utf-8"),
@@ -244,7 +255,7 @@ async fn can_create_multiple_names_and_update_count() {
     let names = name_service.get_all_names().await.unwrap();
     assert_eq!(names.len(), 3);
 
-    let snapshot_data = create_html_snapshot_data(
+    let snapshot_data = HttpResponseSnapshot::new(
         body_text,
         StatusCode::OK,
         Some("text/html; charset=utf-8"),
@@ -287,7 +298,7 @@ async fn can_handle_form_with_special_characters_in_name() {
     assert_eq!(names[0].name(), "User With Spaces!");
     assert_eq!(names[0].discord_id(), 888999000);
 
-    let snapshot_data = create_html_snapshot_data(
+    let snapshot_data = HttpResponseSnapshot::new(
         body_text,
         StatusCode::OK,
         Some("text/html; charset=utf-8"),
@@ -324,7 +335,7 @@ async fn can_serve_add_name_form() {
         .unwrap();
     let body_text = std::str::from_utf8(&body).unwrap();
 
-    let snapshot_data = create_html_snapshot_data(
+    let snapshot_data = HttpResponseSnapshot::new(
         body_text,
         StatusCode::OK,
         Some("text/html; charset=utf-8"),
@@ -367,7 +378,7 @@ async fn post_endpoint_returns_table_fragment_not_full_page() {
     assert_eq!(names[0].name(), "FragmentTestUser");
     assert_eq!(names[0].discord_id(), 777888999);
 
-    let snapshot_data = create_html_snapshot_data(
+    let snapshot_data = HttpResponseSnapshot::new(
         body_text,
         StatusCode::OK,
         Some("text/html; charset=utf-8"),

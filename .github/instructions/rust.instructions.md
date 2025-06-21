@@ -17,7 +17,7 @@ Run the following commands in the terminal to ensure the code meets the quality 
 
 ## Snapshot Tests
 
-For projects that use insta for snapshot testing, ensure that all snapshots are reviewed. Run `cargo insta test --review` to review all snapshots.
+For projects that use insta for snapshot testing, ensure that all snapshots are reviewed. Run `cargo insta test --accept` to accept all snapshots.
 
 ## Error Handling
 
