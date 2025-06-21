@@ -157,7 +157,7 @@ impl axum::response::IntoResponse for NameError {
 }
 
 #[derive(Template)]
-#[template(path = "names.html")]
+#[template(path = "names/names.html")]
 struct NamesTemplate {
     names: Vec<Name>,
 }
@@ -169,11 +169,11 @@ impl NamesTemplate {
 }
 
 #[derive(Template)]
-#[template(path = "add_name_form.html")]
+#[template(path = "names/add_name_form.html")]
 struct AddNameFormTemplate;
 
 #[derive(Template)]
-#[template(path = "names_table.html")]
+#[template(path = "names/names_table.html")]
 struct NamesTableTemplate {
     names: Vec<Name>,
 }
