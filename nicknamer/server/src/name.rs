@@ -137,11 +137,7 @@ impl NameService<'_> {
         active_model.name = ActiveValue::Set(new_name.clone());
         let updated_model = active_model.update(self.db).await?;
 
-        Ok(Name::new(
-            updated_model.id as u32,
-            updated_model.discord_id as u64,
-            updated_model.name,
-        ))
+        Ok(Name::from(updated_model))
     }
 
     /// Retrieves all name entries from the database.
@@ -155,7 +151,7 @@ impl NameService<'_> {
             .all(self.db)
             .await?
             .into_iter()
-            .map(|model| Name::new(model.id as u32, model.discord_id as u64, model.name))
+            .map(Name::from)
             .collect();
         Ok(names)
     }
