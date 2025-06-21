@@ -5,6 +5,7 @@ use nicknamer_server::entities::name;
 use nicknamer_server::name::{NameState, create_name_router};
 use sea_orm::{ActiveModelTrait, DatabaseConnection, Set};
 use serde::Serialize;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use testcontainers_modules::{postgres, testcontainers};
 use tower::ServiceExt;
@@ -17,6 +18,7 @@ struct HttpResponseSnapshot {
     test_context: String,
     status: u16,
     content_type: Option<String>,
+    headers: std::collections::BTreeMap<String, String>,
     html_body: String,
 }
 
@@ -26,12 +28,14 @@ impl HttpResponseSnapshot {
         body_text: &str,
         status: StatusCode,
         content_type: Option<&str>,
+        headers: &axum::http::HeaderMap,
         test_context: &str,
     ) -> Self {
         Self {
             test_context: test_context.to_string(),
             status: status.as_u16(),
             content_type: content_type.map(|s| s.to_string()),
+            headers: filter_non_time_sensitive_headers(headers),
             html_body: normalize_html_for_snapshot(body_text),
         }
     }
@@ -42,6 +46,32 @@ fn normalize_html_for_snapshot(html: &str) -> String {
     // For now, return HTML as-is since we'll use deterministic test data
     // In the future, we could add more sophisticated normalization
     html.to_string()
+}
+
+/// Filter out time-sensitive headers from response headers for snapshot testing.
+fn filter_non_time_sensitive_headers(headers: &axum::http::HeaderMap) -> BTreeMap<String, String> {
+    let time_sensitive_headers = [
+        "date",
+        "expires",
+        "last-modified",
+        "etag",
+        "server",
+        "x-request-id",
+        "x-trace-id",
+        "set-cookie",
+    ];
+
+    headers
+        .iter()
+        .filter_map(|(name, value)| {
+            let name_str = name.as_str().to_lowercase();
+            if time_sensitive_headers.contains(&name_str.as_str()) {
+                None
+            } else {
+                value.to_str().ok().map(|v| (name_str, v.to_string()))
+            }
+        })
+        .collect()
 }
 
 /// Test context for endpoint tests.
@@ -97,6 +127,7 @@ async fn can_display_names_table_when_names_exist() {
 
     assert_eq!(response.status(), StatusCode::OK);
 
+    let headers = response.headers().clone();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
@@ -106,6 +137,7 @@ async fn can_display_names_table_when_names_exist() {
         body_text,
         StatusCode::OK,
         Some("text/html; charset=utf-8"),
+        &headers,
         "names_table_with_existing_names",
     );
 
@@ -130,6 +162,7 @@ async fn can_display_empty_names_table_when_no_names_exist() {
 
     assert_eq!(response.status(), StatusCode::OK);
 
+    let headers = response.headers().clone();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
@@ -139,6 +172,7 @@ async fn can_display_empty_names_table_when_no_names_exist() {
         body_text,
         StatusCode::OK,
         Some("text/html; charset=utf-8"),
+        &headers,
         "empty_names_table",
     );
 
@@ -167,6 +201,7 @@ async fn names_endpoint_returns_correct_content_type() {
         "text/html; charset=utf-8"
     );
 
+    let headers = response.headers().clone();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
@@ -176,6 +211,7 @@ async fn names_endpoint_returns_correct_content_type() {
         body_text,
         StatusCode::OK,
         Some("text/html; charset=utf-8"),
+        &headers,
         "names_endpoint_content_type_check",
     );
 
@@ -203,6 +239,7 @@ async fn can_create_name_successfully() {
 
     assert_eq!(response.status(), StatusCode::OK);
 
+    let headers = response.headers().clone();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
@@ -212,6 +249,7 @@ async fn can_create_name_successfully() {
         body_text,
         StatusCode::OK,
         Some("text/html; charset=utf-8"),
+        &headers,
         "create_name_successfully",
     );
 
@@ -240,6 +278,7 @@ async fn can_create_multiple_names_and_update_count() {
 
     assert_eq!(response.status(), StatusCode::OK);
 
+    let headers = response.headers().clone();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
@@ -249,6 +288,7 @@ async fn can_create_multiple_names_and_update_count() {
         body_text,
         StatusCode::OK,
         Some("text/html; charset=utf-8"),
+        &headers,
         "create_multiple_names_update_count",
     );
 
@@ -276,6 +316,7 @@ async fn can_handle_form_with_special_characters_in_name() {
 
     assert_eq!(response.status(), StatusCode::OK);
 
+    let headers = response.headers().clone();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
@@ -285,6 +326,7 @@ async fn can_handle_form_with_special_characters_in_name() {
         body_text,
         StatusCode::OK,
         Some("text/html; charset=utf-8"),
+        &headers,
         "form_with_special_characters",
     );
 
@@ -313,6 +355,7 @@ async fn can_serve_add_name_form() {
         "text/html; charset=utf-8"
     );
 
+    let headers = response.headers().clone();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
@@ -322,6 +365,7 @@ async fn can_serve_add_name_form() {
         body_text,
         StatusCode::OK,
         Some("text/html; charset=utf-8"),
+        &headers,
         "add_name_form",
     );
 
@@ -349,6 +393,7 @@ async fn post_endpoint_returns_table_fragment_not_full_page() {
 
     assert_eq!(response.status(), StatusCode::OK);
 
+    let headers = response.headers().clone();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
@@ -358,6 +403,7 @@ async fn post_endpoint_returns_table_fragment_not_full_page() {
         body_text,
         StatusCode::OK,
         Some("text/html; charset=utf-8"),
+        &headers,
         "table_fragment_not_full_page",
     );
 
@@ -400,6 +446,7 @@ async fn cannot_create_name_with_duplicate_discord_id() {
     // Should return 400 Bad Request for duplicate Discord ID
     assert_eq!(duplicate_response.status(), StatusCode::BAD_REQUEST);
 
+    let headers = duplicate_response.headers().clone();
     let body = axum::body::to_bytes(duplicate_response.into_body(), usize::MAX)
         .await
         .unwrap();
@@ -412,6 +459,7 @@ async fn cannot_create_name_with_duplicate_discord_id() {
         body_text,
         StatusCode::BAD_REQUEST,
         Some("text/html; charset=utf-8"),
+        &headers,
         "duplicate_discord_id_error",
     );
 
