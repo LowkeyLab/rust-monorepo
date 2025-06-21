@@ -285,7 +285,7 @@ async fn create_name_handler(
             let names = name_service.get_all_names().await?;
 
             // Render the main response (names table)
-            let table_template = NamesTableTemplate::new(names.clone());
+            let table_template = NamesTableTemplate::new(names);
             let table_html = table_template.render().map_err(NameError::from)?;
 
             Ok(Html(table_html))
