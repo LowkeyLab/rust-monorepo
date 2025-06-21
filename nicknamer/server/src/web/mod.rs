@@ -10,7 +10,7 @@ use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, Tr
 use tracing::Level;
 
 use crate::config;
-use crate::web::middleware::CorsExposeLayer;
+use crate::web::middleware::cors_expose_headers;
 
 pub mod middleware;
 
@@ -68,7 +68,7 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
                 .on_request(DefaultOnRequest::default())
                 .on_response(DefaultOnResponse::default()),
         )
-        .layer(CorsExposeLayer::new());
+        .layer(axum::middleware::from_fn(cors_expose_headers));
     let app = Router::new()
         .layer(middleware)
         .route("/health", axum::routing::get(health_check_handler))

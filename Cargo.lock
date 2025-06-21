@@ -2120,7 +2120,6 @@ dependencies = [
  "config",
  "migration",
  "mockall",
- "pin-project-lite",
  "sea-orm",
  "serde",
  "testcontainers-modules",
