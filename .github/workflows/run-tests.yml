@@ -4,9 +4,9 @@ permissions:
   pull-requests: write
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 env:
   CARGO_TERM_COLOR: always
@@ -14,6 +14,9 @@ env:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    env:
+      CI: true
+      CARGO_MAKE_DEFAULT_PROFILE: ci
     steps:
       - uses: actions/checkout@v4
         with:
@@ -23,7 +26,7 @@ jobs:
         with:
           tool: cargo-make,cargo-llvm-cov,cargo-insta
       - name: Run CI
-        run: cargo make --profile ci workspace-ci-flow
+        run: cargo make workspace-ci-flow
       - run: cargo llvm-cov --all-features --workspace --lcov --output-path codecov.json
       - uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24
         with:
