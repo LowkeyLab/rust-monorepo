@@ -47,18 +47,6 @@ pub fn create_login_router() -> Router<Arc<AuthState>> {
     Router::new().route("/login", axum::routing::post(login_handler))
 }
 
-/// Creates a router with authentication middleware.
-pub fn create_auth_router() -> Router<Arc<AuthState>> {
-    Router::new().layer(middleware::from_fn_with_state(
-        Arc::new(AuthState {
-            admin_username: String::new(),
-            admin_password: String::new(),
-            jwt_secret: String::new(),
-        }),
-        auth_middleware,
-    ))
-}
-
 /// Authentication middleware that checks for valid JWT tokens and sets CurrentUser extension.
 pub async fn auth_middleware(
     State(state): State<Arc<AuthState>>,
