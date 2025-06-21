@@ -1,7 +1,6 @@
 use axum::body::Body;
-use axum::extract::Extension;
 use axum::http::{Request, StatusCode};
-use nicknamer_server::name::{Name, NameService, create_name_router};
+use nicknamer_server::name::{Name, NameService, NameState, create_name_router};
 use sea_orm::DatabaseConnection;
 use std::sync::Arc;
 use testcontainers_modules::{postgres, testcontainers};
@@ -47,7 +46,10 @@ async fn can_display_names_table_when_names_exist() {
     let state = setup().await.expect("Failed to setup test context");
     let _test_names = create_test_names(&state.db).await;
 
-    let app = create_name_router().layer(Extension(Arc::new(state.db)));
+    let name_state = NameState {
+        db: Arc::new(state.db),
+    };
+    let app = create_name_router(name_state);
 
     let request = Request::builder()
         .uri("/names")
@@ -78,7 +80,10 @@ async fn can_display_names_table_when_names_exist() {
 async fn can_display_empty_names_table_when_no_names_exist() {
     let state = setup().await.expect("Failed to setup test context");
 
-    let app = create_name_router().layer(Extension(Arc::new(state.db)));
+    let name_state = NameState {
+        db: Arc::new(state.db),
+    };
+    let app = create_name_router(name_state);
 
     let request = Request::builder()
         .uri("/names")
@@ -103,7 +108,10 @@ async fn can_display_empty_names_table_when_no_names_exist() {
 async fn names_endpoint_returns_correct_content_type() {
     let state = setup().await.expect("Failed to setup test context");
 
-    let app = create_name_router().layer(Extension(Arc::new(state.db)));
+    let name_state = NameState {
+        db: Arc::new(state.db),
+    };
+    let app = create_name_router(name_state);
 
     let request = Request::builder()
         .uri("/names")

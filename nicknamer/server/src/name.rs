@@ -1,15 +1,8 @@
-use crate::{
-    auth::{AuthState, auth_middleware},
-    entities::*,
-};
+use crate::entities::*;
 use askama::Template;
-use axum::{
-    Router, extract::Extension, http::StatusCode, middleware::from_fn_with_state, response::Html,
-    routing::get,
-};
+use axum::{Router, extract::State, http::StatusCode, response::Html, routing::get};
 use sea_orm::*;
 use std::sync::Arc;
-use tower_http::trace::TraceLayer;
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub struct Name {
@@ -169,11 +162,9 @@ impl NamesTemplate {
 }
 
 /// Handler for the /names endpoint that displays all names in a table.
-#[tracing::instrument(skip(db))]
-async fn names_handler(
-    Extension(db): Extension<Arc<DatabaseConnection>>,
-) -> Result<Html<String>, NameError> {
-    let name_service = NameService::new(&db);
+#[tracing::instrument(skip(state))]
+async fn names_handler(State(state): State<NameState>) -> Result<Html<String>, NameError> {
+    let name_service = NameService::new(&state.db);
     let names = name_service.get_all_names().await?;
     let template = NamesTemplate::new(names);
     template.render().map(Html).map_err(NameError::from)
