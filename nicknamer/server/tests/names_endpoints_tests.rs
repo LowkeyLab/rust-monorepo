@@ -8,6 +8,122 @@ use tower::ServiceExt;
 
 mod common;
 
+/// Helper to validate names page contains all expected names and structure.
+fn assert_names_page_contains_names(body_text: &str, expected_names: &[Name]) {
+    // Verify page structure
+    assert!(body_text.contains("Names Database"), "Missing page title");
+    assert!(body_text.contains("Stored Names"), "Missing section header");
+
+    if expected_names.is_empty() {
+        assert!(
+            body_text.contains("No names found in the database"),
+            "Missing empty state message"
+        );
+    } else {
+        // Verify all names are present
+        for name in expected_names {
+            assert!(
+                body_text.contains(name.name()),
+                "Missing name: {}",
+                name.name()
+            );
+            assert!(
+                body_text.contains(&name.discord_id().to_string()),
+                "Missing discord ID: {}",
+                name.discord_id()
+            );
+            assert!(
+                body_text.contains(&name.id().to_string()),
+                "Missing name ID: {}",
+                name.id()
+            );
+        }
+
+        // Verify count is correct
+        assert!(
+            body_text.contains("Total Names"),
+            "Missing total names label"
+        );
+        assert!(
+            body_text.contains(&expected_names.len().to_string()),
+            "Incorrect name count, expected: {}",
+            expected_names.len()
+        );
+    }
+}
+
+/// Helper to validate table fragment contains expected names without full page structure.
+fn assert_table_fragment_contains_names(body_text: &str, expected_names: &[Name]) {
+    // Should contain table identifier
+    assert!(
+        body_text.contains(r#"id="names-table""#),
+        "Missing table ID"
+    );
+
+    if expected_names.is_empty() {
+        assert!(
+            body_text.contains("No names found in the database"),
+            "Missing empty state in table fragment"
+        );
+    } else {
+        // Verify all names are present
+        for name in expected_names {
+            assert!(
+                body_text.contains(name.name()),
+                "Missing name in table fragment: {}",
+                name.name()
+            );
+            assert!(
+                body_text.contains(&name.discord_id().to_string()),
+                "Missing discord ID in table fragment: {}",
+                name.discord_id()
+            );
+        }
+
+        // Verify count is present
+        assert!(
+            body_text.contains(&expected_names.len().to_string()),
+            "Missing correct count in table fragment: {}",
+            expected_names.len()
+        );
+    }
+
+    // Should NOT contain full page elements
+    assert!(
+        !body_text.contains("navbar"),
+        "Table fragment should not contain navbar"
+    );
+    assert!(
+        !body_text.contains("Names Database"),
+        "Table fragment should not contain page title"
+    );
+    assert!(
+        !body_text.contains("← Back"),
+        "Table fragment should not contain navigation"
+    );
+}
+
+/// Helper to validate add name form contains expected form elements.
+fn assert_add_name_form_is_valid(body_text: &str) {
+    let expected_elements = [
+        "Add New Name",
+        "Discord ID",
+        "Name",
+        "<form",
+        r#"hx-post="/names""#,
+        "input",
+        r#"type="submit""#,
+    ];
+
+    for element in expected_elements {
+        assert!(
+            body_text.contains(element),
+            "Add name form missing expected element: {}",
+            element
+        );
+    }
+}
+
 /// Test context for endpoint tests.
 pub struct TestContext {
     #[allow(dead_code)] // container is kept to ensure it's not dropped
@@ -44,7 +160,7 @@ async fn create_test_names(db: &DatabaseConnection) -> Vec<Name> {
 #[tokio::test]
 async fn can_display_names_table_when_names_exist() {
     let state = setup().await.expect("Failed to setup test context");
-    let _test_names = create_test_names(&state.db).await;
+    let test_names = create_test_names(&state.db).await;
 
     let name_state = NameState {
         db: Arc::new(state.db),
@@ -65,15 +181,7 @@ async fn can_display_names_table_when_names_exist() {
         .unwrap();
     let body_text = std::str::from_utf8(&body).unwrap();
 
-    // Check that the page contains the expected content
-    assert!(body_text.contains("Names Database"));
-    assert!(body_text.contains("Stored Names"));
-    assert!(body_text.contains("TestUser1"));
-    assert!(body_text.contains("TestUser2"));
-    assert!(body_text.contains("123456789"));
-    assert!(body_text.contains("987654321"));
-    assert!(body_text.contains("Total Names"));
-    assert!(body_text.contains("2")); // Should show count of 2 names
+    assert_names_page_contains_names(body_text, &test_names);
 }
 
 #[tokio::test]
@@ -99,9 +207,7 @@ async fn can_display_empty_names_table_when_no_names_exist() {
         .unwrap();
     let body_text = std::str::from_utf8(&body).unwrap();
 
-    // Check that the page shows empty state
-    assert!(body_text.contains("Names Database"));
-    assert!(body_text.contains("No names found in the database"));
+    assert_names_page_contains_names(body_text, &[]);
 }
 
 #[tokio::test]
@@ -153,18 +259,15 @@ async fn can_create_name_successfully() {
         .unwrap();
     let body_text = std::str::from_utf8(&body).unwrap();
 
-    // Check that the response contains the newly created name
-    assert!(body_text.contains("NewTestUser"));
-    assert!(body_text.contains("555666777"));
-    assert!(body_text.contains("Total Names"));
-    assert!(body_text.contains("1")); // Should show count of 1 name
-
     // Verify the name was actually created in the database
     let name_service = NameService::new(&name_state.db);
     let names = name_service.get_all_names().await.unwrap();
     assert_eq!(names.len(), 1);
     assert_eq!(names[0].name(), "NewTestUser");
     assert_eq!(names[0].discord_id(), 555666777);
+
+    // Verify the response contains the table fragment with the new name
+    assert_table_fragment_contains_names(body_text, &names);
 }
 
 #[tokio::test]
@@ -194,17 +297,13 @@ async fn can_create_multiple_names_and_update_count() {
         .unwrap();
     let body_text = std::str::from_utf8(&body).unwrap();
 
-    // Check that all names are present in the response
-    assert!(body_text.contains("TestUser1"));
-    assert!(body_text.contains("TestUser2"));
-    assert!(body_text.contains("ThirdUser"));
-    assert!(body_text.contains("Total Names"));
-    assert!(body_text.contains("3")); // Should show count of 3 names
-
     // Verify all names exist in the database
     let name_service = NameService::new(&name_state.db);
     let names = name_service.get_all_names().await.unwrap();
     assert_eq!(names.len(), 3);
+
+    // Verify the response contains the table fragment with all names
+    assert_table_fragment_contains_names(body_text, &names);
 }
 
 #[tokio::test]
@@ -233,16 +332,15 @@ async fn can_handle_form_with_special_characters_in_name() {
         .unwrap();
     let body_text = std::str::from_utf8(&body).unwrap();
 
-    // Check that the name with special characters is handled correctly
-    assert!(body_text.contains("User With Spaces!"));
-    assert!(body_text.contains("888999000"));
-
     // Verify the name was stored correctly in the database
     let name_service = NameService::new(&name_state.db);
     let names = name_service.get_all_names().await.unwrap();
     assert_eq!(names.len(), 1);
     assert_eq!(names[0].name(), "User With Spaces!");
     assert_eq!(names[0].discord_id(), 888999000);
+
+    // Verify the response contains the table fragment with the special characters name
+    assert_table_fragment_contains_names(body_text, &names);
 }
 
 #[tokio::test]
@@ -272,14 +370,7 @@ async fn can_serve_add_name_form() {
         .unwrap();
     let body_text = std::str::from_utf8(&body).unwrap();
 
-    // Check that the form contains expected elements
-    assert!(body_text.contains("Add New Name"));
-    assert!(body_text.contains("Discord ID"));
-    assert!(body_text.contains("Name"));
-    assert!(body_text.contains("<form"));
-    assert!(body_text.contains("hx-post=\"/names\""));
-    assert!(body_text.contains("input"));
-    assert!(body_text.contains("type=\"submit\""));
+    assert_add_name_form_is_valid(body_text);
 }
 
 #[tokio::test]
@@ -289,7 +380,7 @@ async fn post_endpoint_returns_table_fragment_not_full_page() {
     let name_state = NameState {
         db: Arc::new(state.db),
     };
-    let app = create_name_router(name_state);
+    let app = create_name_router(name_state.clone());
 
     let form_data = "discord_id=777888999&name=FragmentTestUser";
     let request = Request::builder()
@@ -308,13 +399,13 @@ async fn post_endpoint_returns_table_fragment_not_full_page() {
         .unwrap();
     let body_text = std::str::from_utf8(&body).unwrap();
 
-    // Should contain the table data but not the full page structure
-    assert!(body_text.contains("FragmentTestUser"));
-    assert!(body_text.contains("777888999"));
-    assert!(body_text.contains("id=\"names-table\""));
+    // Verify the name was created in the database
+    let name_service = NameService::new(&name_state.db);
+    let names = name_service.get_all_names().await.unwrap();
+    assert_eq!(names.len(), 1);
+    assert_eq!(names[0].name(), "FragmentTestUser");
+    assert_eq!(names[0].discord_id(), 777888999);
 
-    // Should NOT contain full page elements (navbar, footer, etc.)
-    assert!(!body_text.contains("navbar"));
-    assert!(!body_text.contains("Names Database"));
-    assert!(!body_text.contains("← Back"));
+    // Verify the response is a table fragment, not a full page
+    assert_table_fragment_contains_names(body_text, &names);
 }
