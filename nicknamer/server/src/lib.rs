@@ -128,4 +128,5 @@ pub mod name {
     }
 }
 
+pub mod auth;
 pub mod web;
