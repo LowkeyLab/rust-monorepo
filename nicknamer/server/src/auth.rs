@@ -2,8 +2,7 @@ use askama::Template;
 use axum::extract::{Form, State};
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
 use axum::response::{Html, IntoResponse, Response};
-use chrono::{Duration, Utc};
-use jsonwebtoken::{EncodingKey, Header, encode};
+use jsonwebtoken::encode;
 
 use crate::web::AppState;
 
@@ -142,6 +141,7 @@ mod tests {
             port: 8080,
             admin_username: "admin".to_string(),
             admin_password: "password".to_string(),
+            jwt_secret: "some_secret".to_string(),
         };
         let app = test_app(config).await;
 
@@ -175,6 +175,7 @@ mod tests {
             port: 8080,
             admin_username: "admin".to_string(),
             admin_password: "password".to_string(),
+            jwt_secret: "some_secret".to_string(),
         };
         let app = test_app(config).await;
 
