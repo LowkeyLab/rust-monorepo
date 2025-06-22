@@ -1,6 +1,6 @@
 use nicknamer_server::entities::name;
 use nicknamer_server::name::NameService;
-use sea_orm::{ActiveModelTrait, ActiveValue, DatabaseConnection};
+use sea_orm::{ActiveModelTrait, ActiveValue, DatabaseConnection, EntityTrait};
 use testcontainers_modules::{postgres, testcontainers};
 
 mod common;
@@ -202,10 +202,10 @@ async fn can_delete_name() {
         .expect("Failed to create name");
 
     // Verify it was created
-    let names_before = name_service
-        .get_all_names()
+    let names_before = name::Entity::find()
+        .all(&state.db)
         .await
-        .expect("Failed to get all names");
+        .expect("Failed to get all names from database");
     assert_eq!(names_before.len(), 1);
 
     // Delete the name
@@ -220,10 +220,10 @@ async fn can_delete_name() {
     assert_eq!(deleted_name.name(), &name);
 
     // Verify it was deleted
-    let names_after = name_service
-        .get_all_names()
+    let names_after = name::Entity::find()
+        .all(&state.db)
         .await
-        .expect("Failed to get all names");
+        .expect("Failed to get all names from database");
     assert!(names_after.is_empty());
 }
 
