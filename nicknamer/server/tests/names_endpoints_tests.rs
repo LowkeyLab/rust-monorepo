@@ -12,6 +12,19 @@ use tower::ServiceExt;
 
 mod common;
 
+/// Headers that vary between test runs and should be filtered out for stable snapshots.
+const VARIABLE_HEADERS: &[&str] = &[
+    "date",
+    "expires",
+    "last-modified",
+    "etag",
+    "server",
+    "x-request-id",
+    "x-trace-id",
+    "set-cookie",
+    "content-length",
+];
+
 /// HTTP response snapshot for testing endpoints.
 #[derive(Debug, Serialize)]
 struct HttpResponseSnapshot {
@@ -32,7 +45,7 @@ impl HttpResponseSnapshot {
         Self {
             test_context: test_context.to_string(),
             status: status.as_u16(),
-            headers: filter_non_time_sensitive_headers(headers),
+            headers: filter_variable_headers(headers),
             html_body: normalize_html_for_snapshot(body_text),
         }
     }
@@ -45,24 +58,13 @@ fn normalize_html_for_snapshot(html: &str) -> Vec<String> {
     html.lines().map(|line| line.to_string()).collect()
 }
 
-/// Filter out time-sensitive headers from response headers for snapshot testing.
-fn filter_non_time_sensitive_headers(headers: &axum::http::HeaderMap) -> BTreeMap<String, String> {
-    let time_sensitive_headers = [
-        "date",
-        "expires",
-        "last-modified",
-        "etag",
-        "server",
-        "x-request-id",
-        "x-trace-id",
-        "set-cookie",
-    ];
-
+/// Filter out variable headers from response headers for snapshot testing.
+fn filter_variable_headers(headers: &axum::http::HeaderMap) -> BTreeMap<String, String> {
     headers
         .iter()
         .filter_map(|(name, value)| {
             let name_str = name.as_str().to_lowercase();
-            if time_sensitive_headers.contains(&name_str.as_str()) {
+            if VARIABLE_HEADERS.contains(&name_str.as_str()) {
                 None
             } else {
                 value.to_str().ok().map(|v| (name_str, v.to_string()))
