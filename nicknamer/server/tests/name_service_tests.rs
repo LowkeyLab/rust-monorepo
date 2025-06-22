@@ -205,3 +205,57 @@ async fn cannot_create_name_with_duplicate_discord_id() {
         assert!(e.to_string().contains("already exists"));
     }
 }
+
+#[tokio::test]
+async fn can_delete_name() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_service = NameService::new(&state.db);
+
+    // Create a name to delete
+    let discord_id = 123456789;
+    let name = "TestUser".to_string();
+    let created_name = name_service
+        .create_name(discord_id, name.clone())
+        .await
+        .expect("Failed to create name");
+
+    // Verify it was created
+    let names_before = name_service
+        .get_all_names()
+        .await
+        .expect("Failed to get all names");
+    assert_eq!(names_before.len(), 1);
+
+    // Delete the name
+    let deleted_name = name_service
+        .delete_name_by_id(created_name.id())
+        .await
+        .expect("Failed to delete name");
+
+    // Verify the deleted name matches what was created
+    assert_eq!(deleted_name.id(), created_name.id());
+    assert_eq!(deleted_name.discord_id(), discord_id);
+    assert_eq!(deleted_name.name(), &name);
+
+    // Verify it was deleted
+    let names_after = name_service
+        .get_all_names()
+        .await
+        .expect("Failed to get all names");
+    assert!(names_after.is_empty());
+}
+
+#[tokio::test]
+async fn can_handle_delete_when_name_not_found() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_service = NameService::new(&state.db);
+
+    // Try to delete a non-existent name
+    let result = name_service.delete_name_by_id(999).await;
+
+    // Should return an error
+    assert!(result.is_err());
+    if let Err(e) = result {
+        assert!(e.to_string().contains("not found") || e.to_string().contains("NameNotFound"));
+    }
+}
