@@ -421,14 +421,14 @@ async fn update_name_handler(
 
     match name_service.edit_name_by_id(id, form.name).await {
         Ok(_) => {
-            // Get updated names for the table
-            let names = name_service.get_all_names().await?;
+            // Get the updated name to render just this row
+            let updated_name = name_service.get_name_by_id(id).await?;
 
-            // Render the updated names table
-            let table_template = NamesTableTemplate::new(names);
-            let table_html = table_template.render().map_err(NameError::from)?;
+            // Render only the updated name row
+            let row_template = NameRowTemplate::new(updated_name);
+            let row_html = row_template.render().map_err(NameError::from)?;
 
-            Ok(Html(table_html))
+            Ok(Html(row_html))
         }
         Err(err) => Err(NameError::Service(err)),
     }

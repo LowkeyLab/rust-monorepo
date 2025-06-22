@@ -4,8 +4,8 @@
     <form
       id="edit-form-{{ name.id }}"
       hx-put="/names/{{ name.id }}"
-      hx-target="#names-table"
-      hx-swap="innerHTML"
+      hx-target="closest tr"
+      hx-swap="outerHTML"
       class="inline-block"
     >
       <input
