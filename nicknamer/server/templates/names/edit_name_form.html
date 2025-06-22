@@ -6,13 +6,14 @@
       hx-put="/names/{{ name.id }}"
       hx-target="#names-table"
       hx-swap="innerHTML"
-      class="inline-block w-full"
+      class="inline-block"
     >
       <input
         type="text"
         name="name"
         value="{{ name.name }}"
-        class="input input-bordered input-sm w-full"
+        class="input input-bordered input-sm"
+        style="width: 100%; max-width: 200px; min-width: 120px"
         required
       />
     </form>
