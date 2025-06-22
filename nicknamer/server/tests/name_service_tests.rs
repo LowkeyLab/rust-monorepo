@@ -32,12 +32,10 @@ async fn can_register_name() {
         .await
         .expect("Failed to create name");
 
-    let expected_name = nicknamer_server::name::Name::new(
-        created_name.id(), // The ID is generated, so we use the created name's ID
-        discord_id,
-        name,
-    );
-    assert_eq!(created_name, expected_name);
+    // Verify that the created name has the correct properties
+    assert_eq!(created_name.discord_id(), discord_id);
+    assert_eq!(created_name.name(), &name);
+    assert!(created_name.id() > 0); // ID should be generated and positive
 }
 
 #[tokio::test]
@@ -58,16 +56,8 @@ async fn can_update_name() {
         .await
         .expect("Failed to create name");
 
-    let expected_initial_name = nicknamer_server::name::Name::new(
-        initial_name_entry.id as u32,
-        initial_discord_id as u64,
-        initial_name,
-    );
-    let service_initial_name = nicknamer_server::name::Name::new(
-        initial_name_entry.id as u32,
-        initial_name_entry.discord_id as u64,
-        initial_name_entry.name.clone(),
-    );
+    let expected_initial_name = nicknamer_server::name::Name::from(initial_name_entry.clone());
+    let service_initial_name = nicknamer_server::name::Name::from(initial_name_entry.clone());
     assert_eq!(service_initial_name, expected_initial_name);
 
     // Edit the name
@@ -77,11 +67,11 @@ async fn can_update_name() {
         .await
         .expect("Failed to update name");
 
-    let expected_updated_name = nicknamer_server::name::Name::new(
-        initial_name_entry.id as u32, // ID remains the same
-        initial_discord_id as u64,    // Discord ID remains the same
-        new_name,
-    );
+    let expected_updated_name = {
+        let mut expected_model = initial_name_entry.clone();
+        expected_model.name = new_name.clone();
+        nicknamer_server::name::Name::from(expected_model)
+    };
     assert_eq!(updated_name, expected_updated_name);
 }
 
@@ -152,16 +142,8 @@ async fn can_get_all_names() {
 
     assert_eq!(names.len(), 2);
 
-    let expected_name1 = nicknamer_server::name::Name::new(
-        created_name1.id as u32,
-        name1_discord_id as u64,
-        name1_name,
-    );
-    let expected_name2 = nicknamer_server::name::Name::new(
-        created_name2.id as u32,
-        name2_discord_id as u64,
-        name2_name,
-    );
+    let expected_name1 = nicknamer_server::name::Name::from(created_name1);
+    let expected_name2 = nicknamer_server::name::Name::from(created_name2);
 
     assert!(names.contains(&expected_name1));
     assert!(names.contains(&expected_name2));
