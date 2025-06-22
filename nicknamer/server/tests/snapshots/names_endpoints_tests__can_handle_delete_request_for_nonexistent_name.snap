@@ -4,7 +4,6 @@ expression: snapshot_data
 ---
 test_context: delete_nonexistent_name_error
 status: 500
-content_type: text/html; charset=utf-8
 headers:
   content-length: "458"
   content-type: text/html; charset=utf-8

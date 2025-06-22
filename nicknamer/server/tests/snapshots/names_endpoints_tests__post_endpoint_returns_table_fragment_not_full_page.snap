@@ -4,7 +4,6 @@ expression: snapshot_data
 ---
 test_context: table_fragment_not_full_page
 status: 200
-content_type: text/html; charset=utf-8
 headers:
   content-length: "1374"
   content-type: text/html; charset=utf-8

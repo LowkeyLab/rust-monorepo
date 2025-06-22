@@ -4,7 +4,6 @@ expression: snapshot_data
 ---
 test_context: add_name_form
 status: 200
-content_type: text/html; charset=utf-8
 headers:
   content-length: "1640"
   content-type: text/html; charset=utf-8

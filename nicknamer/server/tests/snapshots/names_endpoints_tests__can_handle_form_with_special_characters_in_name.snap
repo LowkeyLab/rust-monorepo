@@ -4,7 +4,6 @@ expression: snapshot_data
 ---
 test_context: form_with_special_characters
 status: 200
-content_type: text/html; charset=utf-8
 headers:
   content-length: "1375"
   content-type: text/html; charset=utf-8

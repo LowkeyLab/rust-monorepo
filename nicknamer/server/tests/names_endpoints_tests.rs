@@ -17,7 +17,6 @@ mod common;
 struct HttpResponseSnapshot {
     test_context: String,
     status: u16,
-    content_type: Option<String>,
     headers: std::collections::BTreeMap<String, String>,
     html_body: Vec<String>,
 }
@@ -27,14 +26,12 @@ impl HttpResponseSnapshot {
     fn new(
         body_text: &str,
         status: StatusCode,
-        content_type: Option<&str>,
         headers: &axum::http::HeaderMap,
         test_context: &str,
     ) -> Self {
         Self {
             test_context: test_context.to_string(),
             status: status.as_u16(),
-            content_type: content_type.map(|s| s.to_string()),
             headers: filter_non_time_sensitive_headers(headers),
             html_body: normalize_html_for_snapshot(body_text),
         }
@@ -137,8 +134,7 @@ async fn can_display_names_table_when_names_exist() {
 
     let response = app.oneshot(request).await.unwrap();
 
-    assert_eq!(response.status(), StatusCode::OK);
-
+    let status = response.status();
     let headers = response.headers().clone();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
@@ -147,8 +143,7 @@ async fn can_display_names_table_when_names_exist() {
 
     let snapshot_data = HttpResponseSnapshot::new(
         body_text,
-        StatusCode::OK,
-        Some("text/html; charset=utf-8"),
+        status,
         &headers,
         "names_table_with_existing_names",
     );
@@ -172,21 +167,14 @@ async fn can_display_empty_names_table_when_no_names_exist() {
 
     let response = app.oneshot(request).await.unwrap();
 
-    assert_eq!(response.status(), StatusCode::OK);
-
+    let status = response.status();
     let headers = response.headers().clone();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
     let body_text = std::str::from_utf8(&body).unwrap();
 
-    let snapshot_data = HttpResponseSnapshot::new(
-        body_text,
-        StatusCode::OK,
-        Some("text/html; charset=utf-8"),
-        &headers,
-        "empty_names_table",
-    );
+    let snapshot_data = HttpResponseSnapshot::new(body_text, status, &headers, "empty_names_table");
 
     assert_yaml_snapshot!(snapshot_data);
 }
@@ -207,12 +195,7 @@ async fn names_endpoint_returns_correct_content_type() {
 
     let response = app.oneshot(request).await.unwrap();
 
-    assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(
-        response.headers().get("content-type").unwrap(),
-        "text/html; charset=utf-8"
-    );
-
+    let status = response.status();
     let headers = response.headers().clone();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
@@ -221,8 +204,7 @@ async fn names_endpoint_returns_correct_content_type() {
 
     let snapshot_data = HttpResponseSnapshot::new(
         body_text,
-        StatusCode::OK,
-        Some("text/html; charset=utf-8"),
+        status,
         &headers,
         "names_endpoint_content_type_check",
     );
@@ -249,21 +231,15 @@ async fn can_create_name_successfully() {
 
     let response = app.oneshot(request).await.unwrap();
 
-    assert_eq!(response.status(), StatusCode::OK);
-
+    let status = response.status();
     let headers = response.headers().clone();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
     let body_text = std::str::from_utf8(&body).unwrap();
 
-    let snapshot_data = HttpResponseSnapshot::new(
-        body_text,
-        StatusCode::OK,
-        Some("text/html; charset=utf-8"),
-        &headers,
-        "create_name_successfully",
-    );
+    let snapshot_data =
+        HttpResponseSnapshot::new(body_text, status, &headers, "create_name_successfully");
 
     assert_yaml_snapshot!(snapshot_data);
 }
@@ -288,8 +264,7 @@ async fn can_create_multiple_names_and_update_count() {
 
     let response = app.oneshot(request).await.unwrap();
 
-    assert_eq!(response.status(), StatusCode::OK);
-
+    let status = response.status();
     let headers = response.headers().clone();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
@@ -298,8 +273,7 @@ async fn can_create_multiple_names_and_update_count() {
 
     let snapshot_data = HttpResponseSnapshot::new(
         body_text,
-        StatusCode::OK,
-        Some("text/html; charset=utf-8"),
+        status,
         &headers,
         "create_multiple_names_update_count",
     );
@@ -326,21 +300,15 @@ async fn can_handle_form_with_special_characters_in_name() {
 
     let response = app.oneshot(request).await.unwrap();
 
-    assert_eq!(response.status(), StatusCode::OK);
-
+    let status = response.status();
     let headers = response.headers().clone();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
     let body_text = std::str::from_utf8(&body).unwrap();
 
-    let snapshot_data = HttpResponseSnapshot::new(
-        body_text,
-        StatusCode::OK,
-        Some("text/html; charset=utf-8"),
-        &headers,
-        "form_with_special_characters",
-    );
+    let snapshot_data =
+        HttpResponseSnapshot::new(body_text, status, &headers, "form_with_special_characters");
 
     assert_yaml_snapshot!(snapshot_data);
 }
@@ -361,25 +329,14 @@ async fn can_serve_add_name_form() {
 
     let response = app.oneshot(request).await.unwrap();
 
-    assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(
-        response.headers().get("content-type").unwrap(),
-        "text/html; charset=utf-8"
-    );
-
+    let status = response.status();
     let headers = response.headers().clone();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
     let body_text = std::str::from_utf8(&body).unwrap();
 
-    let snapshot_data = HttpResponseSnapshot::new(
-        body_text,
-        StatusCode::OK,
-        Some("text/html; charset=utf-8"),
-        &headers,
-        "add_name_form",
-    );
+    let snapshot_data = HttpResponseSnapshot::new(body_text, status, &headers, "add_name_form");
 
     assert_yaml_snapshot!(snapshot_data);
 }
@@ -403,21 +360,15 @@ async fn post_endpoint_returns_table_fragment_not_full_page() {
 
     let response = app.oneshot(request).await.unwrap();
 
-    assert_eq!(response.status(), StatusCode::OK);
-
+    let status = response.status();
     let headers = response.headers().clone();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
     let body_text = std::str::from_utf8(&body).unwrap();
 
-    let snapshot_data = HttpResponseSnapshot::new(
-        body_text,
-        StatusCode::OK,
-        Some("text/html; charset=utf-8"),
-        &headers,
-        "table_fragment_not_full_page",
-    );
+    let snapshot_data =
+        HttpResponseSnapshot::new(body_text, status, &headers, "table_fragment_not_full_page");
 
     assert_yaml_snapshot!(snapshot_data);
 }
@@ -440,8 +391,7 @@ async fn cannot_create_name_with_duplicate_discord_id() {
         .body(Body::from(form_data))
         .unwrap();
 
-    let response = app.oneshot(request).await.unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
+    let _response = app.oneshot(request).await.unwrap();
 
     // Now try to create another name with the same Discord ID
     let duplicate_form_data = "discord_id=123456789&name=SecondUser";
@@ -467,7 +417,6 @@ async fn cannot_create_name_with_duplicate_discord_id() {
     let snapshot_data = HttpResponseSnapshot::new(
         body_text,
         StatusCode::UNPROCESSABLE_ENTITY,
-        Some("text/html; charset=utf-8"),
         &headers,
         "duplicate_discord_id_error",
     );
@@ -493,8 +442,7 @@ async fn can_delete_name_successfully() {
 
     let response = app.oneshot(request).await.unwrap();
 
-    assert_eq!(response.status(), StatusCode::OK);
-
+    let status = response.status();
     let headers = response.headers().clone();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
@@ -504,13 +452,8 @@ async fn can_delete_name_successfully() {
     // Should return the updated names table (empty in this case)
     assert!(body_text.contains("No names found in the database"));
 
-    let snapshot_data = HttpResponseSnapshot::new(
-        body_text,
-        StatusCode::OK,
-        Some("text/html; charset=utf-8"),
-        &headers,
-        "delete_name_successfully",
-    );
+    let snapshot_data =
+        HttpResponseSnapshot::new(body_text, status, &headers, "delete_name_successfully");
 
     assert_yaml_snapshot!(snapshot_data);
 }
@@ -536,8 +479,7 @@ async fn can_delete_name_and_update_table_count() {
 
     let response = app.oneshot(request).await.unwrap();
 
-    assert_eq!(response.status(), StatusCode::OK);
-
+    let status = response.status();
     let headers = response.headers().clone();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
@@ -552,8 +494,7 @@ async fn can_delete_name_and_update_table_count() {
 
     let snapshot_data = HttpResponseSnapshot::new(
         body_text,
-        StatusCode::OK,
-        Some("text/html; charset=utf-8"),
+        status,
         &headers,
         "delete_name_and_update_table_count",
     );
@@ -579,9 +520,7 @@ async fn can_handle_delete_request_for_nonexistent_name() {
 
     let response = app.oneshot(request).await.unwrap();
 
-    // Should return an error status
-    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
-
+    let status = response.status();
     let headers = response.headers().clone();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
@@ -591,13 +530,8 @@ async fn can_handle_delete_request_for_nonexistent_name() {
     // Should contain error message
     assert!(body_text.contains("An unexpected error occurred"));
 
-    let snapshot_data = HttpResponseSnapshot::new(
-        body_text,
-        StatusCode::INTERNAL_SERVER_ERROR,
-        Some("text/html; charset=utf-8"),
-        &headers,
-        "delete_nonexistent_name_error",
-    );
+    let snapshot_data =
+        HttpResponseSnapshot::new(body_text, status, &headers, "delete_nonexistent_name_error");
 
     assert_yaml_snapshot!(snapshot_data);
 }
@@ -620,8 +554,7 @@ async fn delete_endpoint_returns_table_fragment_not_full_page() {
 
     let response = app.oneshot(request).await.unwrap();
 
-    assert_eq!(response.status(), StatusCode::OK);
-
+    let status = response.status();
     let headers = response.headers().clone();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
@@ -636,13 +569,8 @@ async fn delete_endpoint_returns_table_fragment_not_full_page() {
     // Should contain the table structure or empty message
     assert!(body_text.contains("No names found") || body_text.contains("<table"));
 
-    let snapshot_data = HttpResponseSnapshot::new(
-        body_text,
-        StatusCode::OK,
-        Some("text/html; charset=utf-8"),
-        &headers,
-        "delete_returns_table_fragment",
-    );
+    let snapshot_data =
+        HttpResponseSnapshot::new(body_text, status, &headers, "delete_returns_table_fragment");
 
     assert_yaml_snapshot!(snapshot_data);
 }
@@ -665,12 +593,7 @@ async fn delete_endpoint_returns_correct_content_type() {
 
     let response = app.oneshot(request).await.unwrap();
 
-    assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(
-        response.headers().get("content-type").unwrap(),
-        "text/html; charset=utf-8"
-    );
-
+    let status = response.status();
     let headers = response.headers().clone();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
@@ -679,8 +602,7 @@ async fn delete_endpoint_returns_correct_content_type() {
 
     let snapshot_data = HttpResponseSnapshot::new(
         body_text,
-        StatusCode::OK,
-        Some("text/html; charset=utf-8"),
+        status,
         &headers,
         "delete_endpoint_content_type_check",
     );

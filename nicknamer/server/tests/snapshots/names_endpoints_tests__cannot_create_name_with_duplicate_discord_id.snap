@@ -4,7 +4,6 @@ expression: snapshot_data
 ---
 test_context: duplicate_discord_id_error
 status: 422
-content_type: text/html; charset=utf-8
 headers:
   content-length: "458"
   content-type: text/html; charset=utf-8

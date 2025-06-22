@@ -4,7 +4,6 @@ expression: snapshot_data
 ---
 test_context: names_table_with_existing_names
 status: 200
-content_type: text/html; charset=utf-8
 headers:
   content-length: "4805"
   content-type: text/html; charset=utf-8

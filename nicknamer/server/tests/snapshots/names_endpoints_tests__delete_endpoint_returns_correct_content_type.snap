@@ -4,7 +4,6 @@ expression: snapshot_data
 ---
 test_context: delete_endpoint_content_type_check
 status: 200
-content_type: text/html; charset=utf-8
 headers:
   content-length: "645"
   content-type: text/html; charset=utf-8
