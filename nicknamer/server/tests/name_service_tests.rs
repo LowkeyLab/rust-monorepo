@@ -193,13 +193,19 @@ async fn can_delete_name() {
     let state = setup().await.expect("Failed to setup test context");
     let name_service = NameService::new(&state.db);
 
-    // Create a name to delete
-    let discord_id = 123456789;
+    // Create a name to delete using ActiveModel
+    let discord_id: i64 = 123456789;
     let name = "TestUser".to_string();
-    let created_name = name_service
-        .create_name(discord_id, name.clone())
+    let active_model = name::ActiveModel {
+        discord_id: ActiveValue::Set(discord_id),
+        name: ActiveValue::Set(name.clone()),
+        ..Default::default()
+    };
+    let created_name_model = active_model
+        .insert(&state.db)
         .await
         .expect("Failed to create name");
+    let created_name = nicknamer_server::name::Name::from(created_name_model);
 
     // Verify it was created
     let names_before = name::Entity::find()
@@ -216,7 +222,7 @@ async fn can_delete_name() {
 
     // Verify the deleted name matches what was created
     assert_eq!(deleted_name.id(), created_name.id());
-    assert_eq!(deleted_name.discord_id(), discord_id);
+    assert_eq!(deleted_name.discord_id(), discord_id as u64);
     assert_eq!(deleted_name.name(), &name);
 
     // Verify it was deleted
