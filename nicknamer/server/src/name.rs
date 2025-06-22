@@ -434,23 +434,6 @@ async fn update_name_handler(
     }
 }
 
-/// Handler for canceling edit mode and returning to view mode.
-#[tracing::instrument(skip(state))]
-async fn cancel_edit_handler(
-    State(state): State<NameState>,
-    axum::extract::Path(id): axum::extract::Path<u32>,
-) -> Result<Html<String>, NameError> {
-    let name_service = NameService::new(&state.db);
-
-    match name_service.get_name_by_id(id).await {
-        Ok(name) => {
-            let template = NameRowTemplate::new(name);
-            template.render().map(Html).map_err(NameError::from)
-        }
-        Err(err) => Err(NameError::Service(err)),
-    }
-}
-
 /// Handler for GET /names/{id} that returns a single name row.
 #[tracing::instrument(skip(state))]
 async fn get_name_row_handler(
@@ -480,6 +463,5 @@ pub fn create_name_router(state: NameState) -> Router {
                 .put(update_name_handler),
         )
         .route("/names/{id}/edit", get(edit_name_handler))
-        .route("/names/{id}/cancel", get(cancel_edit_handler))
         .with_state(state)
 }
