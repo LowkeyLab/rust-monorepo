@@ -12,6 +12,19 @@ use tower::ServiceExt;
 
 mod common;
 
+/// Headers that vary between test runs and should be filtered out for stable snapshots.
+const VARIABLE_HEADERS: &[&str] = &[
+    "date",
+    "expires",
+    "last-modified",
+    "etag",
+    "server",
+    "x-request-id",
+    "x-trace-id",
+    "set-cookie",
+    "content-length",
+];
+
 /// HTTP response snapshot for testing endpoints.
 #[derive(Debug, Serialize)]
 struct HttpResponseSnapshot {
@@ -47,23 +60,11 @@ fn normalize_html_for_snapshot(html: &str) -> Vec<String> {
 
 /// Filter out variable headers from response headers for snapshot testing.
 fn filter_variable_headers(headers: &axum::http::HeaderMap) -> BTreeMap<String, String> {
-    let variable_headers = [
-        "date",
-        "expires",
-        "last-modified",
-        "etag",
-        "server",
-        "x-request-id",
-        "x-trace-id",
-        "set-cookie",
-        "content-length",
-    ];
-
     headers
         .iter()
         .filter_map(|(name, value)| {
             let name_str = name.as_str().to_lowercase();
-            if variable_headers.contains(&name_str.as_str()) {
+            if VARIABLE_HEADERS.contains(&name_str.as_str()) {
                 None
             } else {
                 value.to_str().ok().map(|v| (name_str, v.to_string()))
