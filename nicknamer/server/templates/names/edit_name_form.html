@@ -1,0 +1,46 @@
+<tr>
+  <td>{{ name.discord_id }}</td>
+  <td>
+    <form
+      hx-put="/names/{{ name.id }}"
+      hx-target="#names-table"
+      hx-swap="innerHTML"
+      class="flex items-center gap-2"
+    >
+      <input
+        type="text"
+        name="name"
+        value="{{ name.name }}"
+        class="input input-bordered input-sm flex-1"
+        required
+      />
+      <button type="submit" class="btn btn-success btn-sm">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-4 w-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M5 13l4 4L19 7"
+          />
+        </svg>
+        Save
+      </button>
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm"
+        hx-get="/names/{{ name.id }}/cancel"
+        hx-target="closest tr"
+        hx-swap="outerHTML"
+      >
+        Cancel
+      </button>
+    </form>
+  </td>
+  <th></th>
+</tr>
