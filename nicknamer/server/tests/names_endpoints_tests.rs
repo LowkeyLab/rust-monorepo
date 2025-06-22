@@ -19,7 +19,7 @@ struct HttpResponseSnapshot {
     status: u16,
     content_type: Option<String>,
     headers: std::collections::BTreeMap<String, String>,
-    html_body: String,
+    html_body: Vec<String>,
 }
 
 impl HttpResponseSnapshot {
@@ -42,10 +42,10 @@ impl HttpResponseSnapshot {
 }
 
 /// Normalize HTML content for consistent snapshots by removing dynamic values.
-fn normalize_html_for_snapshot(html: &str) -> String {
-    // For now, return HTML as-is since we'll use deterministic test data
+fn normalize_html_for_snapshot(html: &str) -> Vec<String> {
+    // Split HTML by newlines and convert to Vec<String>
     // In the future, we could add more sophisticated normalization
-    html.to_string()
+    html.lines().map(|line| line.to_string()).collect()
 }
 
 /// Filter out time-sensitive headers from response headers for snapshot testing.
