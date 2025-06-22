@@ -5,7 +5,7 @@ use axum::{
     extract::State,
     http::{HeaderMap, HeaderName, HeaderValue, StatusCode},
     response::Html,
-    routing::{delete, get, put},
+    routing::get,
 };
 use sea_orm::*;
 use serde::Deserialize;
