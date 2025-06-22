@@ -227,7 +227,7 @@ async fn render_names_table<F>(
     sort_fn: F,
 ) -> Result<String, NameError>
 where
-    F: FnMut(&mut Vec<Name>),
+    F: FnOnce(&mut Vec<Name>),
 {
     let mut names = name_service.get_all_names().await?;
     sort_fn(&mut names);
