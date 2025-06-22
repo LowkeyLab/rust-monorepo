@@ -23,7 +23,7 @@
       <tr>
         <th>Discord ID</th>
         <th>Name</th>
-        <th>Actions</th>
+        <th></th>
       </tr>
     </thead>
     <tbody>
@@ -31,7 +31,7 @@
       <tr>
         <td>{{ name.discord_id }}</td>
         <td class="font-semibold">{{ name.name }}</td>
-        <td>
+        <th>
           <button
             class="btn btn-error btn-sm"
             hx-delete="/names/{{ name.id }}"
@@ -54,7 +54,7 @@
             </svg>
             Delete
           </button>
-        </td>
+        </th>
       </tr>
       {% endfor %}
     </tbody>
