@@ -5,7 +5,7 @@ use axum::{
     extract::State,
     http::{HeaderMap, HeaderName, HeaderValue, StatusCode},
     response::Html,
-    routing::get,
+    routing::{delete, get},
 };
 use sea_orm::*;
 use serde::Deserialize;
@@ -156,6 +156,27 @@ impl NameService<'_> {
         Ok(names)
     }
 
+    /// Deletes a name entry by their ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - The ID of the name entry to delete.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the deleted `Name` if successful, or an error otherwise.
+    #[tracing::instrument(skip(self))]
+    pub async fn delete_name_by_id(&self, id: u32) -> Result<Name, NameServiceError> {
+        let name_to_delete = name::Entity::find_by_id(id as i32)
+            .one(self.db)
+            .await?
+            .ok_or(NameServiceError::NameNotFound(id))?;
+
+        let name_copy = Name::from(name_to_delete.clone());
+        name::Entity::delete_by_id(id as i32).exec(self.db).await?;
+        Ok(name_copy)
+    }
+
     /// Checks if a name entry with the given Discord ID already exists.
     ///
     /// # Arguments
@@ -302,10 +323,34 @@ async fn add_name_form_handler() -> Result<Html<String>, NameError> {
     template.render().map(Html).map_err(NameError::from)
 }
 
+/// Handler for deleting a name via POST request.
+#[tracing::instrument(skip(state))]
+async fn delete_name_handler(
+    State(state): State<NameState>,
+    axum::extract::Path(id): axum::extract::Path<u32>,
+) -> Result<Html<String>, NameError> {
+    let name_service = NameService::new(&state.db);
+
+    match name_service.delete_name_by_id(id).await {
+        Ok(_) => {
+            // Get updated names for the table
+            let names = name_service.get_all_names().await?;
+
+            // Render the updated names table
+            let table_template = NamesTableTemplate::new(names);
+            let table_html = table_template.render().map_err(NameError::from)?;
+
+            Ok(Html(table_html))
+        }
+        Err(err) => Err(NameError::Service(err)),
+    }
+}
+
 /// Creates and returns the name router with all name-related routes.
 pub fn create_name_router(state: NameState) -> Router {
     Router::new()
         .route("/names", get(names_handler).post(create_name_handler))
         .route("/names/form", get(add_name_form_handler))
+        .route("/names/{id}", delete(delete_name_handler))
         .with_state(state)
 }

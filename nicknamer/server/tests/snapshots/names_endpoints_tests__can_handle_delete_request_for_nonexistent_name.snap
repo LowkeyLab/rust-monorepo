@@ -2,8 +2,8 @@
 source: nicknamer/server/tests/names_endpoints_tests.rs
 expression: snapshot_data
 ---
-test_context: duplicate_discord_id_error
-status: 422
+test_context: delete_nonexistent_name_error
+status: 500
 headers:
   content-length: "458"
   content-type: text/html; charset=utf-8
@@ -23,5 +23,5 @@ html_body:
   - "      d=\"M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z\""
   - "    />"
   - "  </svg>"
-  - "  <span>A name entry already exists for this Discord ID. Please use a different Discord ID.</span>"
+  - "  <span>An unexpected error occurred while processing your request. Please try again later.</span>"
   - "</div>"
