@@ -1,10 +1,10 @@
-<tr>
+<tr id="name-row-{{ name.id }}">
   <td>{{ name.discord_id }}</td>
   <td>
     <form
       id="edit-form-{{ name.id }}"
       hx-put="/names/{{ name.id }}"
-      hx-target="closest tr"
+      hx-target="#name-row-{{ name.id }}"
       hx-swap="outerHTML"
       class="inline-block"
     >
@@ -43,7 +43,7 @@
       type="button"
       class="btn btn-ghost btn-sm"
       hx-get="/names/{{ name.id }}/cancel"
-      hx-target="closest tr"
+      hx-target="#name-row-{{ name.id }}"
       hx-swap="outerHTML"
     >
       Cancel

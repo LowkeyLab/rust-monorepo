@@ -5,7 +5,7 @@ expression: snapshot_data
 test_context: table_fragment_not_full_page
 status: 200
 headers:
-  content-length: "1849"
+  content-length: "1865"
   content-type: text/html; charset=utf-8
 html_body:
   - ""
@@ -19,7 +19,7 @@ html_body:
   - "      </tr>"
   - "    </thead>"
   - "    <tbody>"
-  - "       <tr>"
+  - "       <tr id=\"name-row-1\">"
   - "  <td>777888999</td>"
   - "  <td class=\"font-semibold\">FragmentTestUser</td>"
   - "  <th>"
