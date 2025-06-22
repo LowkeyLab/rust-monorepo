@@ -334,7 +334,8 @@ impl NameRowTemplate {
 #[tracing::instrument(skip(state))]
 async fn names_handler(State(state): State<NameState>) -> Result<Html<String>, NameError> {
     let name_service = NameService::new(&state.db);
-    let names = name_service.get_all_names().await?;
+    let mut names = name_service.get_all_names().await?;
+    names.sort_by_key(|name| name.id());
     let template = NamesTemplate::new(names);
     template.render().map(Html).map_err(NameError::from)
 }
@@ -350,7 +351,8 @@ async fn create_name_handler(
     match name_service.create_name(form.discord_id, form.name).await {
         Ok(_) => {
             // Get updated names for both table and stats
-            let names = name_service.get_all_names().await?;
+            let mut names = name_service.get_all_names().await?;
+            names.sort_by_key(|name| name.id());
 
             // Render the main response (names table)
             let table_template = NamesTableTemplate::new(names);
@@ -381,7 +383,8 @@ async fn delete_name_handler(
     match name_service.delete_name_by_id(id).await {
         Ok(_) => {
             // Get updated names for the table
-            let names = name_service.get_all_names().await?;
+            let mut names = name_service.get_all_names().await?;
+            names.sort_by_key(|name| name.id());
 
             // Render the updated names table
             let table_template = NamesTableTemplate::new(names);
