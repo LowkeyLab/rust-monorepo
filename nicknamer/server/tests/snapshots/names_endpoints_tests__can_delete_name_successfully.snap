@@ -1,0 +1,11 @@
+---
+source: nicknamer/server/tests/names_endpoints_tests.rs
+expression: snapshot_data
+---
+test_context: delete_name_successfully
+status: 200
+content_type: text/html; charset=utf-8
+headers:
+  content-length: "645"
+  content-type: text/html; charset=utf-8
+html_body: "\n<div class=\"alert alert-info\">\n  <svg\n    aria-hidden=\"true\"\n    xmlns=\"http://www.w3.org/2000/svg\"\n    fill=\"none\"\n    viewBox=\"0 0 24 24\"\n    class=\"stroke-current shrink-0 w-6 h-6\"\n  >\n    <path\n      stroke-linecap=\"round\"\n      stroke-linejoin=\"round\"\n      stroke-width=\"2\"\n      d=\"M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z\"\n    ></path>\n  </svg>\n  <span>No names found in the database.</span>\n</div>\n\n\n<div class=\"stats stats-horizontal shadow mt-6\">\n  <div class=\"stat\">\n    <div class=\"stat-title\">Total Names</div>\n    <div class=\"stat-value\">0</div>\n    <div class=\"stat-desc\">Names in database</div>\n  </div>\n</div>"

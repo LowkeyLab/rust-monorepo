@@ -108,6 +108,18 @@ async fn create_test_names(db: &DatabaseConnection) {
     let _result2 = name2.insert(db).await.unwrap();
 }
 
+/// Test helper to create a single test name and return its ID.
+async fn create_single_test_name(db: &DatabaseConnection) -> i32 {
+    let name = name::ActiveModel {
+        discord_id: Set(555444333),
+        name: Set("DeleteTestUser".to_string()),
+        ..Default::default()
+    };
+
+    let result = name.insert(db).await.unwrap();
+    result.id
+}
+
 #[tokio::test]
 async fn can_display_names_table_when_names_exist() {
     let state = setup().await.expect("Failed to setup test context");
@@ -458,6 +470,219 @@ async fn cannot_create_name_with_duplicate_discord_id() {
         Some("text/html; charset=utf-8"),
         &headers,
         "duplicate_discord_id_error",
+    );
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn can_delete_name_successfully() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_id = create_single_test_name(&state.db).await;
+
+    let name_state = NameState {
+        db: Arc::new(state.db),
+    };
+    let app = create_name_router(name_state);
+
+    let request = Request::builder()
+        .method(Method::DELETE)
+        .uri(&format!("/names/{}", name_id))
+        .body(Body::empty())
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    // Should return the updated names table (empty in this case)
+    assert!(body_text.contains("No names found in the database"));
+
+    let snapshot_data = HttpResponseSnapshot::new(
+        body_text,
+        StatusCode::OK,
+        Some("text/html; charset=utf-8"),
+        &headers,
+        "delete_name_successfully",
+    );
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn can_delete_name_and_update_table_count() {
+    let state = setup().await.expect("Failed to setup test context");
+
+    // Create multiple names
+    create_test_names(&state.db).await;
+    let delete_name_id = create_single_test_name(&state.db).await;
+
+    let name_state = NameState {
+        db: Arc::new(state.db),
+    };
+    let app = create_name_router(name_state);
+
+    let request = Request::builder()
+        .method(Method::DELETE)
+        .uri(&format!("/names/{}", delete_name_id))
+        .body(Body::empty())
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    // Should show remaining names (2) and updated count
+    assert!(body_text.contains("TestUser1"));
+    assert!(body_text.contains("TestUser2"));
+    assert!(!body_text.contains("DeleteTestUser"));
+    assert!(body_text.contains("<div class=\"stat-value\">2</div>"));
+
+    let snapshot_data = HttpResponseSnapshot::new(
+        body_text,
+        StatusCode::OK,
+        Some("text/html; charset=utf-8"),
+        &headers,
+        "delete_name_and_update_table_count",
+    );
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn can_handle_delete_request_for_nonexistent_name() {
+    let state = setup().await.expect("Failed to setup test context");
+
+    let name_state = NameState {
+        db: Arc::new(state.db),
+    };
+    let app = create_name_router(name_state);
+
+    // Try to delete a name with ID that doesn't exist
+    let request = Request::builder()
+        .method(Method::DELETE)
+        .uri("/names/99999")
+        .body(Body::empty())
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    // Should return an error status
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    // Should contain error message
+    assert!(body_text.contains("An unexpected error occurred"));
+
+    let snapshot_data = HttpResponseSnapshot::new(
+        body_text,
+        StatusCode::INTERNAL_SERVER_ERROR,
+        Some("text/html; charset=utf-8"),
+        &headers,
+        "delete_nonexistent_name_error",
+    );
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn delete_endpoint_returns_table_fragment_not_full_page() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_id = create_single_test_name(&state.db).await;
+
+    let name_state = NameState {
+        db: Arc::new(state.db),
+    };
+    let app = create_name_router(name_state);
+
+    let request = Request::builder()
+        .method(Method::DELETE)
+        .uri(&format!("/names/{}", name_id))
+        .body(Body::empty())
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    // Should return only the table fragment, not a full HTML page
+    assert!(!body_text.contains("<html"));
+    assert!(!body_text.contains("<head"));
+    assert!(!body_text.contains("<body"));
+
+    // Should contain the table structure or empty message
+    assert!(body_text.contains("No names found") || body_text.contains("<table"));
+
+    let snapshot_data = HttpResponseSnapshot::new(
+        body_text,
+        StatusCode::OK,
+        Some("text/html; charset=utf-8"),
+        &headers,
+        "delete_returns_table_fragment",
+    );
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn delete_endpoint_returns_correct_content_type() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_id = create_single_test_name(&state.db).await;
+
+    let name_state = NameState {
+        db: Arc::new(state.db),
+    };
+    let app = create_name_router(name_state);
+
+    let request = Request::builder()
+        .method(Method::DELETE)
+        .uri(&format!("/names/{}", name_id))
+        .body(Body::empty())
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response.headers().get("content-type").unwrap(),
+        "text/html; charset=utf-8"
+    );
+
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    let snapshot_data = HttpResponseSnapshot::new(
+        body_text,
+        StatusCode::OK,
+        Some("text/html; charset=utf-8"),
+        &headers,
+        "delete_endpoint_content_type_check",
     );
 
     assert_yaml_snapshot!(snapshot_data);
