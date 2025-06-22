@@ -5,7 +5,7 @@ use axum::{
     extract::State,
     http::{HeaderMap, HeaderName, HeaderValue, StatusCode},
     response::Html,
-    routing::{delete, get},
+    routing::get,
 };
 use sea_orm::*;
 use serde::Deserialize;
@@ -14,6 +14,11 @@ use std::sync::Arc;
 #[derive(Debug, Deserialize)]
 pub struct CreateNameForm {
     discord_id: u64,
+    name: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct EditNameForm {
     name: String,
 }
 
@@ -194,6 +199,24 @@ impl NameService<'_> {
             .await?;
         Ok(existing_name.is_some())
     }
+
+    /// Retrieves a name entry by its ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - The ID of the name entry to retrieve.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the `Name` if successful, or an error otherwise.
+    #[tracing::instrument(skip(self))]
+    pub async fn get_name_by_id(&self, id: u32) -> Result<Name, NameServiceError> {
+        let name_model = name::Entity::find_by_id(id as i32)
+            .one(self.db)
+            .await?
+            .ok_or(NameServiceError::NameNotFound(id))?;
+        Ok(Name::from(name_model))
+    }
 }
 
 /// Custom error type for name handler operations.
@@ -283,6 +306,30 @@ impl ErrorMessageTemplate {
     }
 }
 
+#[derive(Template)]
+#[template(path = "names/edit_name_form.html")]
+struct EditNameFormTemplate {
+    name: Name,
+}
+
+impl EditNameFormTemplate {
+    pub fn new(name: Name) -> Self {
+        Self { name }
+    }
+}
+
+#[derive(Template)]
+#[template(path = "names/name_row.html")]
+struct NameRowTemplate {
+    name: Name,
+}
+
+impl NameRowTemplate {
+    pub fn new(name: Name) -> Self {
+        Self { name }
+    }
+}
+
 /// Handler for the /names endpoint that displays all names in a table.
 #[tracing::instrument(skip(state))]
 async fn names_handler(State(state): State<NameState>) -> Result<Html<String>, NameError> {
@@ -346,11 +393,75 @@ async fn delete_name_handler(
     }
 }
 
+/// Handler for serving the edit name form.
+#[tracing::instrument(skip(state))]
+async fn edit_name_handler(
+    State(state): State<NameState>,
+    axum::extract::Path(id): axum::extract::Path<u32>,
+) -> Result<Html<String>, NameError> {
+    let name_service = NameService::new(&state.db);
+
+    match name_service.get_name_by_id(id).await {
+        Ok(name) => {
+            let template = EditNameFormTemplate::new(name);
+            template.render().map(Html).map_err(NameError::from)
+        }
+        Err(err) => Err(NameError::Service(err)),
+    }
+}
+
+/// Handler for updating a name via PUT request.
+#[tracing::instrument(skip(state))]
+async fn update_name_handler(
+    State(state): State<NameState>,
+    axum::extract::Path(id): axum::extract::Path<u32>,
+    Form(form): Form<EditNameForm>,
+) -> Result<Html<String>, NameError> {
+    let name_service = NameService::new(&state.db);
+
+    match name_service.edit_name_by_id(id, form.name).await {
+        Ok(_) => {
+            // Get the updated name to render just this row
+            let updated_name = name_service.get_name_by_id(id).await?;
+
+            // Render only the updated name row
+            let row_template = NameRowTemplate::new(updated_name);
+            let row_html = row_template.render().map_err(NameError::from)?;
+
+            Ok(Html(row_html))
+        }
+        Err(err) => Err(NameError::Service(err)),
+    }
+}
+
+/// Handler for GET /names/{id} that returns a single name row.
+#[tracing::instrument(skip(state))]
+async fn get_name_row_handler(
+    State(state): State<NameState>,
+    axum::extract::Path(id): axum::extract::Path<u32>,
+) -> Result<Html<String>, NameError> {
+    let name_service = NameService::new(&state.db);
+
+    match name_service.get_name_by_id(id).await {
+        Ok(name) => {
+            let template = NameRowTemplate::new(name);
+            template.render().map(Html).map_err(NameError::from)
+        }
+        Err(err) => Err(NameError::Service(err)),
+    }
+}
+
 /// Creates and returns the name router with all name-related routes.
 pub fn create_name_router(state: NameState) -> Router {
     Router::new()
         .route("/names", get(names_handler).post(create_name_handler))
         .route("/names/form", get(add_name_form_handler))
-        .route("/names/{id}", delete(delete_name_handler))
+        .route(
+            "/names/{id}",
+            get(get_name_row_handler)
+                .delete(delete_name_handler)
+                .put(update_name_handler),
+        )
+        .route("/names/{id}/edit", get(edit_name_handler))
         .with_state(state)
 }

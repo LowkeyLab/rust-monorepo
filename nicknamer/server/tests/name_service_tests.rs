@@ -247,3 +247,100 @@ async fn can_handle_delete_when_name_not_found() {
         assert!(e.to_string().contains("not found") || e.to_string().contains("NameNotFound"));
     }
 }
+
+#[tokio::test]
+async fn can_get_name_by_id() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_service = NameService::new(&state.db);
+
+    // Create a name entry directly using the entity ActiveModel
+    let discord_id = 555666777;
+    let name = "GetTestUser".to_string();
+    let active_model = name::ActiveModel {
+        discord_id: ActiveValue::Set(discord_id),
+        name: ActiveValue::Set(name.clone()),
+        ..Default::default()
+    };
+    let created_name_model = active_model
+        .insert(&state.db)
+        .await
+        .expect("Failed to create name");
+
+    // Get the name by ID
+    let retrieved_name = name_service
+        .get_name_by_id(created_name_model.id as u32)
+        .await
+        .expect("Failed to get name by ID");
+
+    // Construct expected result and compare
+    let expected_name = nicknamer_server::name::Name::from(created_name_model);
+    assert_eq!(retrieved_name, expected_name);
+}
+
+#[tokio::test]
+async fn can_handle_get_name_by_nonexistent_id() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_service = NameService::new(&state.db);
+
+    // Create a name entry to ensure we have some data and know what ID won't exist
+    let active_model = name::ActiveModel {
+        discord_id: ActiveValue::Set(777888999),
+        name: ActiveValue::Set("ExistingUser".to_string()),
+        ..Default::default()
+    };
+    let created_name = active_model
+        .insert(&state.db)
+        .await
+        .expect("Failed to create name");
+
+    // Try to get a name with a non-existent ID
+    let non_existent_id = created_name.id + 100; // Ensure this ID won't exist
+    let result = name_service.get_name_by_id(non_existent_id as u32).await;
+
+    // Should return an error
+    assert!(result.is_err());
+    if let Err(e) = result {
+        assert_eq!(
+            e.to_string(),
+            format!("Name entry with ID {} not found", non_existent_id)
+        );
+    }
+}
+
+#[tokio::test]
+async fn can_get_multiple_names_by_different_ids() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_service = NameService::new(&state.db);
+
+    // Create multiple name entries
+    let names_data = vec![
+        (111222333, "FirstUser".to_string()),
+        (444555666, "SecondUser".to_string()),
+        (777888999, "ThirdUser".to_string()),
+    ];
+
+    let mut created_models = Vec::new();
+    for (discord_id, name) in names_data {
+        let active_model = name::ActiveModel {
+            discord_id: ActiveValue::Set(discord_id),
+            name: ActiveValue::Set(name),
+            ..Default::default()
+        };
+        let created_model = active_model
+            .insert(&state.db)
+            .await
+            .expect("Failed to create name");
+        created_models.push(created_model);
+    }
+
+    // Retrieve each name by ID and verify
+    for created_model in created_models {
+        let retrieved_name = name_service
+            .get_name_by_id(created_model.id as u32)
+            .await
+            .expect("Failed to get name by ID");
+
+        let expected_name = nicknamer_server::name::Name::from(created_model);
+        assert_eq!(retrieved_name, expected_name);
+    }
+}

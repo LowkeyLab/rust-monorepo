@@ -117,6 +117,18 @@ async fn create_single_test_name(db: &DatabaseConnection) -> i32 {
     result.id
 }
 
+/// Test helper to create a single test name for editing and return its ID.
+async fn create_editable_test_name(db: &DatabaseConnection) -> i32 {
+    let name = name::ActiveModel {
+        discord_id: Set(777888999),
+        name: Set("EditableTestUser".to_string()),
+        ..Default::default()
+    };
+
+    let result = name.insert(db).await.unwrap();
+    result.id
+}
+
 #[tokio::test]
 async fn can_display_names_table_when_names_exist() {
     let state = setup().await.expect("Failed to setup test context");
@@ -605,6 +617,382 @@ async fn delete_endpoint_returns_correct_content_type() {
         status,
         &headers,
         "delete_endpoint_content_type_check",
+    );
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn can_serve_edit_name_form() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_id = create_editable_test_name(&state.db).await;
+
+    let name_state = NameState {
+        db: Arc::new(state.db),
+    };
+    let app = create_name_router(name_state);
+
+    let request = Request::builder()
+        .uri(format!("/names/{}/edit", name_id))
+        .body(Body::empty())
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    // Should contain the edit form with the current name
+    assert!(body_text.contains("EditableTestUser"));
+    assert!(body_text.contains("name=\"name\""));
+    assert!(body_text.contains("hx-put"));
+
+    let snapshot_data = HttpResponseSnapshot::new(body_text, status, &headers, "edit_name_form");
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn can_handle_edit_form_request_for_nonexistent_name() {
+    let state = setup().await.expect("Failed to setup test context");
+
+    let name_state = NameState {
+        db: Arc::new(state.db),
+    };
+    let app = create_name_router(name_state);
+
+    let request = Request::builder()
+        .uri("/names/99999/edit")
+        .body(Body::empty())
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    // Should contain error message
+    assert!(body_text.contains("An unexpected error occurred"));
+
+    let snapshot_data = HttpResponseSnapshot::new(
+        body_text,
+        status,
+        &headers,
+        "edit_form_nonexistent_name_error",
+    );
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn can_update_name_successfully() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_id = create_editable_test_name(&state.db).await;
+
+    let name_state = NameState {
+        db: Arc::new(state.db),
+    };
+    let app = create_name_router(name_state);
+
+    let form_data = "name=UpdatedTestUser";
+    let request = Request::builder()
+        .method(Method::PUT)
+        .uri(format!("/names/{}", name_id))
+        .header("content-type", "application/x-www-form-urlencoded")
+        .body(Body::from(form_data))
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    // Should return the updated name row
+    assert!(body_text.contains("UpdatedTestUser"));
+    assert!(!body_text.contains("EditableTestUser"));
+
+    let snapshot_data =
+        HttpResponseSnapshot::new(body_text, status, &headers, "update_name_successfully");
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn can_update_name_with_special_characters() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_id = create_editable_test_name(&state.db).await;
+
+    let name_state = NameState {
+        db: Arc::new(state.db),
+    };
+    let app = create_name_router(name_state);
+
+    let form_data = "name=Updated%20User%20With%20Spaces%21%40%23";
+    let request = Request::builder()
+        .method(Method::PUT)
+        .uri(format!("/names/{}", name_id))
+        .header("content-type", "application/x-www-form-urlencoded")
+        .body(Body::from(form_data))
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    // Should handle URL decoding and contain the updated name
+    assert!(body_text.contains("Updated User With Spaces!@#"));
+
+    let snapshot_data = HttpResponseSnapshot::new(
+        body_text,
+        status,
+        &headers,
+        "update_name_with_special_characters",
+    );
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn can_handle_update_request_for_nonexistent_name() {
+    let state = setup().await.expect("Failed to setup test context");
+
+    let name_state = NameState {
+        db: Arc::new(state.db),
+    };
+    let app = create_name_router(name_state);
+
+    let form_data = "name=NonexistentUser";
+    let request = Request::builder()
+        .method(Method::PUT)
+        .uri("/names/99999")
+        .header("content-type", "application/x-www-form-urlencoded")
+        .body(Body::from(form_data))
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    // Should contain error message
+    assert!(body_text.contains("An unexpected error occurred"));
+
+    let snapshot_data =
+        HttpResponseSnapshot::new(body_text, status, &headers, "update_nonexistent_name_error");
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn update_endpoint_returns_name_row_fragment_not_full_page() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_id = create_editable_test_name(&state.db).await;
+
+    let name_state = NameState {
+        db: Arc::new(state.db),
+    };
+    let app = create_name_router(name_state);
+
+    let form_data = "name=FragmentTestUser";
+    let request = Request::builder()
+        .method(Method::PUT)
+        .uri(format!("/names/{}", name_id))
+        .header("content-type", "application/x-www-form-urlencoded")
+        .body(Body::from(form_data))
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    // Should return only the name row fragment, not a full HTML page
+    assert!(!body_text.contains("<html"));
+    assert!(!body_text.contains("<head"));
+    assert!(!body_text.contains("<body"));
+
+    // Should contain the table row structure
+    assert!(body_text.contains("<tr"));
+    assert!(body_text.contains("FragmentTestUser"));
+
+    let snapshot_data = HttpResponseSnapshot::new(
+        body_text,
+        status,
+        &headers,
+        "update_returns_name_row_fragment",
+    );
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn update_endpoint_returns_correct_content_type() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_id = create_editable_test_name(&state.db).await;
+
+    let name_state = NameState {
+        db: Arc::new(state.db),
+    };
+    let app = create_name_router(name_state);
+
+    let form_data = "name=ContentTypeTestUser";
+    let request = Request::builder()
+        .method(Method::PUT)
+        .uri(format!("/names/{}", name_id))
+        .header("content-type", "application/x-www-form-urlencoded")
+        .body(Body::from(form_data))
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    let snapshot_data = HttpResponseSnapshot::new(
+        body_text,
+        status,
+        &headers,
+        "update_endpoint_content_type_check",
+    );
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn edit_form_endpoint_returns_correct_content_type() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_id = create_editable_test_name(&state.db).await;
+
+    let name_state = NameState {
+        db: Arc::new(state.db),
+    };
+    let app = create_name_router(name_state);
+
+    let request = Request::builder()
+        .uri(format!("/names/{}/edit", name_id))
+        .body(Body::empty())
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    let snapshot_data = HttpResponseSnapshot::new(
+        body_text,
+        status,
+        &headers,
+        "edit_form_endpoint_content_type_check",
+    );
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn can_update_name_with_empty_string() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_id = create_editable_test_name(&state.db).await;
+
+    let name_state = NameState {
+        db: Arc::new(state.db),
+    };
+    let app = create_name_router(name_state);
+
+    let form_data = "name=";
+    let request = Request::builder()
+        .method(Method::PUT)
+        .uri(format!("/names/{}", name_id))
+        .header("content-type", "application/x-www-form-urlencoded")
+        .body(Body::from(form_data))
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    // Should handle empty string as name
+    assert!(body_text.contains("<td></td>") || body_text.contains("</td>"));
+
+    let snapshot_data =
+        HttpResponseSnapshot::new(body_text, status, &headers, "update_name_with_empty_string");
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn can_update_name_with_very_long_string() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_id = create_editable_test_name(&state.db).await;
+
+    let name_state = NameState {
+        db: Arc::new(state.db),
+    };
+    let app = create_name_router(name_state);
+
+    let long_name = "A".repeat(100); // 100 character name
+    let form_data = format!("name={}", long_name);
+    let request = Request::builder()
+        .method(Method::PUT)
+        .uri(format!("/names/{}", name_id))
+        .header("content-type", "application/x-www-form-urlencoded")
+        .body(Body::from(form_data))
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    // Should handle very long names
+    assert!(body_text.contains(&long_name));
+
+    let snapshot_data = HttpResponseSnapshot::new(
+        body_text,
+        status,
+        &headers,
+        "update_name_with_very_long_string",
     );
 
     assert_yaml_snapshot!(snapshot_data);
