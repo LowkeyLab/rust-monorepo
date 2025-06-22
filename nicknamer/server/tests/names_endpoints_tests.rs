@@ -335,7 +335,7 @@ async fn can_serve_add_name_form() {
     let app = create_name_router(name_state);
 
     let request = Request::builder()
-        .uri("/names/form")
+        .uri("/names/add")
         .body(Body::empty())
         .unwrap();
 

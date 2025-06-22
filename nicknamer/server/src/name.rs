@@ -468,7 +468,7 @@ async fn get_name_row_handler(
 pub fn create_name_router(state: NameState) -> Router {
     Router::new()
         .route("/names", get(names_handler).post(create_name_handler))
-        .route("/names/form", get(add_name_form_handler))
+        .route("/names/add", get(add_name_form_handler))
         .route(
             "/names/{id}",
             get(get_name_row_handler)
