@@ -5,7 +5,7 @@ use axum::{
     extract::State,
     http::{HeaderMap, HeaderName, HeaderValue, StatusCode},
     response::Html,
-    routing::{delete, get},
+    routing::{delete, get, put},
 };
 use sea_orm::*;
 use serde::Deserialize;
@@ -451,6 +451,23 @@ async fn cancel_edit_handler(
     }
 }
 
+/// Handler for GET /names/{id} that returns a single name row.
+#[tracing::instrument(skip(state))]
+async fn get_name_row_handler(
+    State(state): State<NameState>,
+    axum::extract::Path(id): axum::extract::Path<u32>,
+) -> Result<Html<String>, NameError> {
+    let name_service = NameService::new(&state.db);
+
+    match name_service.get_name_by_id(id).await {
+        Ok(name) => {
+            let template = NameRowTemplate::new(name);
+            template.render().map(Html).map_err(NameError::from)
+        }
+        Err(err) => Err(NameError::Service(err)),
+    }
+}
+
 /// Creates and returns the name router with all name-related routes.
 pub fn create_name_router(state: NameState) -> Router {
     Router::new()
@@ -458,7 +475,9 @@ pub fn create_name_router(state: NameState) -> Router {
         .route("/names/form", get(add_name_form_handler))
         .route(
             "/names/{id}",
-            delete(delete_name_handler).put(update_name_handler),
+            get(get_name_row_handler)
+                .delete(delete_name_handler)
+                .put(update_name_handler),
         )
         .route("/names/{id}/edit", get(edit_name_handler))
         .route("/names/{id}/cancel", get(cancel_edit_handler))
