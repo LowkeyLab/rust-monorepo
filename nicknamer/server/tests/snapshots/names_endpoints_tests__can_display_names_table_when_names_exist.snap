@@ -5,7 +5,6 @@ expression: snapshot_data
 test_context: names_table_with_existing_names
 status: 200
 headers:
-  content-length: "5648"
   content-type: text/html; charset=utf-8
 html_body:
   - "<!DOCTYPE html>"

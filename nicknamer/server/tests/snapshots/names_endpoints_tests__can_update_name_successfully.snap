@@ -5,7 +5,6 @@ expression: snapshot_data
 test_context: update_name_successfully
 status: 200
 headers:
-  content-length: "1350"
   content-type: text/html; charset=utf-8
 html_body:
   - "<tr id=\"name-row-1\">"
