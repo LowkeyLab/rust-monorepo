@@ -219,6 +219,22 @@ impl NameService<'_> {
     }
 }
 
+/// Helper function to get all names, sort them using the provided function, and render them as a names table.
+/// This reduces code duplication across handlers that need to display sorted names.
+#[tracing::instrument(skip(name_service, sort_fn))]
+async fn render_names_table<F>(
+    name_service: &NameService<'_>,
+    sort_fn: F,
+) -> Result<String, NameError>
+where
+    F: FnOnce(&mut Vec<Name>),
+{
+    let mut names = name_service.get_all_names().await?;
+    sort_fn(&mut names);
+    let table_template = NamesTableTemplate::new(names);
+    table_template.render().map_err(NameError::from)
+}
+
 /// Custom error type for name handler operations.
 #[derive(Debug, thiserror::Error)]
 enum NameError {
@@ -350,14 +366,11 @@ async fn create_name_handler(
 
     match name_service.create_name(form.discord_id, form.name).await {
         Ok(_) => {
-            // Get updated names for both table and stats
-            let mut names = name_service.get_all_names().await?;
-            names.sort_by_key(|name| name.id());
-
-            // Render the main response (names table)
-            let table_template = NamesTableTemplate::new(names);
-            let table_html = table_template.render().map_err(NameError::from)?;
-
+            // Get updated names for the table and render
+            let table_html = render_names_table(&name_service, |names| {
+                names.sort_by_key(|name| name.id());
+            })
+            .await?;
             Ok(Html(table_html))
         }
         Err(NameServiceError::DuplicateDiscordId(_)) => Err(NameError::DuplicateDiscordId),
@@ -382,14 +395,11 @@ async fn delete_name_handler(
 
     match name_service.delete_name_by_id(id).await {
         Ok(_) => {
-            // Get updated names for the table
-            let mut names = name_service.get_all_names().await?;
-            names.sort_by_key(|name| name.id());
-
-            // Render the updated names table
-            let table_template = NamesTableTemplate::new(names);
-            let table_html = table_template.render().map_err(NameError::from)?;
-
+            // Get updated names for the table and render
+            let table_html = render_names_table(&name_service, |names| {
+                names.sort_by_key(|name| name.id());
+            })
+            .await?;
             Ok(Html(table_html))
         }
         Err(err) => Err(NameError::Service(err)),
