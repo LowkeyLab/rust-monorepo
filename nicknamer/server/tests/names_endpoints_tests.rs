@@ -487,7 +487,7 @@ async fn can_delete_name_successfully() {
 
     let request = Request::builder()
         .method(Method::DELETE)
-        .uri(&format!("/names/{}", name_id))
+        .uri(format!("/names/{}", name_id))
         .body(Body::empty())
         .unwrap();
 
@@ -530,7 +530,7 @@ async fn can_delete_name_and_update_table_count() {
 
     let request = Request::builder()
         .method(Method::DELETE)
-        .uri(&format!("/names/{}", delete_name_id))
+        .uri(format!("/names/{}", delete_name_id))
         .body(Body::empty())
         .unwrap();
 
@@ -614,7 +614,7 @@ async fn delete_endpoint_returns_table_fragment_not_full_page() {
 
     let request = Request::builder()
         .method(Method::DELETE)
-        .uri(&format!("/names/{}", name_id))
+        .uri(format!("/names/{}", name_id))
         .body(Body::empty())
         .unwrap();
 
@@ -659,7 +659,7 @@ async fn delete_endpoint_returns_correct_content_type() {
 
     let request = Request::builder()
         .method(Method::DELETE)
-        .uri(&format!("/names/{}", name_id))
+        .uri(format!("/names/{}", name_id))
         .body(Body::empty())
         .unwrap();
 
