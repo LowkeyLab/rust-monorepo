@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+#MISE description="Runs the server locally"
+#MISE sources=["Cargo.toml", "src/**/*.rs", "templates/**/*.html"]
+set -euo pipefail
+
+# Define a cleanup function
+cleanup() {
+  echo "🧹 Cleaning up Docker Compose services..."
+  docker compose down --remove-orphans
+}
+
+# Set the trap to call cleanup on EXIT, ERR, and INT signals
+trap cleanup EXIT ERR INT
+
+
+echo "🔧 Setting up Docker Compose services..."
+docker compose up -d
+
+
+# Run your main task (could be tests or something else)
+echo "🚀 Running server"
+cargo run -p nicknamer_server

@@ -1,0 +1,9 @@
+[tools]
+node = "24"
+rust = "1.87.0"
+pnpm = "10"
+"cargo:cargo-binstall" = "1.14.1"
+"cargo:cargo-insta" = "1.43.1"
+"cargo:cargo-watch" = "8.5.3"
+"cargo:sea-orm-cli" = "1.1.12"
+"cargo:cargo-llvm-cov" = "0.6.16"

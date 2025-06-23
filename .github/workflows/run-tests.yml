@@ -9,25 +9,20 @@ on:
     branches: [main]
 
 env:
+  MISE_EXPERIMENTAL: true
   CARGO_TERM_COLOR: always
 
 jobs:
   ci:
     runs-on: ubuntu-latest
-    env:
-      CI: true
-      CARGO_MAKE_DEFAULT_PROFILE: ci
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions-rust-lang/setup-rust-toolchain@fb51252c7ba57d633bc668f941da052e410add48
-      - uses: taiki-e/install-action@9ba3ac3fd006a70c6e186a683577abc1ccf0ff3a
-        with:
-          tool: cargo-make,cargo-llvm-cov,cargo-insta
-      - name: Run CI
-        run: cargo make workspace-ci-flow
-      - run: cargo llvm-cov --all-features --workspace --lcov --output-path codecov.json
+      - uses: jdx/mise-action@13abe502c30c1559a5c37dff303831bab82c9402
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: Swatinem/rust-cache@9d47c6ad4b02e050fd481d890b2ea34778fd09d6
+      - run: mise run ci
       - uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24
         with:
           files: codecov.json
