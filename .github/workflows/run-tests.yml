@@ -8,10 +8,6 @@ on:
   pull_request:
     branches: [main]
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 env:
   MISE_EXPERIMENTAL: true
   CARGO_TERM_COLOR: always
@@ -23,6 +19,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@13abe502c30c1559a5c37dff303831bab82c9402
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: Swatinem/rust-cache@9d47c6ad4b02e050fd481d890b2ea34778fd09d6
       - run: mise run ci
       - uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24
