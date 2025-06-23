@@ -15,7 +15,6 @@ env:
 jobs:
   ci:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@13abe502c30c1559a5c37dff303831bab82c9402
