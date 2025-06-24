@@ -2,10 +2,9 @@
 source: nicknamer/server/tests/auth_endpoints_tests.rs
 expression: snapshot_data
 ---
-test_context: display_login_page
+test_context: render_login_page_with_homepage_button_when_user_logged_in
 status: 200
-headers:
-  content-type: text/html; charset=utf-8
+headers: {}
 html_body:
   - "<!DOCTYPE html>"
   - "<html lang=\"en\" data-theme=\"light\">"
@@ -39,39 +38,14 @@ html_body:
   - "          >"
   - "            <div id=\"login-content\" class=\"card-body\">"
   - "              "
-  - "              <form hx-post=\"/login\" hx-target=\"#login-content\">"
-  - "                <h2 class=\"card-title text-2xl font-bold\">Login</h2>"
-  - "                <div class=\"form-control text-left\">"
-  - "                  <label class=\"label\" for=\"username\">"
-  - "                    <span class=\"label-text\">Username</span>"
-  - "                  </label>"
-  - "                  <input"
-  - "                    type=\"text\""
-  - "                    name=\"username\""
-  - "                    id=\"username\""
-  - "                    placeholder=\"username\""
-  - "                    class=\"input input-bordered\""
-  - "                    required"
-  - "                  />"
-  - "                </div>"
-  - "                <div class=\"form-control text-left\">"
-  - "                  <label class=\"label\" for=\"password\">"
-  - "                    <span class=\"label-text\">Password</span>"
-  - "                  </label>"
-  - "                  <input"
-  - "                    type=\"password\""
-  - "                    name=\"password\""
-  - "                    id=\"password\""
-  - "                    placeholder=\"password\""
-  - "                    class=\"input input-bordered\""
-  - "                    required"
-  - "                  />"
-  - "                </div>"
-  - "                <div class=\"form-control mt-6\">"
-  - "                  <button class=\"btn btn-primary\">Login</button>"
-  - "                </div>"
-  - "              </form>"
-  - "              <div id=\"login-message\" class=\"hidden\"></div>"
+  - "              <h2 class=\"card-title text-2xl font-bold\">Welcome back!</h2>"
+  - "              <p class=\"mb-4\">"
+  - "                You are already logged in as"
+  - "                <strong>testuser</strong>."
+  - "              </p>"
+  - "              <div class=\"form-control\">"
+  - "                <a href=\"/\" class=\"btn btn-primary\">Go to Homepage</a>"
+  - "              </div>"
   - "              "
   - "            </div>"
   - "          </div>"

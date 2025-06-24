@@ -1,14 +1,18 @@
 use axum::body::Body;
+use axum::extract::Extension;
 use axum::http::Request;
+use axum::middleware::{from_fn, from_fn_with_state};
 use insta::assert_yaml_snapshot;
-use nicknamer_server::auth::{AuthError, AuthState, create_login_router, encode_jwt};
+use nicknamer_server::auth::{
+    AuthError, AuthState, CurrentUser, create_login_router, encode_jwt, login_page_handler,
+};
 use nicknamer_server::config::Config;
 use std::sync::Arc;
 use tower::ServiceExt;
 
 mod common;
 
-use common::HttpResponseSnapshot;
+use common::{HttpResponseSnapshot, stub_user_middleware};
 
 /// Setup function for auth endpoint tests.
 async fn setup_auth_state() -> Arc<AuthState> {
@@ -25,7 +29,17 @@ async fn setup_auth_state() -> Arc<AuthState> {
 /// Test helper to create test app with auth state.
 async fn create_test_app() -> (axum::Router, Arc<AuthState>) {
     let auth_state = setup_auth_state().await;
-    let app = create_login_router(auth_state.clone());
+    let app = create_login_router(auth_state.clone()).layer(from_fn_with_state(
+        auth_state.clone(),
+        nicknamer_server::auth::auth_user_middleware,
+    ));
+    (app, auth_state)
+}
+
+/// Test helper to create test app with a logged-in user.
+async fn create_test_app_with_logged_in_user() -> (axum::Router, Arc<AuthState>) {
+    let auth_state = setup_auth_state().await;
+    let app = create_login_router(auth_state.clone()).layer(from_fn(stub_user_middleware));
     (app, auth_state)
 }
 
@@ -160,6 +174,72 @@ async fn can_display_login_page() {
 
     let snapshot_data =
         HttpResponseSnapshot::new(body_text, status, &headers, "display_login_page");
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn can_display_login_page_with_homepage_button_when_logged_in() {
+    let (app, _auth_state) = create_test_app_with_logged_in_user().await;
+
+    let request = Request::builder()
+        .method("GET")
+        .uri("/login")
+        .body(Body::empty())
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    let snapshot_data = HttpResponseSnapshot::new(
+        body_text,
+        status,
+        &headers,
+        "display_login_page_with_homepage_button_when_logged_in",
+    );
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn can_render_login_page_form_when_user_not_logged_in() {
+    let result = login_page_handler(None).await;
+
+    assert!(result.is_ok());
+    let html = result.unwrap().0;
+
+    let snapshot_data = HttpResponseSnapshot::new(
+        &html,
+        axum::http::StatusCode::OK,
+        &axum::http::HeaderMap::new(),
+        "render_login_page_form_when_user_not_logged_in",
+    );
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn can_render_login_page_with_homepage_button_when_user_logged_in() {
+    let current_user = CurrentUser::new("testuser".to_string());
+    let extension = Extension(current_user);
+
+    let result = login_page_handler(Some(extension)).await;
+
+    assert!(result.is_ok());
+    let html = result.unwrap().0;
+
+    let snapshot_data = HttpResponseSnapshot::new(
+        &html,
+        axum::http::StatusCode::OK,
+        &axum::http::HeaderMap::new(),
+        "render_login_page_with_homepage_button_when_user_logged_in",
+    );
 
     assert_yaml_snapshot!(snapshot_data);
 }

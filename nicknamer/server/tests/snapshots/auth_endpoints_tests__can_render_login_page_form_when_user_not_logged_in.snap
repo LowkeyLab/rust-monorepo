@@ -2,10 +2,9 @@
 source: nicknamer/server/tests/auth_endpoints_tests.rs
 expression: snapshot_data
 ---
-test_context: display_login_page
+test_context: render_login_page_form_when_user_not_logged_in
 status: 200
-headers:
-  content-type: text/html; charset=utf-8
+headers: {}
 html_body:
   - "<!DOCTYPE html>"
   - "<html lang=\"en\" data-theme=\"light\">"
