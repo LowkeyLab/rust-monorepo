@@ -447,6 +447,17 @@ async fn update_name_handler(
     }
 }
 
+/// Handler for GET /names/table that returns just the names table fragment.
+#[tracing::instrument(skip(state))]
+async fn names_table_handler(State(state): State<NameState>) -> Result<Html<String>, NameError> {
+    let name_service = NameService::new(&state.db);
+    let table_html = render_names_table(&name_service, |names| {
+        names.sort_by_key(|name| name.id());
+    })
+    .await?;
+    Ok(Html(table_html))
+}
+
 /// Handler for GET /names/{id} that returns a single name row.
 #[tracing::instrument(skip(state))]
 async fn get_name_row_handler(
@@ -476,5 +487,6 @@ pub fn create_name_router(state: NameState) -> Router {
                 .put(update_name_handler),
         )
         .route("/names/{id}/edit", get(edit_name_handler))
+        .route("/names/table", get(names_table_handler))
         .with_state(state)
 }
