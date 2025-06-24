@@ -1,6 +1,10 @@
 #![allow(dead_code)]
+use axum::extract::Request;
 use axum::http::StatusCode;
+use axum::middleware::Next;
+use axum::response::Response;
 use migration::MigratorTrait;
+use nicknamer_server::auth::CurrentUser;
 use sea_orm::{Database, DatabaseConnection};
 use serde::Serialize;
 use std::collections::BTreeMap;
@@ -83,4 +87,20 @@ pub async fn setup_db(
     let db = Database::connect(&db_url).await?;
     migration::Migrator::up(&db, None).await?;
     Ok(db)
+}
+
+/// Creates a middleware function that injects a logged-in user for testing.
+/// This middleware always injects a CurrentUser with the specified username.
+pub fn create_stub_user_middleware(
+    username: String,
+) -> impl Fn(Request, Next) -> std::pin::Pin<Box<dyn std::future::Future<Output = Response> + Send>>
++ Clone {
+    move |mut request: Request, next: Next| {
+        let username = username.clone();
+        Box::pin(async move {
+            let current_user = CurrentUser::new(username);
+            request.extensions_mut().insert(current_user);
+            next.run(request).await
+        })
+    }
 }

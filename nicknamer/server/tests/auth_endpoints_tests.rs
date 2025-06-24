@@ -1,7 +1,7 @@
 use axum::body::Body;
 use axum::extract::Extension;
 use axum::http::Request;
-use axum::middleware::from_fn_with_state;
+use axum::middleware::{from_fn, from_fn_with_state};
 use insta::assert_yaml_snapshot;
 use nicknamer_server::auth::{
     AuthError, AuthState, CurrentUser, create_login_router, encode_jwt, login_page_handler,
@@ -12,7 +12,7 @@ use tower::ServiceExt;
 
 mod common;
 
-use common::HttpResponseSnapshot;
+use common::{HttpResponseSnapshot, create_stub_user_middleware};
 
 /// Setup function for auth endpoint tests.
 async fn setup_auth_state() -> Arc<AuthState> {
@@ -33,6 +33,14 @@ async fn create_test_app() -> (axum::Router, Arc<AuthState>) {
         auth_state.clone(),
         nicknamer_server::auth::auth_user_middleware,
     ));
+    (app, auth_state)
+}
+
+/// Test helper to create test app with a logged-in user.
+async fn create_test_app_with_logged_in_user(username: String) -> (axum::Router, Arc<AuthState>) {
+    let auth_state = setup_auth_state().await;
+    let app = create_login_router(auth_state.clone())
+        .layer(from_fn(create_stub_user_middleware(username)));
     (app, auth_state)
 }
 
@@ -173,17 +181,11 @@ async fn can_display_login_page() {
 
 #[tokio::test]
 async fn can_display_login_page_with_homepage_button_when_logged_in() {
-    let (app, auth_state) = create_test_app().await;
-
-    // Create a valid JWT token
-    let jwt_token = encode_jwt("admin".to_string(), &auth_state.jwt_secret)
-        .await
-        .unwrap();
+    let (app, _auth_state) = create_test_app_with_logged_in_user("admin".to_string()).await;
 
     let request = Request::builder()
         .method("GET")
         .uri("/login")
-        .header("cookie", format!("auth_token={}", jwt_token))
         .body(Body::empty())
         .unwrap();
 
