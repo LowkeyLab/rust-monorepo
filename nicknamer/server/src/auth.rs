@@ -49,10 +49,6 @@ pub fn create_login_router(state: Arc<AuthState>) -> Router<()> {
     Router::new()
         .route("/login", axum::routing::post(login_handler))
         .route("/login", axum::routing::get(login_page_handler))
-        .layer(axum::middleware::from_fn_with_state(
-            state.clone(),
-            auth_user_middleware,
-        ))
         .with_state(state)
 }
 

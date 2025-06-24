@@ -1,6 +1,7 @@
 use axum::body::Body;
 use axum::extract::Extension;
 use axum::http::Request;
+use axum::middleware::from_fn_with_state;
 use insta::assert_yaml_snapshot;
 use nicknamer_server::auth::{
     AuthError, AuthState, CurrentUser, create_login_router, encode_jwt, login_page_handler,
@@ -28,7 +29,10 @@ async fn setup_auth_state() -> Arc<AuthState> {
 /// Test helper to create test app with auth state.
 async fn create_test_app() -> (axum::Router, Arc<AuthState>) {
     let auth_state = setup_auth_state().await;
-    let app = create_login_router(auth_state.clone());
+    let app = create_login_router(auth_state.clone()).layer(from_fn_with_state(
+        auth_state.clone(),
+        nicknamer_server::auth::auth_user_middleware,
+    ));
     (app, auth_state)
 }
 
