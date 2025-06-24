@@ -236,17 +236,17 @@ pub async fn decode_jwt(token: &str, jwt_secret: &str) -> anyhow::Result<Claims>
 }
 
 #[derive(Template)]
-#[template(path = "login_success.html")]
+#[template(path = "login/login_success.html")]
 pub struct LoginSuccessTemplate<'a> {
     pub name: &'a str,
 }
 
 #[derive(Template)]
-#[template(path = "login_error_message.html")]
+#[template(path = "login/login_error_message.html")]
 pub struct LoginErrorMessageTemplate;
 
 #[derive(Template)]
-#[template(path = "login.html")]
+#[template(path = "login/login.html")]
 pub struct LoginTemplate;
 
 /// Handles GET requests to display the login page.
