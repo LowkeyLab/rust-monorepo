@@ -14,11 +14,11 @@
             class="card w-full max-w-sm shadow-2xl bg-base-100"
           >
             <div id="login-content" class="card-body">
-              {% if is_logged_in %}
+              {% if let Some(user) = username %}
               <h2 class="card-title text-2xl font-bold">Welcome back!</h2>
               <p class="mb-4">
                 You are already logged in as
-                <strong>{{ current_user }}</strong>.
+                <strong>{{ user }}</strong>.
               </p>
               <div class="form-control">
                 <a href="/" class="btn btn-primary">Go to Homepage</a>

@@ -203,26 +203,24 @@ async fn can_display_login_page_with_homepage_button_when_logged_in() {
 }
 
 #[tokio::test]
-async fn login_page_renders_form_when_user_not_logged_in() {
+async fn can_render_login_page_form_when_user_not_logged_in() {
     let result = login_page_handler(None).await;
 
     assert!(result.is_ok());
     let html = result.unwrap().0;
 
-    // Should contain login form elements
-    assert!(html.contains("Login"));
-    assert!(html.contains("username"));
-    assert!(html.contains("password"));
-    assert!(html.contains("hx-post=\"/login\""));
-    assert!(html.contains("btn btn-primary"));
+    let snapshot_data = HttpResponseSnapshot::new(
+        &html,
+        axum::http::StatusCode::OK,
+        &axum::http::HeaderMap::new(),
+        "render_login_page_form_when_user_not_logged_in",
+    );
 
-    // Should not contain already logged in content
-    assert!(!html.contains("Welcome back!"));
-    assert!(!html.contains("Go to Homepage"));
+    assert_yaml_snapshot!(snapshot_data);
 }
 
 #[tokio::test]
-async fn login_page_renders_homepage_button_when_user_logged_in() {
+async fn can_render_login_page_with_homepage_button_when_user_logged_in() {
     let current_user = CurrentUser::new("testuser".to_string());
     let extension = Extension(current_user);
 
@@ -231,14 +229,12 @@ async fn login_page_renders_homepage_button_when_user_logged_in() {
     assert!(result.is_ok());
     let html = result.unwrap().0;
 
-    // Should contain already logged in content
-    assert!(html.contains("Welcome back!"));
-    assert!(html.contains("You are already logged in as <strong>testuser</strong>"));
-    assert!(html.contains("Go to Homepage"));
-    assert!(html.contains("href=\"/\""));
+    let snapshot_data = HttpResponseSnapshot::new(
+        &html,
+        axum::http::StatusCode::OK,
+        &axum::http::HeaderMap::new(),
+        "render_login_page_with_homepage_button_when_user_logged_in",
+    );
 
-    // Should not contain login form elements
-    assert!(!html.contains("hx-post=\"/login\""));
-    assert!(!html.contains("placeholder=\"username\""));
-    assert!(!html.contains("placeholder=\"password\""));
+    assert_yaml_snapshot!(snapshot_data);
 }

@@ -2,10 +2,9 @@
 source: nicknamer/server/tests/auth_endpoints_tests.rs
 expression: snapshot_data
 ---
-test_context: display_login_page_with_homepage_button_when_logged_in
+test_context: render_login_page_with_homepage_button_when_user_logged_in
 status: 200
-headers:
-  content-type: text/html; charset=utf-8
+headers: {}
 html_body:
   - "<!DOCTYPE html>"
   - "<html lang=\"en\" data-theme=\"light\">"
@@ -42,7 +41,7 @@ html_body:
   - "              <h2 class=\"card-title text-2xl font-bold\">Welcome back!</h2>"
   - "              <p class=\"mb-4\">"
   - "                You are already logged in as"
-  - "                <strong>admin</strong>."
+  - "                <strong>testuser</strong>."
   - "              </p>"
   - "              <div class=\"form-control\">"
   - "                <a href=\"/\" class=\"btn btn-primary\">Go to Homepage</a>"

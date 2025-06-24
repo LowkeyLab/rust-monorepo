@@ -252,8 +252,7 @@ pub struct LoginErrorMessageTemplate;
 #[derive(Template)]
 #[template(path = "login.html")]
 pub struct LoginTemplate {
-    pub current_user: String,
-    pub is_logged_in: bool,
+    pub username: Option<String>,
 }
 
 /// Handles GET requests to display the login page.
@@ -261,15 +260,9 @@ pub struct LoginTemplate {
 pub async fn login_page_handler(
     current_user: Option<Extension<CurrentUser>>,
 ) -> Result<Html<String>, AuthError> {
-    let (current_username, is_logged_in) = match current_user {
-        Some(Extension(user)) => (user.username.clone(), true),
-        None => (String::new(), false),
-    };
+    let username = current_user.map(|Extension(user)| user.username);
 
-    let template = LoginTemplate {
-        current_user: current_username,
-        is_logged_in,
-    };
+    let template = LoginTemplate { username };
     template.render().map(Html).map_err(AuthError::from)
 }
 
