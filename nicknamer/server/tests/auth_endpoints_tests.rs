@@ -1,7 +1,10 @@
 use axum::body::Body;
+use axum::extract::Extension;
 use axum::http::Request;
 use insta::assert_yaml_snapshot;
-use nicknamer_server::auth::{AuthError, AuthState, create_login_router, encode_jwt};
+use nicknamer_server::auth::{
+    AuthError, AuthState, CurrentUser, create_login_router, encode_jwt, login_page_handler,
+};
 use nicknamer_server::config::Config;
 use std::sync::Arc;
 use tower::ServiceExt;
@@ -162,4 +165,80 @@ async fn can_display_login_page() {
         HttpResponseSnapshot::new(body_text, status, &headers, "display_login_page");
 
     assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn can_display_login_page_with_homepage_button_when_logged_in() {
+    let (app, auth_state) = create_test_app().await;
+
+    // Create a valid JWT token
+    let jwt_token = encode_jwt("admin".to_string(), &auth_state.jwt_secret)
+        .await
+        .unwrap();
+
+    let request = Request::builder()
+        .method("GET")
+        .uri("/login")
+        .header("cookie", format!("auth_token={}", jwt_token))
+        .body(Body::empty())
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    let snapshot_data = HttpResponseSnapshot::new(
+        body_text,
+        status,
+        &headers,
+        "display_login_page_with_homepage_button_when_logged_in",
+    );
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn login_page_renders_form_when_user_not_logged_in() {
+    let result = login_page_handler(None).await;
+
+    assert!(result.is_ok());
+    let html = result.unwrap().0;
+
+    // Should contain login form elements
+    assert!(html.contains("Login"));
+    assert!(html.contains("username"));
+    assert!(html.contains("password"));
+    assert!(html.contains("hx-post=\"/login\""));
+    assert!(html.contains("btn btn-primary"));
+
+    // Should not contain already logged in content
+    assert!(!html.contains("Welcome back!"));
+    assert!(!html.contains("Go to Homepage"));
+}
+
+#[tokio::test]
+async fn login_page_renders_homepage_button_when_user_logged_in() {
+    let current_user = CurrentUser::new("testuser".to_string());
+    let extension = Extension(current_user);
+
+    let result = login_page_handler(Some(extension)).await;
+
+    assert!(result.is_ok());
+    let html = result.unwrap().0;
+
+    // Should contain already logged in content
+    assert!(html.contains("Welcome back!"));
+    assert!(html.contains("You are already logged in as <strong>testuser</strong>"));
+    assert!(html.contains("Go to Homepage"));
+    assert!(html.contains("href=\"/\""));
+
+    // Should not contain login form elements
+    assert!(!html.contains("hx-post=\"/login\""));
+    assert!(!html.contains("placeholder=\"username\""));
+    assert!(!html.contains("placeholder=\"password\""));
 }

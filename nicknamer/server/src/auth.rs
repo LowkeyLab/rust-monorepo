@@ -49,7 +49,11 @@ pub fn create_login_router(state: Arc<AuthState>) -> Router<()> {
     Router::new()
         .route("/login", axum::routing::post(login_handler))
         .route("/login", axum::routing::get(login_page_handler))
-        .with_state(state.clone())
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            auth_user_middleware,
+        ))
+        .with_state(state)
 }
 
 /// Authentication middleware that checks for valid JWT tokens and sets CurrentUser extension.
@@ -247,12 +251,25 @@ pub struct LoginErrorMessageTemplate;
 
 #[derive(Template)]
 #[template(path = "login.html")]
-pub struct LoginTemplate;
+pub struct LoginTemplate {
+    pub current_user: String,
+    pub is_logged_in: bool,
+}
 
 /// Handles GET requests to display the login page.
 #[tracing::instrument]
-pub async fn login_page_handler() -> Result<Html<String>, AuthError> {
-    let template = LoginTemplate;
+pub async fn login_page_handler(
+    current_user: Option<Extension<CurrentUser>>,
+) -> Result<Html<String>, AuthError> {
+    let (current_username, is_logged_in) = match current_user {
+        Some(Extension(user)) => (user.username.clone(), true),
+        None => (String::new(), false),
+    };
+
+    let template = LoginTemplate {
+        current_user: current_username,
+        is_logged_in,
+    };
     template.render().map(Html).map_err(AuthError::from)
 }
 
