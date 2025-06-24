@@ -135,7 +135,7 @@ impl IndexTemplate {
 }
 
 #[derive(Template)]
-#[template(path = "partials/call_to_action.html")]
+#[template(path = "welcome/call_to_action.html")]
 struct CallToActionTemplate {
     username: Option<String>,
 }
