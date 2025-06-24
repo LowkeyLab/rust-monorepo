@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use axum::http::StatusCode;
 use migration::MigratorTrait;
 use sea_orm::{Database, DatabaseConnection};
@@ -41,17 +42,6 @@ impl HttpResponseSnapshot {
             status: status.as_u16(),
             headers: filter_variable_headers(headers),
             html_body: normalize_html_for_snapshot(body_text),
-        }
-    }
-
-    /// Create a snapshot from just HTML content and context.
-    /// This is useful for testing template rendering without HTTP responses.
-    pub fn from_html(html_content: &str, test_context: &str) -> Self {
-        Self {
-            test_context: test_context.to_string(),
-            status: 200,
-            headers: BTreeMap::new(),
-            html_body: normalize_html_for_snapshot(html_content),
         }
     }
 }

@@ -283,7 +283,7 @@ impl axum::response::IntoResponse for NameError {
 }
 
 #[derive(Template)]
-#[template(path = "names/names.html")]
+#[template(path = "names.html")]
 struct NamesTemplate {
     names: Vec<Name>,
 }
