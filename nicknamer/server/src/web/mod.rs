@@ -150,12 +150,28 @@ impl CallToActionTemplate {
 mod tests {
     use super::*;
     use crate::auth::CurrentUser;
+    use crate::testing::HttpResponseSnapshot;
     use axum::http::StatusCode;
+    use insta::assert_yaml_snapshot;
 
     #[tokio::test]
     async fn can_check_health() {
         let response = health_check_handler().await;
         assert_eq!(response, "OK");
+    }
+
+    #[tokio::test]
+    async fn can_render_welcome_page() {
+        let result = welcome_handler().await;
+        assert!(
+            result.is_ok(),
+            "welcome() returned an error: {:?}",
+            result.err()
+        );
+
+        let html = result.unwrap();
+        let snapshot = HttpResponseSnapshot::from_html(&html.0, "welcome_page");
+        assert_yaml_snapshot!(snapshot);
     }
 
     #[tokio::test]
@@ -196,8 +212,10 @@ mod tests {
         let body = axum::body::to_bytes(response.into_body(), usize::MAX)
             .await
             .unwrap();
-        let expected_error_message = "<h1>Internal Server Error</h1><p>An unexpected error occurred while processing your request. Please try again later.</p>";
-        assert_eq!(std::str::from_utf8(&body).unwrap(), expected_error_message);
+        let body_text = std::str::from_utf8(&body).unwrap();
+        
+        let snapshot = HttpResponseSnapshot::from_html(body_text, "template_error_response");
+        assert_yaml_snapshot!(snapshot);
     }
 
     #[tokio::test]
@@ -214,12 +232,8 @@ mod tests {
         );
 
         let html = result.unwrap();
-        let html_content = html.0;
-
-        // Check that the response contains the authenticated user's content
-        assert!(html_content.contains("Welcome, testuser!"));
-        assert!(html_content.contains("Manage Names"));
-        assert!(html_content.contains("href=\"/names\""));
+        let snapshot = HttpResponseSnapshot::from_html(&html.0, "call_to_action_authenticated");
+        assert_yaml_snapshot!(snapshot);
     }
 
     #[tokio::test]
@@ -233,12 +247,8 @@ mod tests {
         );
 
         let html = result.unwrap();
-        let html_content = html.0;
-
-        // Check that the response contains the unauthenticated user's content
-        assert!(html_content.contains("Welcome to Nicknamer"));
-        assert!(html_content.contains("Please log in to access the application"));
-        assert!(html_content.contains("href=\"/login\""));
+        let snapshot = HttpResponseSnapshot::from_html(&html.0, "call_to_action_unauthenticated");
+        assert_yaml_snapshot!(snapshot);
     }
 
     #[tokio::test]

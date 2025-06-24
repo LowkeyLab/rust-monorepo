@@ -3,75 +3,13 @@ use axum::http::{Method, Request, StatusCode};
 use insta::assert_yaml_snapshot;
 use nicknamer_server::entities::name;
 use nicknamer_server::name::{NameState, create_name_router};
+use nicknamer_server::testing::HttpResponseSnapshot;
 use sea_orm::{ActiveModelTrait, DatabaseConnection, Set};
-use serde::Serialize;
-use std::collections::BTreeMap;
 use std::sync::Arc;
 use testcontainers_modules::{postgres, testcontainers};
 use tower::ServiceExt;
 
 mod common;
-
-/// Headers that vary between test runs and should be filtered out for stable snapshots.
-const VARIABLE_HEADERS: &[&str] = &[
-    "date",
-    "expires",
-    "last-modified",
-    "etag",
-    "server",
-    "x-request-id",
-    "x-trace-id",
-    "set-cookie",
-    "content-length",
-];
-
-/// HTTP response snapshot for testing endpoints.
-#[derive(Debug, Serialize)]
-struct HttpResponseSnapshot {
-    test_context: String,
-    status: u16,
-    headers: std::collections::BTreeMap<String, String>,
-    html_body: Vec<String>,
-}
-
-impl HttpResponseSnapshot {
-    /// Create a new HTTP response snapshot.
-    fn new(
-        body_text: &str,
-        status: StatusCode,
-        headers: &axum::http::HeaderMap,
-        test_context: &str,
-    ) -> Self {
-        Self {
-            test_context: test_context.to_string(),
-            status: status.as_u16(),
-            headers: filter_variable_headers(headers),
-            html_body: normalize_html_for_snapshot(body_text),
-        }
-    }
-}
-
-/// Normalize HTML content for consistent snapshots by removing dynamic values.
-fn normalize_html_for_snapshot(html: &str) -> Vec<String> {
-    // Split HTML by newlines and convert to Vec<String>
-    // In the future, we could add more sophisticated normalization
-    html.lines().map(|line| line.to_string()).collect()
-}
-
-/// Filter out variable headers from response headers for snapshot testing.
-fn filter_variable_headers(headers: &axum::http::HeaderMap) -> BTreeMap<String, String> {
-    headers
-        .iter()
-        .filter_map(|(name, value)| {
-            let name_str = name.as_str().to_lowercase();
-            if VARIABLE_HEADERS.contains(&name_str.as_str()) {
-                None
-            } else {
-                value.to_str().ok().map(|v| (name_str, v.to_string()))
-            }
-        })
-        .collect()
-}
 
 /// Test context for endpoint tests.
 pub struct TestContext {
