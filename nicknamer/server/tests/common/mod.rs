@@ -1,5 +1,6 @@
 #![allow(dead_code)]
-use axum::extract::Request;
+use axum::body::Body;
+use axum::http::Request;
 use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::Response;
@@ -91,7 +92,7 @@ pub async fn setup_db(
 
 /// Stub middleware that injects a logged-in user for testing.
 /// This middleware always injects a CurrentUser with the specified username.
-pub async fn stub_user_middleware(mut request: Request, next: Next) -> Response {
+pub async fn stub_user_middleware(mut request: Request<Body>, next: Next) -> Response {
     // For tests, we inject a hardcoded user
     let current_user = CurrentUser::new("testuser".to_string());
     request.extensions_mut().insert(current_user);

@@ -37,7 +37,7 @@ async fn create_test_app() -> (axum::Router, Arc<AuthState>) {
 }
 
 /// Test helper to create test app with a logged-in user.
-async fn create_test_app_with_logged_in_user(_username: String) -> (axum::Router, Arc<AuthState>) {
+async fn create_test_app_with_logged_in_user() -> (axum::Router, Arc<AuthState>) {
     let auth_state = setup_auth_state().await;
     let app = create_login_router(auth_state.clone()).layer(from_fn(stub_user_middleware));
     (app, auth_state)
@@ -180,7 +180,7 @@ async fn can_display_login_page() {
 
 #[tokio::test]
 async fn can_display_login_page_with_homepage_button_when_logged_in() {
-    let (app, _auth_state) = create_test_app_with_logged_in_user("admin".to_string()).await;
+    let (app, _auth_state) = create_test_app_with_logged_in_user().await;
 
     let request = Request::builder()
         .method("GET")
