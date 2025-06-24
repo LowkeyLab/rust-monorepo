@@ -8,12 +8,10 @@ applyTo: "**/*.rs"
 
 Follow these instructions exactly. Do not deviate from them.
 
-## Commands
+## Testing
 
-Run the following commands in the terminal to ensure the code meets the quality standards:
-
-1. `cargo make clippy`
-2. `cargo make`
+First, change into the current directory of the relevant project and run `mise test`.
+If the tests pass, then go to the root of the repository and run `mise test`.
 
 ## Error Handling
 

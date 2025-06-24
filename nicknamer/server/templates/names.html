@@ -48,7 +48,17 @@
 
           <div id="add-name-form" class="mb-4"></div>
 
-          <div id="names-table">{% include "names/names_table.html" %}</div>
+          <div
+            id="names-table"
+            hx-get="/names/table"
+            hx-trigger="load"
+            hx-swap="innerHTML"
+          >
+            <div class="flex justify-center items-center py-8">
+              <span class="loading loading-spinner loading-md"></span>
+              <span class="ml-2">Loading names...</span>
+            </div>
+          </div>
         </div>
       </div>
 

@@ -25,7 +25,7 @@ pub struct AppState {
 
 /// Custom error type for web handler operations.
 #[derive(Debug, thiserror::Error)]
-enum WebError {
+pub enum WebError {
     /// Represents an error during template rendering.
     /// The specific `askama::Error` is captured as the source of this error.
     #[error("Template rendering failed")]
@@ -79,6 +79,10 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
     let public_routes = Router::new()
         .route("/health", axum::routing::get(health_check_handler))
         .route("/", axum::routing::get(welcome_handler))
+        .route(
+            "/call-to-action",
+            axum::routing::get(call_to_action_handler),
+        )
         .merge(login_router)
         .layer(
             ServiceBuilder::new()
@@ -99,28 +103,44 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
 }
 
 #[tracing::instrument]
-async fn health_check_handler() -> &'static str {
+pub async fn health_check_handler() -> &'static str {
     "OK"
 }
 
 #[tracing::instrument]
-async fn welcome_handler(
+pub async fn welcome_handler() -> Result<Html<String>, WebError> {
+    let template = IndexTemplate::new();
+    template.render().map(Html).map_err(WebError::from)
+}
+
+#[tracing::instrument]
+pub async fn call_to_action_handler(
     current_user: Option<Extension<CurrentUser>>,
 ) -> Result<Html<String>, WebError> {
     let template = match current_user {
-        Some(Extension(user)) => IndexTemplate::new(Some(user.username.clone())),
-        None => IndexTemplate::new(None),
+        Some(Extension(user)) => CallToActionTemplate::new(Some(user.username.clone())),
+        None => CallToActionTemplate::new(None),
     };
     template.render().map(Html).map_err(WebError::from)
 }
 
 #[derive(Template)]
 #[template(path = "index.html")]
-struct IndexTemplate {
+struct IndexTemplate;
+
+impl IndexTemplate {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+#[derive(Template)]
+#[template(path = "welcome/call_to_action.html")]
+struct CallToActionTemplate {
     username: Option<String>,
 }
 
-impl IndexTemplate {
+impl CallToActionTemplate {
     pub fn new(username: Option<String>) -> Self {
         Self { username }
     }
@@ -130,36 +150,6 @@ impl IndexTemplate {
 mod tests {
     use super::*;
     use axum::http::StatusCode;
-
-    #[tokio::test]
-    async fn can_check_health() {
-        let response = health_check_handler().await;
-        assert_eq!(response, "OK");
-    }
-
-    #[tokio::test]
-    async fn can_render_welcome_page_with_correct_content_type() {
-        let result = welcome_handler(None).await;
-        assert!(
-            result.is_ok(),
-            "welcome() returned an error: {:?}",
-            result.err()
-        );
-        let response: axum::response::Response =
-            axum::response::IntoResponse::into_response(result.unwrap());
-        assert_eq!(
-            response.status(),
-            StatusCode::OK,
-            "Welcome handler should return OK for this test"
-        );
-        let content_type = response.headers().get(axum::http::header::CONTENT_TYPE);
-        assert_eq!(
-            content_type,
-            Some(&axum::http::HeaderValue::from_static(
-                "text/html; charset=utf-8"
-            ))
-        );
-    }
 
     #[tokio::test]
     async fn can_handle_template_error_with_internal_server_error() {
@@ -175,7 +165,11 @@ mod tests {
         let body = axum::body::to_bytes(response.into_body(), usize::MAX)
             .await
             .unwrap();
-        let expected_error_message = "<h1>Internal Server Error</h1><p>An unexpected error occurred while processing your request. Please try again later.</p>";
-        assert_eq!(std::str::from_utf8(&body).unwrap(), expected_error_message);
+        let body_text = std::str::from_utf8(&body).unwrap();
+
+        assert_eq!(
+            body_text,
+            "<h1>Internal Server Error</h1><p>An unexpected error occurred while processing your request. Please try again later.</p>"
+        );
     }
 }
