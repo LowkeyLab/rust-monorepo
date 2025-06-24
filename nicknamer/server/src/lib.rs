@@ -32,7 +32,3 @@ pub mod name;
 
 pub mod auth;
 pub mod web;
-
-/// Testing utilities module.
-/// This module is available when running tests.
-pub mod testing;

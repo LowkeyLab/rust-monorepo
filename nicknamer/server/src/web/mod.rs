@@ -25,7 +25,7 @@ pub struct AppState {
 
 /// Custom error type for web handler operations.
 #[derive(Debug, thiserror::Error)]
-enum WebError {
+pub enum WebError {
     /// Represents an error during template rendering.
     /// The specific `askama::Error` is captured as the source of this error.
     #[error("Template rendering failed")]
@@ -103,18 +103,18 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
 }
 
 #[tracing::instrument]
-async fn health_check_handler() -> &'static str {
+pub async fn health_check_handler() -> &'static str {
     "OK"
 }
 
 #[tracing::instrument]
-async fn welcome_handler() -> Result<Html<String>, WebError> {
+pub async fn welcome_handler() -> Result<Html<String>, WebError> {
     let template = IndexTemplate::new();
     template.render().map(Html).map_err(WebError::from)
 }
 
 #[tracing::instrument]
-async fn call_to_action_handler(
+pub async fn call_to_action_handler(
     current_user: Option<Extension<CurrentUser>>,
 ) -> Result<Html<String>, WebError> {
     let template = match current_user {
@@ -149,54 +149,7 @@ impl CallToActionTemplate {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::auth::CurrentUser;
-    use crate::testing::HttpResponseSnapshot;
     use axum::http::StatusCode;
-    use insta::assert_yaml_snapshot;
-
-    #[tokio::test]
-    async fn can_check_health() {
-        let response = health_check_handler().await;
-        assert_eq!(response, "OK");
-    }
-
-    #[tokio::test]
-    async fn can_render_welcome_page() {
-        let result = welcome_handler().await;
-        assert!(
-            result.is_ok(),
-            "welcome() returned an error: {:?}",
-            result.err()
-        );
-
-        let html = result.unwrap();
-        let snapshot = HttpResponseSnapshot::from_html(&html.0, "welcome_page");
-        assert_yaml_snapshot!(snapshot);
-    }
-
-    #[tokio::test]
-    async fn can_render_welcome_page_with_correct_content_type() {
-        let result = welcome_handler().await;
-        assert!(
-            result.is_ok(),
-            "welcome() returned an error: {:?}",
-            result.err()
-        );
-        let response: axum::response::Response =
-            axum::response::IntoResponse::into_response(result.unwrap());
-        assert_eq!(
-            response.status(),
-            StatusCode::OK,
-            "Welcome handler should return OK for this test"
-        );
-        let content_type = response.headers().get(axum::http::header::CONTENT_TYPE);
-        assert_eq!(
-            content_type,
-            Some(&axum::http::HeaderValue::from_static(
-                "text/html; charset=utf-8"
-            ))
-        );
-    }
 
     #[tokio::test]
     async fn can_handle_template_error_with_internal_server_error() {
@@ -213,63 +166,10 @@ mod tests {
             .await
             .unwrap();
         let body_text = std::str::from_utf8(&body).unwrap();
-        
-        let snapshot = HttpResponseSnapshot::from_html(body_text, "template_error_response");
-        assert_yaml_snapshot!(snapshot);
-    }
 
-    #[tokio::test]
-    async fn can_render_call_to_action_for_authenticated_user() {
-        let user = CurrentUser {
-            username: "testuser".to_string(),
-        };
-        let result = call_to_action_handler(Some(Extension(user))).await;
-
-        assert!(
-            result.is_ok(),
-            "call_to_action_handler returned an error: {:?}",
-            result.err()
-        );
-
-        let html = result.unwrap();
-        let snapshot = HttpResponseSnapshot::from_html(&html.0, "call_to_action_authenticated");
-        assert_yaml_snapshot!(snapshot);
-    }
-
-    #[tokio::test]
-    async fn can_render_call_to_action_for_unauthenticated_user() {
-        let result = call_to_action_handler(None).await;
-
-        assert!(
-            result.is_ok(),
-            "call_to_action_handler returned an error: {:?}",
-            result.err()
-        );
-
-        let html = result.unwrap();
-        let snapshot = HttpResponseSnapshot::from_html(&html.0, "call_to_action_unauthenticated");
-        assert_yaml_snapshot!(snapshot);
-    }
-
-    #[tokio::test]
-    async fn can_render_call_to_action_with_correct_content_type() {
-        let result = call_to_action_handler(None).await;
-        assert!(
-            result.is_ok(),
-            "call_to_action_handler returned an error: {:?}",
-            result.err()
-        );
-
-        let response: axum::response::Response =
-            axum::response::IntoResponse::into_response(result.unwrap());
-        assert_eq!(response.status(), StatusCode::OK);
-
-        let content_type = response.headers().get(axum::http::header::CONTENT_TYPE);
         assert_eq!(
-            content_type,
-            Some(&axum::http::HeaderValue::from_static(
-                "text/html; charset=utf-8"
-            ))
+            body_text,
+            "<h1>Internal Server Error</h1><p>An unexpected error occurred while processing your request. Please try again later.</p>"
         );
     }
 }

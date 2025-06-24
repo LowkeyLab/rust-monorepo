@@ -3,13 +3,14 @@ use axum::http::{Method, Request, StatusCode};
 use insta::assert_yaml_snapshot;
 use nicknamer_server::entities::name;
 use nicknamer_server::name::{NameState, create_name_router};
-use nicknamer_server::testing::HttpResponseSnapshot;
 use sea_orm::{ActiveModelTrait, DatabaseConnection, Set};
 use std::sync::Arc;
 use testcontainers_modules::{postgres, testcontainers};
 use tower::ServiceExt;
 
 mod common;
+
+use common::HttpResponseSnapshot;
 
 /// Test context for endpoint tests.
 pub struct TestContext {
