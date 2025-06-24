@@ -79,6 +79,10 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
     let public_routes = Router::new()
         .route("/health", axum::routing::get(health_check_handler))
         .route("/", axum::routing::get(welcome_handler))
+        .route(
+            "/call-to-action",
+            axum::routing::get(call_to_action_handler),
+        )
         .merge(login_router)
         .layer(
             ServiceBuilder::new()
@@ -104,23 +108,39 @@ async fn health_check_handler() -> &'static str {
 }
 
 #[tracing::instrument]
-async fn welcome_handler(
+async fn welcome_handler() -> Result<Html<String>, WebError> {
+    let template = IndexTemplate::new();
+    template.render().map(Html).map_err(WebError::from)
+}
+
+#[tracing::instrument]
+async fn call_to_action_handler(
     current_user: Option<Extension<CurrentUser>>,
 ) -> Result<Html<String>, WebError> {
     let template = match current_user {
-        Some(Extension(user)) => IndexTemplate::new(Some(user.username.clone())),
-        None => IndexTemplate::new(None),
+        Some(Extension(user)) => CallToActionTemplate::new(Some(user.username.clone())),
+        None => CallToActionTemplate::new(None),
     };
     template.render().map(Html).map_err(WebError::from)
 }
 
 #[derive(Template)]
 #[template(path = "index.html")]
-struct IndexTemplate {
+struct IndexTemplate;
+
+impl IndexTemplate {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+#[derive(Template)]
+#[template(path = "partials/call_to_action.html")]
+struct CallToActionTemplate {
     username: Option<String>,
 }
 
-impl IndexTemplate {
+impl CallToActionTemplate {
     pub fn new(username: Option<String>) -> Self {
         Self { username }
     }
@@ -129,6 +149,7 @@ impl IndexTemplate {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::auth::CurrentUser;
     use axum::http::StatusCode;
 
     #[tokio::test]
@@ -139,7 +160,7 @@ mod tests {
 
     #[tokio::test]
     async fn can_render_welcome_page_with_correct_content_type() {
-        let result = welcome_handler(None).await;
+        let result = welcome_handler().await;
         assert!(
             result.is_ok(),
             "welcome() returned an error: {:?}",
@@ -177,5 +198,68 @@ mod tests {
             .unwrap();
         let expected_error_message = "<h1>Internal Server Error</h1><p>An unexpected error occurred while processing your request. Please try again later.</p>";
         assert_eq!(std::str::from_utf8(&body).unwrap(), expected_error_message);
+    }
+
+    #[tokio::test]
+    async fn can_render_call_to_action_for_authenticated_user() {
+        let user = CurrentUser {
+            username: "testuser".to_string(),
+        };
+        let result = call_to_action_handler(Some(Extension(user))).await;
+
+        assert!(
+            result.is_ok(),
+            "call_to_action_handler returned an error: {:?}",
+            result.err()
+        );
+
+        let html = result.unwrap();
+        let html_content = html.0;
+
+        // Check that the response contains the authenticated user's content
+        assert!(html_content.contains("Welcome, testuser!"));
+        assert!(html_content.contains("Manage Names"));
+        assert!(html_content.contains("href=\"/names\""));
+    }
+
+    #[tokio::test]
+    async fn can_render_call_to_action_for_unauthenticated_user() {
+        let result = call_to_action_handler(None).await;
+
+        assert!(
+            result.is_ok(),
+            "call_to_action_handler returned an error: {:?}",
+            result.err()
+        );
+
+        let html = result.unwrap();
+        let html_content = html.0;
+
+        // Check that the response contains the unauthenticated user's content
+        assert!(html_content.contains("Welcome to Nicknamer"));
+        assert!(html_content.contains("Please log in to access the application"));
+        assert!(html_content.contains("href=\"/login\""));
+    }
+
+    #[tokio::test]
+    async fn can_render_call_to_action_with_correct_content_type() {
+        let result = call_to_action_handler(None).await;
+        assert!(
+            result.is_ok(),
+            "call_to_action_handler returned an error: {:?}",
+            result.err()
+        );
+
+        let response: axum::response::Response =
+            axum::response::IntoResponse::into_response(result.unwrap());
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let content_type = response.headers().get(axum::http::header::CONTENT_TYPE);
+        assert_eq!(
+            content_type,
+            Some(&axum::http::HeaderValue::from_static(
+                "text/html; charset=utf-8"
+            ))
+        );
     }
 }
