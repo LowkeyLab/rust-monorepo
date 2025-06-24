@@ -246,7 +246,7 @@ pub struct LoginSuccessTemplate<'a> {
 pub struct LoginErrorMessageTemplate;
 
 #[derive(Template)]
-#[template(path = "login/login.html")]
+#[template(path = "login.html")]
 pub struct LoginTemplate;
 
 /// Handles GET requests to display the login page.
