@@ -284,13 +284,11 @@ impl axum::response::IntoResponse for NameError {
 
 #[derive(Template)]
 #[template(path = "names.html")]
-struct NamesTemplate {
-    names: Vec<Name>,
-}
+struct NamesTemplate {}
 
 impl NamesTemplate {
-    pub fn new(names: Vec<Name>) -> Self {
-        Self { names }
+    pub fn new() -> Self {
+        Self {}
     }
 }
 
@@ -352,7 +350,7 @@ async fn names_handler(State(state): State<NameState>) -> Result<Html<String>, N
     let name_service = NameService::new(&state.db);
     let mut names = name_service.get_all_names().await?;
     names.sort_by_key(|name| name.id());
-    let template = NamesTemplate::new(names);
+    let template = NamesTemplate::new();
     template.render().map(Html).map_err(NameError::from)
 }
 
