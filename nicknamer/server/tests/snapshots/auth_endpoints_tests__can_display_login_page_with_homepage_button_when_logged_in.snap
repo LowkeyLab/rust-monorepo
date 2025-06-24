@@ -42,7 +42,7 @@ html_body:
   - "              <h2 class=\"card-title text-2xl font-bold\">Welcome back!</h2>"
   - "              <p class=\"mb-4\">"
   - "                You are already logged in as"
-  - "                <strong>admin</strong>."
+  - "                <strong>testuser</strong>."
   - "              </p>"
   - "              <div class=\"form-control\">"
   - "                <a href=\"/\" class=\"btn btn-primary\">Go to Homepage</a>"

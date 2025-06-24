@@ -89,18 +89,11 @@ pub async fn setup_db(
     Ok(db)
 }
 
-/// Creates a middleware function that injects a logged-in user for testing.
+/// Stub middleware that injects a logged-in user for testing.
 /// This middleware always injects a CurrentUser with the specified username.
-pub fn create_stub_user_middleware(
-    username: String,
-) -> impl Fn(Request, Next) -> std::pin::Pin<Box<dyn std::future::Future<Output = Response> + Send>>
-+ Clone {
-    move |mut request: Request, next: Next| {
-        let username = username.clone();
-        Box::pin(async move {
-            let current_user = CurrentUser::new(username);
-            request.extensions_mut().insert(current_user);
-            next.run(request).await
-        })
-    }
+pub async fn stub_user_middleware(mut request: Request, next: Next) -> Response {
+    // For tests, we inject a hardcoded user
+    let current_user = CurrentUser::new("testuser".to_string());
+    request.extensions_mut().insert(current_user);
+    next.run(request).await
 }

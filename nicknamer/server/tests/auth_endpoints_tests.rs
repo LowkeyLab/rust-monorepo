@@ -12,7 +12,7 @@ use tower::ServiceExt;
 
 mod common;
 
-use common::{HttpResponseSnapshot, create_stub_user_middleware};
+use common::{HttpResponseSnapshot, stub_user_middleware};
 
 /// Setup function for auth endpoint tests.
 async fn setup_auth_state() -> Arc<AuthState> {
@@ -37,10 +37,9 @@ async fn create_test_app() -> (axum::Router, Arc<AuthState>) {
 }
 
 /// Test helper to create test app with a logged-in user.
-async fn create_test_app_with_logged_in_user(username: String) -> (axum::Router, Arc<AuthState>) {
+async fn create_test_app_with_logged_in_user(_username: String) -> (axum::Router, Arc<AuthState>) {
     let auth_state = setup_auth_state().await;
-    let app = create_login_router(auth_state.clone())
-        .layer(from_fn(create_stub_user_middleware(username)));
+    let app = create_login_router(auth_state.clone()).layer(from_fn(stub_user_middleware));
     (app, auth_state)
 }
 
