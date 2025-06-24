@@ -938,3 +938,250 @@ async fn can_update_name_with_very_long_string() {
 
     assert_yaml_snapshot!(snapshot_data);
 }
+
+#[tokio::test]
+async fn can_get_names_table_fragment_when_names_exist() {
+    let state = setup().await.expect("Failed to setup test context");
+    create_test_names(&state.db).await;
+
+    let name_state = NameState {
+        db: Arc::new(state.db),
+    };
+    let app = create_name_router(name_state);
+
+    let request = Request::builder()
+        .method(Method::GET)
+        .uri("/names/table")
+        .body(Body::empty())
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    let snapshot_data = HttpResponseSnapshot::new(
+        body_text,
+        status,
+        &headers,
+        "names_table_fragment_with_data",
+    );
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn can_get_empty_names_table_fragment_when_no_names_exist() {
+    let state = setup().await.expect("Failed to setup test context");
+
+    let name_state = NameState {
+        db: Arc::new(state.db),
+    };
+    let app = create_name_router(name_state);
+
+    let request = Request::builder()
+        .method(Method::GET)
+        .uri("/names/table")
+        .body(Body::empty())
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    let snapshot_data =
+        HttpResponseSnapshot::new(body_text, status, &headers, "empty_names_table_fragment");
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn names_table_endpoint_returns_correct_content_type() {
+    let state = setup().await.expect("Failed to setup test context");
+    create_test_names(&state.db).await;
+
+    let name_state = NameState {
+        db: Arc::new(state.db),
+    };
+    let app = create_name_router(name_state);
+
+    let request = Request::builder()
+        .method(Method::GET)
+        .uri("/names/table")
+        .body(Body::empty())
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+
+    // Should return 200 OK
+    assert_eq!(status, StatusCode::OK);
+
+    // Should have HTML content type
+    assert!(
+        headers
+            .get("content-type")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .contains("text/html")
+    );
+}
+
+#[tokio::test]
+async fn names_table_fragment_contains_table_structure() {
+    let state = setup().await.expect("Failed to setup test context");
+    create_test_names(&state.db).await;
+
+    let name_state = NameState {
+        db: Arc::new(state.db),
+    };
+    let app = create_name_router(name_state);
+
+    let request = Request::builder()
+        .method(Method::GET)
+        .uri("/names/table")
+        .body(Body::empty())
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    // Should contain table structure
+    assert!(body_text.contains("<table"));
+    assert!(body_text.contains("</table>"));
+
+    // Should contain table headers
+    assert!(body_text.contains("<th"));
+
+    // Should contain table rows with data
+    assert!(body_text.contains("<tr"));
+
+    // Should not contain full HTML document structure (no html, head, body tags)
+    assert!(!body_text.contains("<html"));
+    assert!(!body_text.contains("<head"));
+    assert!(!body_text.contains("<body"));
+}
+
+#[tokio::test]
+async fn names_table_fragment_sorts_names_by_id() {
+    let state = setup().await.expect("Failed to setup test context");
+
+    // Create names in non-sequential order to test sorting
+    let name3 = name::ActiveModel {
+        id: Set(3),
+        discord_id: Set(333444555),
+        name: Set("ThirdUser".to_string()),
+    };
+
+    let name1 = name::ActiveModel {
+        id: Set(1),
+        discord_id: Set(111222333),
+        name: Set("FirstUser".to_string()),
+    };
+
+    let name2 = name::ActiveModel {
+        id: Set(2),
+        discord_id: Set(222333444),
+        name: Set("SecondUser".to_string()),
+    };
+
+    let _result3 = name3.insert(&state.db).await.unwrap();
+    let _result1 = name1.insert(&state.db).await.unwrap();
+    let _result2 = name2.insert(&state.db).await.unwrap();
+
+    let name_state = NameState {
+        db: Arc::new(state.db),
+    };
+    let app = create_name_router(name_state);
+
+    let request = Request::builder()
+        .method(Method::GET)
+        .uri("/names/table")
+        .body(Body::empty())
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    let snapshot_data = HttpResponseSnapshot::new(
+        body_text,
+        status,
+        &headers,
+        "names_table_fragment_sorted_by_id",
+    );
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn names_table_fragment_handles_large_dataset() {
+    let state = setup().await.expect("Failed to setup test context");
+
+    // Create multiple names to test pagination/large dataset handling
+    for i in 1..=10 {
+        let name = name::ActiveModel {
+            id: Set(i),
+            discord_id: Set(100000000 + i as i64),
+            name: Set(format!("TestUser{}", i)),
+        };
+        let _result = name.insert(&state.db).await.unwrap();
+    }
+
+    let name_state = NameState {
+        db: Arc::new(state.db),
+    };
+    let app = create_name_router(name_state);
+
+    let request = Request::builder()
+        .method(Method::GET)
+        .uri("/names/table")
+        .body(Body::empty())
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    // Should handle large dataset successfully
+    assert_eq!(status, StatusCode::OK);
+
+    // Should contain all 10 test users
+    for i in 1..=10 {
+        assert!(body_text.contains(&format!("TestUser{}", i)));
+    }
+
+    let snapshot_data = HttpResponseSnapshot::new(
+        body_text,
+        status,
+        &headers,
+        "names_table_fragment_large_dataset",
+    );
+
+    assert_yaml_snapshot!(snapshot_data);
+}

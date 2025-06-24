@@ -72,7 +72,7 @@ html_body:
   - ""
   - "          <div id=\"add-name-form\" class=\"mb-4\"></div>"
   - ""
-  - "          <div "
+  - "          <div"
   - "            id=\"names-table\""
   - "            hx-get=\"/names/table\""
   - "            hx-trigger=\"load\""
