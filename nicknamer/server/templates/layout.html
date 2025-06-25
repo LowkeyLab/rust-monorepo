@@ -19,15 +19,7 @@
     />
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   </head>
-  <body
-    class="{% block body_class %}bg-base-200{% endblock %}"
-    {%
-    block
-    body_attrs
-    %}{%
-    endblock
-    %}
-  >
+  <body class="bg-base-200" hx-ext="response-targets">
     {% block navbar %}{% endblock %} {% block content %}{% endblock %} {% block
     footer %}
     <footer class="footer footer-center p-4 bg-base-300 text-base-content mt-6">
