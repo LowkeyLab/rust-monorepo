@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="{% block theme %}light{% endblock %}">
+  <head>
+    <title>{% block title %}Nicknamer{% endblock %}</title>
+    {% include "partials/head.html" %} {% block extra_head %}{% endblock %}
+  </head>
+  <body
+    class="{% block body_class %}bg-base-200{% endblock %}"
+    {%
+    block
+    body_attrs
+    %}{%
+    endblock
+    %}
+  >
+    {% block navbar %}{% endblock %} {% block content %}{% endblock %} {% block
+    footer %} {% include "partials/footer.html" %} {% endblock %} {% block
+    extra_scripts %}{% endblock %}
+  </body>
+</html>
