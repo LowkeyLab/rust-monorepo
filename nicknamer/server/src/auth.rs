@@ -1,14 +1,12 @@
 use askama::Template;
 use axum::Router;
-use axum::extract::{Extension, Form, MatchedPath, Request, State};
+use axum::extract::{Extension, Form, Request, State};
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
 use axum::middleware::Next;
 use axum::response::{Html, IntoResponse, Response};
 use axum_extra::extract::CookieJar;
 use jsonwebtoken::encode;
 use std::sync::Arc;
-use tower_http::trace::MakeSpan;
-use tracing::Span;
 
 use crate::config::Config;
 
@@ -333,41 +331,5 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(body, "Protected content");
-    }
-}
-
-/// Custom span maker that filters sensitive data from login requests.
-/// This implementation avoids logging request bodies and cookies for security.
-#[derive(Clone, Debug)]
-pub struct FilteredMakeSpan;
-
-impl<B> MakeSpan<B> for FilteredMakeSpan {
-    fn make_span(&mut self, request: &axum::http::Request<B>) -> Span {
-        let uri = request.uri();
-        let method = request.method();
-        let matched_path = request
-            .extensions()
-            .get::<MatchedPath>()
-            .map(MatchedPath::as_str);
-
-        // For login routes, create a span without sensitive data
-        if uri.path() == "/login" {
-            tracing::info_span!(
-                "request",
-                method = %method,
-                uri = %uri,
-                matched_path,
-                sensitive_route = true,
-                // Explicitly omit headers, cookies, and body for login requests
-            )
-        } else {
-            // For non-sensitive routes, use standard logging
-            tracing::info_span!(
-                "request",
-                method = %method,
-                uri = %uri,
-                matched_path,
-            )
-        }
     }
 }

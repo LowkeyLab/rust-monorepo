@@ -1,6 +1,6 @@
 use askama::Template;
 use axum::extract::Extension;
-use axum::http::{HeaderName, StatusCode};
+use axum::http::{HeaderName, StatusCode, header};
 use axum::middleware::{from_fn, from_fn_with_state};
 use axum::response::Html;
 use migration::MigratorTrait;
@@ -8,6 +8,9 @@ use sea_orm::Database;
 use std::sync::Arc;
 use tower::ServiceBuilder;
 use tower_http::cors::CorsLayer;
+use tower_http::sensitive_headers::{
+    SetSensitiveRequestHeadersLayer, SetSensitiveResponseHeadersLayer,
+};
 use tower_http::trace::TraceLayer;
 
 use crate::auth::{
@@ -88,12 +91,23 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
                 .layer(from_fn_with_state(auth_state.clone(), auth_user_middleware)),
         );
     // Create main router and merge with login router and name router
+    let headers: Arc<[_]> = Arc::new([
+        header::AUTHORIZATION,
+        header::PROXY_AUTHORIZATION,
+        header::COOKIE,
+        header::SET_COOKIE,
+    ]);
+
     let app = Router::new()
         .merge(protected_routes)
         .merge(public_routes)
         .layer(
             ServiceBuilder::new()
+                .layer(SetSensitiveRequestHeadersLayer::from_shared(Arc::clone(
+                    &headers,
+                )))
                 .layer(TraceLayer::new_for_http())
+                .layer(SetSensitiveResponseHeadersLayer::from_shared(headers))
                 .layer(CorsLayer::new().expose_headers([
                     HeaderName::from_static("hx-retarget"),
                     HeaderName::from_static("hx-reswap"),
