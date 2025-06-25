@@ -1,12 +1,13 @@
 use askama::Template;
 use axum::extract::Extension;
-use axum::http::StatusCode;
+use axum::http::{HeaderName, StatusCode};
 use axum::middleware::{from_fn, from_fn_with_state};
 use axum::response::Html;
 use migration::MigratorTrait;
 use sea_orm::Database;
 use std::sync::Arc;
 use tower::ServiceBuilder;
+use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 
 use crate::auth::{
@@ -14,8 +15,6 @@ use crate::auth::{
 };
 use crate::config::{self, Config};
 use crate::name::{NameState, create_name_router};
-
-pub mod middleware;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -95,7 +94,10 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
         .layer(
             ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())
-                .layer(from_fn(middleware::cors_expose_headers)),
+                .layer(CorsLayer::new().expose_headers([
+                    HeaderName::from_static("hx-retarget"),
+                    HeaderName::from_static("hx-reswap"),
+                ])),
         );
 
     axum::serve(listener, app).await?;
