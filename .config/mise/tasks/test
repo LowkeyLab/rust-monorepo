@@ -1,3 +1,4 @@
 #!/usr/bin/env bash
 #MISE description="Run tests"
+cargo insta test --unreferenced=reject
 cargo test --all-features --workspace
