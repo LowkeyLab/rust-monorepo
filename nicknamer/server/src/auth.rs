@@ -332,4 +332,157 @@ mod tests {
             .unwrap();
         assert_eq!(body, "Protected content");
     }
+
+    #[tokio::test]
+    async fn json_api_login_works_correctly() {
+        use axum::body::Body;
+        use axum::http::{Request, StatusCode};
+        use tower::ServiceExt;
+
+        let config = Config {
+            db_url: "".to_string(),
+            port: 8080,
+            admin_username: "admin".to_string(),
+            admin_password: "password".to_string(),
+            jwt_secret: "test_secret".to_string(),
+        };
+
+        let auth_state = Arc::new(AuthState::from_config(&config));
+        let app = api::v1::create_api_router(auth_state);
+
+        // Test 1: Valid credentials should return JWT token
+        let login_payload = r#"{"username": "admin", "password": "password"}"#;
+
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/login")
+                    .header("content-type", "application/json")
+                    .body(Body::from(login_payload))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let body_str = std::str::from_utf8(&body).unwrap();
+
+        // Basic assertions - should contain expected fields
+        assert!(body_str.contains("\"token\""));
+        assert!(body_str.contains("\"username\":\"admin\""));
+        assert!(body_str.contains("\"expires_at\""));
+
+        // Test 2: Invalid credentials should return error
+        let invalid_payload = r#"{"username": "admin", "password": "wrong_password"}"#;
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/login")
+                    .header("content-type", "application/json")
+                    .body(Body::from(invalid_payload))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let body_str = std::str::from_utf8(&body).unwrap();
+
+        assert!(body_str.contains("\"error\":\"INVALID_CREDENTIALS\""));
+        assert!(body_str.contains("\"message\":\"Invalid username or password\""));
+    }
+}
+
+mod api {
+    pub mod v1 {
+
+        /// JSON request payload for API login
+        #[derive(serde::Deserialize, Debug)]
+        pub struct JsonLoginRequest {
+            pub username: String,
+            pub password: String,
+        }
+
+        /// JSON response for successful API login
+        #[derive(serde::Serialize, Debug)]
+        pub struct LoginResponse {
+            pub token: String,
+            pub username: String,
+            pub expires_at: i64,
+        }
+
+        /// JSON response for API errors
+        #[derive(serde::Serialize, Debug)]
+        pub struct ErrorResponse {
+            pub error: String,
+            pub message: String,
+        }
+        use crate::auth::{AuthState, encode_jwt};
+        use axum::{Json, Router, extract::State, http::StatusCode};
+        use std::sync::Arc;
+
+        /// Creates a JSON API router for authentication endpoints.
+        pub fn create_api_router(state: Arc<AuthState>) -> Router<()> {
+            Router::new()
+                .route("/api/v1/login", axum::routing::post(json_login_handler))
+                .with_state(state)
+        }
+
+        /// Handles JSON login requests and returns a JWT token.
+        /// Validates credentials and returns either a success response with token or an error.
+        #[tracing::instrument(skip(state, payload))]
+        pub async fn json_login_handler(
+            State(state): State<Arc<AuthState>>,
+            Json(payload): Json<JsonLoginRequest>,
+        ) -> Result<Json<LoginResponse>, (StatusCode, Json<ErrorResponse>)> {
+            if payload.username == state.admin_username && payload.password == state.admin_password
+            {
+                // Generate JWT token
+                let jwt_token = encode_jwt(payload.username.clone(), &state.jwt_secret)
+                    .await
+                    .map_err(|_| {
+                        (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            Json(ErrorResponse {
+                                error: "JWT_ERROR".to_string(),
+                                message: "Failed to generate authentication token".to_string(),
+                            }),
+                        )
+                    })?;
+
+                // Calculate expiration time
+                let now = chrono::Utc::now();
+                let expire = chrono::Duration::hours(24);
+                let expires_at = (now + expire).timestamp();
+
+                let response = LoginResponse {
+                    token: jwt_token,
+                    username: payload.username,
+                    expires_at,
+                };
+
+                Ok(Json(response))
+            } else {
+                Err((
+                    StatusCode::UNAUTHORIZED,
+                    Json(ErrorResponse {
+                        error: "INVALID_CREDENTIALS".to_string(),
+                        message: "Invalid username or password".to_string(),
+                    }),
+                ))
+            }
+        }
+    }
 }
