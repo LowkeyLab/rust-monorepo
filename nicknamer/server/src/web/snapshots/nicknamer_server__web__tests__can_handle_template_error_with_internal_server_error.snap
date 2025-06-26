@@ -1,9 +1,0 @@
----
-source: nicknamer/server/src/web/mod.rs
-expression: snapshot
----
-test_context: template_error_response
-status: 200
-headers: {}
-html_body:
-  - "<h1>Internal Server Error</h1><p>An unexpected error occurred while processing your request. Please try again later.</p>"
