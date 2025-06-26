@@ -63,11 +63,17 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
 
     // Create AuthState from config
     let auth_state = Arc::new(AuthState::from_config(&config));
+    let name_state = NameState { db: Arc::new(db) };
+
+    let sensitive_headers: Arc<[_]> = Arc::new([
+        header::AUTHORIZATION,
+        header::PROXY_AUTHORIZATION,
+        header::COOKIE,
+        header::SET_COOKIE,
+    ]);
 
     // Create the login router with AuthState
     let login_router = create_login_router(auth_state.clone());
-
-    let name_state = NameState { db: Arc::new(db) };
 
     // Create name router with database connection
     let name_router = create_name_router(name_state);
@@ -90,13 +96,6 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
             ServiceBuilder::new()
                 .layer(from_fn_with_state(auth_state.clone(), auth_user_middleware)),
         );
-    // Create main router and merge with login router and name router
-    let headers: Arc<[_]> = Arc::new([
-        header::AUTHORIZATION,
-        header::PROXY_AUTHORIZATION,
-        header::COOKIE,
-        header::SET_COOKIE,
-    ]);
 
     let app = Router::new()
         .merge(protected_routes)
@@ -104,10 +103,12 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
         .layer(
             ServiceBuilder::new()
                 .layer(SetSensitiveRequestHeadersLayer::from_shared(Arc::clone(
-                    &headers,
+                    &sensitive_headers,
                 )))
                 .layer(TraceLayer::new_for_http())
-                .layer(SetSensitiveResponseHeadersLayer::from_shared(headers))
+                .layer(SetSensitiveResponseHeadersLayer::from_shared(
+                    sensitive_headers,
+                ))
                 .layer(CorsLayer::new().expose_headers([
                     HeaderName::from_static("hx-retarget"),
                     HeaderName::from_static("hx-reswap"),
