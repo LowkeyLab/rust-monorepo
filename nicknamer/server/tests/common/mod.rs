@@ -51,6 +51,34 @@ impl HttpResponseSnapshot {
     }
 }
 
+/// Snapshot structure for JSON API responses
+#[derive(serde::Serialize)]
+pub struct JsonApiResponseSnapshot {
+    status: u16,
+    headers: std::collections::BTreeMap<String, String>,
+    body: serde_json::Value,
+    test_name: String,
+}
+
+impl JsonApiResponseSnapshot {
+    pub fn new(
+        body_text: &str,
+        status: axum::http::StatusCode,
+        headers: &axum::http::HeaderMap,
+        test_name: &str,
+    ) -> Self {
+        let body = serde_json::from_str(body_text)
+            .unwrap_or_else(|_| serde_json::Value::String(body_text.to_string()));
+
+        Self {
+            status: status.as_u16(),
+            headers: filter_variable_headers(headers),
+            body,
+            test_name: test_name.to_string(),
+        }
+    }
+}
+
 /// Normalize HTML content for consistent snapshots by removing dynamic values.
 pub fn normalize_html_for_snapshot(html: &str) -> Vec<String> {
     // Split HTML by newlines and convert to Vec<String>

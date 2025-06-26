@@ -333,3 +333,5 @@ mod tests {
         assert_eq!(body, "Protected content");
     }
 }
+
+pub mod api;

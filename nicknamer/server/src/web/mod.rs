@@ -18,6 +18,7 @@ use crate::auth::{
 };
 use crate::config::{self, Config};
 use crate::name::{NameState, create_name_router};
+use crate::web::api::create_api_router;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -51,8 +52,6 @@ impl axum::response::IntoResponse for WebError {
 
 #[tracing::instrument(skip(config))]
 pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
-    use axum::Router;
-
     let server_address = format!("0.0.0.0:{}", &config.port);
     let listener = tokio::net::TcpListener::bind(&server_address).await?;
     tracing::info!("Web server running on http://{}", server_address);
@@ -63,11 +62,38 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
 
     // Create AuthState from config
     let auth_state = Arc::new(AuthState::from_config(&config));
+    let name_state = NameState { db: Arc::new(db) };
+
+    let web_app = create_web_handler(auth_state.clone(), name_state.clone());
+    let api = create_api_router(auth_state.clone());
+    let app = web_app.merge(api);
+
+    axum::serve(listener, app).await?;
+    Ok(())
+}
+
+/// Creates the main web application router with all routes and middleware configured.
+///
+/// # Arguments
+///
+/// * `auth_state` - The authentication state for handling user sessions
+/// * `name_state` - The name state for managing name-related operations
+///
+/// # Returns
+///
+/// A configured `Router` with all public and protected routes, middleware layers applied
+fn create_web_handler(auth_state: Arc<AuthState>, name_state: NameState) -> axum::Router {
+    use axum::Router;
+
+    let sensitive_headers: Arc<[_]> = Arc::new([
+        header::AUTHORIZATION,
+        header::PROXY_AUTHORIZATION,
+        header::COOKIE,
+        header::SET_COOKIE,
+    ]);
 
     // Create the login router with AuthState
     let login_router = create_login_router(auth_state.clone());
-
-    let name_state = NameState { db: Arc::new(db) };
 
     // Create name router with database connection
     let name_router = create_name_router(name_state);
@@ -90,32 +116,24 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
             ServiceBuilder::new()
                 .layer(from_fn_with_state(auth_state.clone(), auth_user_middleware)),
         );
-    // Create main router and merge with login router and name router
-    let headers: Arc<[_]> = Arc::new([
-        header::AUTHORIZATION,
-        header::PROXY_AUTHORIZATION,
-        header::COOKIE,
-        header::SET_COOKIE,
-    ]);
 
-    let app = Router::new()
+    Router::new()
         .merge(protected_routes)
         .merge(public_routes)
         .layer(
             ServiceBuilder::new()
                 .layer(SetSensitiveRequestHeadersLayer::from_shared(Arc::clone(
-                    &headers,
+                    &sensitive_headers,
                 )))
                 .layer(TraceLayer::new_for_http())
-                .layer(SetSensitiveResponseHeadersLayer::from_shared(headers))
+                .layer(SetSensitiveResponseHeadersLayer::from_shared(
+                    sensitive_headers,
+                ))
                 .layer(CorsLayer::new().expose_headers([
                     HeaderName::from_static("hx-retarget"),
                     HeaderName::from_static("hx-reswap"),
                 ])),
-        );
-
-    axum::serve(listener, app).await?;
-    Ok(())
+        )
 }
 
 #[tracing::instrument]
@@ -187,5 +205,26 @@ mod tests {
             body_text,
             "<h1>Internal Server Error</h1><p>An unexpected error occurred while processing your request. Please try again later.</p>"
         );
+    }
+}
+
+mod api {
+    use std::sync::Arc;
+
+    use crate::auth::{self, AuthState};
+
+    use axum::{Router, middleware::from_fn_with_state};
+
+    use tower::ServiceBuilder;
+
+    /// Creates the API routes for JSON API endpoints.
+    pub fn create_api_router(auth_state: Arc<AuthState>) -> axum::Router {
+        let login_router = auth::api::v1::create_api_router(auth_state.clone());
+        Router::new()
+            .nest("/api/v1", login_router)
+            .layer(ServiceBuilder::new().layer(from_fn_with_state(
+                auth_state,
+                auth::api::v1::auth_user_middleware,
+            )))
     }
 }

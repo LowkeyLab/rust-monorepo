@@ -5,9 +5,8 @@ set -euo pipefail
 
 # Run cargo test with all features
 echo "Running tests for nicknamer-server..."
-cargo clippy --all-features
 cargo fmt --all -- --check
-cargo insta test --all-features
+cargo clippy --all-features
 cargo test --all-features
 
 echo "All tests passed!"

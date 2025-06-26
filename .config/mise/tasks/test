@@ -1,3 +1,4 @@
 #!/usr/bin/env bash
 #MISE description="Run tests"
-cargo test --all-features --workspace
+set -euo pipefail
+cargo insta test --all-features --workspace --unreferenced=reject
