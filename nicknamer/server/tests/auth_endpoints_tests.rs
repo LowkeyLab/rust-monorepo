@@ -244,82 +244,89 @@ async fn can_render_login_page_with_homepage_button_when_user_logged_in() {
     assert_yaml_snapshot!(snapshot_data);
 }
 
-mod json_api_tests {
-    use crate::common::JsonApiResponseSnapshot;
+mod api {
+    mod v1 {
 
-    use super::*;
-    use nicknamer_server::auth::api::v1::create_api_router;
+        use std::sync::Arc;
 
-    /// Test helper to create JSON API test app.
-    async fn create_json_api_test_app() -> (axum::Router, Arc<AuthState>) {
-        let auth_state = setup_auth_state().await;
-        let app = create_api_router(auth_state.clone());
-        (app, auth_state)
-    }
+        use crate::{common::JsonApiResponseSnapshot, setup_auth_state};
 
-    #[tokio::test]
-    async fn can_login_with_valid_credentials_via_json_api() {
-        let (app, _auth_state) = create_json_api_test_app().await;
+        use axum::{body::Body, http::Request};
+        use insta::assert_yaml_snapshot;
+        use nicknamer_server::auth::{AuthState, api::v1::create_api_router};
+        use tower::ServiceExt;
 
-        let login_payload = r#"{"username": "admin", "password": "password"}"#;
+        /// Test helper to create JSON API test app.
+        async fn create_json_api_test_app() -> (axum::Router, Arc<AuthState>) {
+            let auth_state = setup_auth_state().await;
+            let app = create_api_router(auth_state.clone());
+            (app, auth_state)
+        }
 
-        let request = Request::builder()
-            .method("POST")
-            .uri("/api/v1/login")
-            .header("content-type", "application/json")
-            .body(Body::from(login_payload))
-            .unwrap();
+        #[tokio::test]
+        async fn can_login_with_valid_credentials_via_json_api() {
+            let (app, _auth_state) = create_json_api_test_app().await;
 
-        let response = app.oneshot(request).await.unwrap();
+            let login_payload = r#"{"username": "admin", "password": "password"}"#;
 
-        let status = response.status();
-        let headers = response.headers().clone();
-        assert!(
-            status.is_success(),
-            "Expected success status, got: {}",
-            status
-        );
-        // Empty body because we print the token in the body, and the token contains a expiration time
-        // which is dynamic and not suitable for snapshot testing.
-        let body_text = "";
-        let snapshot_data = JsonApiResponseSnapshot::new(
-            body_text,
-            status,
-            &headers,
-            "json_api_login_with_valid_credentials",
-        );
-        assert_yaml_snapshot!(snapshot_data);
-    }
+            let request = Request::builder()
+                .method("POST")
+                .uri("/api/v1/login")
+                .header("content-type", "application/json")
+                .body(Body::from(login_payload))
+                .unwrap();
 
-    #[tokio::test]
-    async fn can_reject_invalid_credentials_via_json_api() {
-        let (app, _auth_state) = create_json_api_test_app().await;
+            let response = app.oneshot(request).await.unwrap();
 
-        let invalid_payload = r#"{"username": "admin", "password": "wrong_password"}"#;
+            let status = response.status();
+            let headers = response.headers().clone();
+            assert!(
+                status.is_success(),
+                "Expected success status, got: {}",
+                status
+            );
+            // Empty body because we print the token in the body, and the token contains a expiration time
+            // which is dynamic and not suitable for snapshot testing.
+            let body_text = "Intentionally empty body for snapshot testing";
+            let snapshot_data = JsonApiResponseSnapshot::new(
+                body_text,
+                status,
+                &headers,
+                "json_api_login_with_valid_credentials",
+            );
+            assert_yaml_snapshot!(snapshot_data);
+        }
 
-        let request = Request::builder()
-            .method("POST")
-            .uri("/api/v1/login")
-            .header("content-type", "application/json")
-            .body(Body::from(invalid_payload))
-            .unwrap();
+        #[tokio::test]
+        async fn can_reject_invalid_credentials_via_json_api() {
+            let (app, _auth_state) = create_json_api_test_app().await;
 
-        let response = app.oneshot(request).await.unwrap();
+            let invalid_payload = r#"{"username": "admin", "password": "wrong_password"}"#;
 
-        let status = response.status();
-        let headers = response.headers().clone();
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
-            .await
-            .unwrap();
-        let body_text = std::str::from_utf8(&body).unwrap();
+            let request = Request::builder()
+                .method("POST")
+                .uri("/api/v1/login")
+                .header("content-type", "application/json")
+                .body(Body::from(invalid_payload))
+                .unwrap();
 
-        let snapshot_data = JsonApiResponseSnapshot::new(
-            body_text,
-            status,
-            &headers,
-            "json_api_reject_invalid_credentials",
-        );
+            let response = app.oneshot(request).await.unwrap();
 
-        assert_yaml_snapshot!(snapshot_data);
+            let status = response.status();
+            let headers = response.headers().clone();
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let body_text = std::str::from_utf8(&body).unwrap();
+
+            let snapshot_data = JsonApiResponseSnapshot::new(
+                body_text,
+                status,
+                &headers,
+                "json_api_reject_invalid_credentials",
+            );
+
+            assert_yaml_snapshot!(snapshot_data);
+        }
     }
 }
