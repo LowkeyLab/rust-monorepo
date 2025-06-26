@@ -356,8 +356,14 @@ pub mod api {
             pub error: String,
             pub message: String,
         }
-        use crate::auth::{AuthState, encode_jwt};
-        use axum::{Json, Router, extract::State, http::StatusCode};
+        use crate::auth::{AuthState, CurrentUser, decode_jwt, encode_jwt};
+        use axum::{
+            Json, Router,
+            extract::{Request, State},
+            http::{HeaderMap, StatusCode},
+            middleware::Next,
+            response::Response,
+        };
         use std::sync::Arc;
 
         /// Creates a JSON API router for authentication endpoints.
@@ -365,6 +371,28 @@ pub mod api {
             Router::new()
                 .route("/api/v1/login", axum::routing::post(json_login_handler))
                 .with_state(state)
+        }
+
+        /// API authentication middleware that extracts the current user from Authorization Bearer header.
+        /// Sets the CurrentUser extension if a valid JWT token is found in the Authorization header.
+        pub async fn api_auth_middleware(
+            State(state): State<Arc<AuthState>>,
+            headers: HeaderMap,
+            mut request: Request,
+            next: Next,
+        ) -> Response {
+            if let Some(auth_header) = headers.get("authorization") {
+                if let Ok(auth_str) = auth_header.to_str() {
+                    if let Some(token) = auth_str.strip_prefix("Bearer ") {
+                        if let Ok(claims) = decode_jwt(token, &state.jwt_secret).await {
+                            let current_user = CurrentUser::new(claims.username);
+                            request.extensions_mut().insert(current_user);
+                        }
+                    }
+                }
+            }
+
+            next.run(request).await
         }
 
         /// Handles JSON login requests and returns a JWT token.
