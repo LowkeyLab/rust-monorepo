@@ -101,7 +101,7 @@ pub async fn json_login_handler(
         Ok(Json(response))
     } else {
         Err((
-            StatusCode::BAD_REQUEST,
+            StatusCode::UNAUTHORIZED,
             Json(ErrorResponse {
                 error: "INVALID_CREDENTIALS".to_string(),
                 message: "Invalid username or password".to_string(),
