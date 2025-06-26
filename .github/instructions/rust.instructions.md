@@ -32,4 +32,4 @@ If the tests pass, then go to the root of the repository and run `mise test`.
 
 - Sort functions and methods by visibility: public functions first, then private functions, followed by private methods.
 - Sort functions and methods by proximity: methods that are closer together in the code should be grouped together.
-- Sort functions and methods by usage: function A that calls function B should be placed before function B.
+- Functions and methods should read top down. The function that is called first should be at the top, followed by the function that is called next, and so on.

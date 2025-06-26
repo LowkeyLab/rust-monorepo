@@ -51,8 +51,6 @@ impl axum::response::IntoResponse for WebError {
 
 #[tracing::instrument(skip(config))]
 pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
-    use axum::Router;
-
     let server_address = format!("0.0.0.0:{}", &config.port);
     let listener = tokio::net::TcpListener::bind(&server_address).await?;
     tracing::info!("Web server running on http://{}", server_address);
@@ -64,6 +62,25 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
     // Create AuthState from config
     let auth_state = Arc::new(AuthState::from_config(&config));
     let name_state = NameState { db: Arc::new(db) };
+
+    let app = create_web_handler(auth_state.clone(), name_state);
+
+    axum::serve(listener, app).await?;
+    Ok(())
+}
+
+/// Creates the main web application router with all routes and middleware configured.
+///
+/// # Arguments
+///
+/// * `auth_state` - The authentication state for handling user sessions
+/// * `name_state` - The name state for managing name-related operations
+///
+/// # Returns
+///
+/// A configured `Router` with all public and protected routes, middleware layers applied
+fn create_web_handler(auth_state: Arc<AuthState>, name_state: NameState) -> axum::Router {
+    use axum::Router;
 
     let sensitive_headers: Arc<[_]> = Arc::new([
         header::AUTHORIZATION,
@@ -97,7 +114,7 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
                 .layer(from_fn_with_state(auth_state.clone(), auth_user_middleware)),
         );
 
-    let app = Router::new()
+    Router::new()
         .merge(protected_routes)
         .merge(public_routes)
         .layer(
@@ -113,10 +130,7 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
                     HeaderName::from_static("hx-retarget"),
                     HeaderName::from_static("hx-reswap"),
                 ])),
-        );
-
-    axum::serve(listener, app).await?;
-    Ok(())
+        )
 }
 
 #[tracing::instrument]
