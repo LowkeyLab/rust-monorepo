@@ -328,5 +328,135 @@ mod api {
 
             assert_yaml_snapshot!(snapshot_data);
         }
+
+        #[tokio::test]
+        async fn can_reject_requests_without_authorization_header() {
+            use axum::middleware::from_fn;
+            use nicknamer_server::auth::api::v1::require_auth_middleware;
+
+            let (_app, _auth_state) = create_json_api_test_app().await;
+
+            // Create a protected route with the require_auth_middleware
+            let protected_app = axum::Router::new()
+                .route(
+                    "/api/v1/protected",
+                    axum::routing::get(|| async { "Protected data" }),
+                )
+                .layer(from_fn(require_auth_middleware));
+
+            let request = Request::builder()
+                .method("GET")
+                .uri("/api/v1/protected")
+                .body(Body::empty())
+                .unwrap();
+
+            let response = protected_app.oneshot(request).await.unwrap();
+
+            let status = response.status();
+            let headers = response.headers().clone();
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let body_text = std::str::from_utf8(&body).unwrap();
+
+            let snapshot_data = JsonApiResponseSnapshot::new(
+                body_text,
+                status,
+                &headers,
+                "json_api_reject_requests_without_authorization_header",
+            );
+
+            assert_yaml_snapshot!(snapshot_data);
+        }
+
+        #[tokio::test]
+        async fn can_reject_requests_with_invalid_bearer_token() {
+            use axum::middleware::{from_fn, from_fn_with_state};
+            use nicknamer_server::auth::api::v1::{auth_user_middleware, require_auth_middleware};
+
+            let auth_state = setup_auth_state().await;
+
+            // Create a protected route with both middlewares
+            let protected_app = axum::Router::new()
+                .route(
+                    "/api/v1/protected",
+                    axum::routing::get(|| async { "Protected data" }),
+                )
+                .layer(from_fn(require_auth_middleware))
+                .layer(from_fn_with_state(auth_state.clone(), auth_user_middleware));
+
+            let request = Request::builder()
+                .method("GET")
+                .uri("/api/v1/protected")
+                .header("authorization", "Bearer invalid_token")
+                .body(Body::empty())
+                .unwrap();
+
+            let response = protected_app.oneshot(request).await.unwrap();
+
+            let status = response.status();
+            let headers = response.headers().clone();
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let body_text = std::str::from_utf8(&body).unwrap();
+
+            let snapshot_data = JsonApiResponseSnapshot::new(
+                body_text,
+                status,
+                &headers,
+                "json_api_reject_requests_with_invalid_bearer_token",
+            );
+
+            assert_yaml_snapshot!(snapshot_data);
+        }
+
+        #[tokio::test]
+        async fn can_allow_requests_with_valid_bearer_token() {
+            use axum::middleware::{from_fn, from_fn_with_state};
+            use nicknamer_server::auth::api::v1::{auth_user_middleware, require_auth_middleware};
+
+            let auth_state = setup_auth_state().await;
+
+            // Create a protected route with both middlewares
+            let protected_app = axum::Router::new()
+                .route(
+                    "/api/v1/protected",
+                    axum::routing::get(|| async { "Protected data" }),
+                )
+                .layer(from_fn(require_auth_middleware))
+                .layer(from_fn_with_state(auth_state.clone(), auth_user_middleware));
+
+            // Create a valid JWT token
+            let jwt_token =
+                nicknamer_server::auth::encode_jwt("admin".to_string(), &auth_state.jwt_secret)
+                    .await
+                    .unwrap();
+
+            let request = Request::builder()
+                .method("GET")
+                .uri("/api/v1/protected")
+                .header("authorization", format!("Bearer {}", jwt_token))
+                .body(Body::empty())
+                .unwrap();
+
+            let response = protected_app.oneshot(request).await.unwrap();
+
+            let status = response.status();
+            let headers = response.headers().clone();
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let body_text = std::str::from_utf8(&body).unwrap();
+
+            let snapshot_data = JsonApiResponseSnapshot::new(
+                body_text,
+                status,
+                &headers,
+                "json_api_allow_requests_with_valid_bearer_token",
+            );
+
+            assert_yaml_snapshot!(snapshot_data);
+        }
     }
 }

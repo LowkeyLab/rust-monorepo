@@ -362,7 +362,7 @@ pub mod api {
             extract::{Request, State},
             http::{HeaderMap, StatusCode},
             middleware::Next,
-            response::Response,
+            response::{IntoResponse, Response},
         };
         use std::sync::Arc;
 
@@ -390,6 +390,24 @@ pub mod api {
                         }
                     }
                 }
+            }
+
+            next.run(request).await
+        }
+
+        /// Middleware that ensures the current user is authenticated.
+        /// Returns UNAUTHORIZED if the CurrentUser extension is not found in the request.
+        /// This middleware should be applied after auth_user_middleware.
+        pub async fn require_auth_middleware(request: Request, next: Next) -> Response {
+            // Check if user is authenticated by looking for CurrentUser extension
+            let is_authenticated = request.extensions().get::<CurrentUser>().is_some();
+
+            if !is_authenticated {
+                let error_response = ErrorResponse {
+                    error: "UNAUTHORIZED".to_string(),
+                    message: "Authentication required to access this resource".to_string(),
+                };
+                return (StatusCode::UNAUTHORIZED, Json(error_response)).into_response();
             }
 
             next.run(request).await
