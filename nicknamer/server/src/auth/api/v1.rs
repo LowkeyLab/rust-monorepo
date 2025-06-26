@@ -31,7 +31,7 @@ use std::sync::Arc;
 /// Creates a JSON API router for authentication endpoints.
 pub fn create_api_router(state: Arc<AuthState>) -> Router<()> {
     Router::new()
-        .route("/api/v1/login", axum::routing::post(json_login_handler))
+        .route("/login", axum::routing::post(json_login_handler))
         .with_state(state)
 }
 

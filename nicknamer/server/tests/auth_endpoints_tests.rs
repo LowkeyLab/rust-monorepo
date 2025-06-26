@@ -271,7 +271,7 @@ mod api {
 
             let request = Request::builder()
                 .method("POST")
-                .uri("/api/v1/login")
+                .uri("/login")
                 .header("content-type", "application/json")
                 .body(Body::from(login_payload))
                 .unwrap();
@@ -305,7 +305,7 @@ mod api {
 
             let request = Request::builder()
                 .method("POST")
-                .uri("/api/v1/login")
+                .uri("/login")
                 .header("content-type", "application/json")
                 .body(Body::from(invalid_payload))
                 .unwrap();
