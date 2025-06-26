@@ -213,11 +213,18 @@ mod api {
 
     use crate::auth::{self, AuthState};
 
-    use axum::Router;
+    use axum::{Router, middleware::from_fn_with_state};
 
-    /// Creates the API rouets for JSON API endpoints.
+    use tower::ServiceBuilder;
+
+    /// Creates the API routes for JSON API endpoints.
     pub fn create_api_router(auth_state: Arc<AuthState>) -> axum::Router {
         let login_router = auth::api::v1::create_api_router(auth_state.clone());
-        Router::new().nest("/api/v1", login_router)
+        Router::new()
+            .nest("/api/v1", login_router)
+            .layer(ServiceBuilder::new().layer(from_fn_with_state(
+                auth_state,
+                auth::api::v1::auth_user_middleware,
+            )))
     }
 }

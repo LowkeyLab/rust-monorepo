@@ -375,7 +375,7 @@ pub mod api {
 
         /// API authentication middleware that extracts the current user from Authorization Bearer header.
         /// Sets the CurrentUser extension if a valid JWT token is found in the Authorization header.
-        pub async fn api_auth_middleware(
+        pub async fn auth_user_middleware(
             State(state): State<Arc<AuthState>>,
             headers: HeaderMap,
             mut request: Request,
