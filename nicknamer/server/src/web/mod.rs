@@ -215,6 +215,7 @@ mod api {
 
     use axum::Router;
 
+    /// Creates the API rouets for JSON API endpoints.
     pub fn create_api_router(auth_state: Arc<AuthState>) -> axum::Router {
         let login_router = auth::api::v1::create_api_router(auth_state.clone());
         Router::new().nest("/api/v1", login_router)
