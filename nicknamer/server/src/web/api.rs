@@ -78,7 +78,7 @@ pub(crate) mod v1 {
         let api_routes = public_routes.merge(protected_routes);
 
         Router::new()
-            .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
+            .merge(SwaggerUi::new(SWAGGER_UI_PATH).url(API_DOCS_PATH, ApiDoc::openapi()))
             .nest("/api/v1", api_routes)
             .layer(ServiceBuilder::new().layer(from_fn_with_state(
                 auth_state,
