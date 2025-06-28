@@ -1185,3 +1185,268 @@ async fn names_table_fragment_handles_large_dataset() {
 
     assert_yaml_snapshot!(snapshot_data);
 }
+
+/// API v1 tests module for JSON endpoints
+pub mod api {
+    pub mod v1 {
+        use super::super::*;
+        use common::JsonApiResponseSnapshot;
+        use serde_json::Value;
+
+        #[tokio::test]
+        async fn can_get_names_as_json_when_names_exist() {
+            let state = setup().await.expect("Failed to setup test context");
+            create_test_names(&state.db).await;
+
+            let name_state = NameState {
+                db: Arc::new(state.db),
+            };
+            let app = create_name_router(name_state);
+
+            let request = Request::builder()
+                .method(Method::GET)
+                .uri("/api/v1/names")
+                .body(Body::empty())
+                .unwrap();
+
+            let response = app.oneshot(request).await.unwrap();
+
+            let status = response.status();
+            let headers = response.headers().clone();
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let body_text = std::str::from_utf8(&body).unwrap();
+
+            // Should return 200 OK
+            assert_eq!(status, StatusCode::OK);
+
+            // Should return JSON content type
+            assert_eq!(headers.get("content-type").unwrap(), "application/json");
+
+            // Parse and validate JSON structure
+            let json: Value = serde_json::from_str(body_text).expect("Should be valid JSON");
+            assert!(json["names"].is_array());
+            assert_eq!(json["count"], 2);
+
+            // Validate the names array contains our test data
+            let names = json["names"].as_array().unwrap();
+            assert_eq!(names.len(), 2);
+
+            // Check that both test users are present
+            let name_values: Vec<&str> =
+                names.iter().map(|n| n["name"].as_str().unwrap()).collect();
+            assert!(name_values.contains(&"TestUser1"));
+            assert!(name_values.contains(&"TestUser2"));
+
+            let snapshot_data =
+                JsonApiResponseSnapshot::new(body_text, status, &headers, "api_v1_names_with_data");
+
+            assert_yaml_snapshot!(snapshot_data);
+        }
+
+        #[tokio::test]
+        async fn can_get_empty_names_as_json_when_no_names_exist() {
+            let state = setup().await.expect("Failed to setup test context");
+
+            let name_state = NameState {
+                db: Arc::new(state.db),
+            };
+            let app = create_name_router(name_state);
+
+            let request = Request::builder()
+                .method(Method::GET)
+                .uri("/api/v1/names")
+                .body(Body::empty())
+                .unwrap();
+
+            let response = app.oneshot(request).await.unwrap();
+
+            let status = response.status();
+            let headers = response.headers().clone();
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let body_text = std::str::from_utf8(&body).unwrap();
+
+            // Should return 200 OK
+            assert_eq!(status, StatusCode::OK);
+
+            // Should return JSON content type
+            assert_eq!(headers.get("content-type").unwrap(), "application/json");
+
+            // Parse and validate JSON structure
+            let json: Value = serde_json::from_str(body_text).expect("Should be valid JSON");
+            assert!(json["names"].is_array());
+            assert_eq!(json["count"], 0);
+            assert_eq!(json["names"].as_array().unwrap().len(), 0);
+
+            let snapshot_data =
+                JsonApiResponseSnapshot::new(body_text, status, &headers, "api_v1_names_empty");
+
+            assert_yaml_snapshot!(snapshot_data);
+        }
+
+        #[tokio::test]
+        async fn api_v1_names_endpoint_returns_correct_json_structure() {
+            let state = setup().await.expect("Failed to setup test context");
+            create_test_names(&state.db).await;
+
+            let name_state = NameState {
+                db: Arc::new(state.db),
+            };
+            let app = create_name_router(name_state);
+
+            let request = Request::builder()
+                .method(Method::GET)
+                .uri("/api/v1/names")
+                .body(Body::empty())
+                .unwrap();
+
+            let response = app.oneshot(request).await.unwrap();
+
+            let status = response.status();
+            let headers = response.headers().clone();
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let body_text = std::str::from_utf8(&body).unwrap();
+
+            // Parse JSON and validate structure
+            let json: Value = serde_json::from_str(body_text).expect("Should be valid JSON");
+
+            // Validate root structure
+            assert!(json.is_object());
+            assert!(json["names"].is_array());
+            assert!(json["count"].is_number());
+
+            // Validate each name object structure
+            let names = json["names"].as_array().unwrap();
+            for name in names {
+                assert!(name["id"].is_number());
+                assert!(name["discord_id"].is_number());
+                assert!(name["name"].is_string());
+
+                // Ensure IDs are positive
+                assert!(name["id"].as_u64().unwrap() > 0);
+                assert!(name["discord_id"].as_u64().unwrap() > 0);
+                assert!(!name["name"].as_str().unwrap().is_empty());
+            }
+
+            let snapshot_data = JsonApiResponseSnapshot::new(
+                body_text,
+                status,
+                &headers,
+                "api_v1_names_json_structure",
+            );
+
+            assert_yaml_snapshot!(snapshot_data);
+        }
+
+        #[tokio::test]
+        async fn api_v1_names_endpoint_handles_large_dataset() {
+            let state = setup().await.expect("Failed to setup test context");
+
+            // Create 10 test names
+            for i in 1..=10 {
+                let name = name::ActiveModel {
+                    discord_id: Set(100000000 + i),
+                    name: Set(format!("TestUser{}", i)),
+                    ..Default::default()
+                };
+                let _result = name.insert(&state.db).await.unwrap();
+            }
+
+            let name_state = NameState {
+                db: Arc::new(state.db),
+            };
+            let app = create_name_router(name_state);
+
+            let request = Request::builder()
+                .method(Method::GET)
+                .uri("/api/v1/names")
+                .body(Body::empty())
+                .unwrap();
+
+            let response = app.oneshot(request).await.unwrap();
+
+            let status = response.status();
+            let headers = response.headers().clone();
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let body_text = std::str::from_utf8(&body).unwrap();
+
+            // Should return 200 OK
+            assert_eq!(status, StatusCode::OK);
+
+            // Parse and validate JSON structure
+            let json: Value = serde_json::from_str(body_text).expect("Should be valid JSON");
+            assert_eq!(json["count"], 10);
+            assert_eq!(json["names"].as_array().unwrap().len(), 10);
+
+            // Verify all names are present
+            let names = json["names"].as_array().unwrap();
+            let name_values: Vec<&str> =
+                names.iter().map(|n| n["name"].as_str().unwrap()).collect();
+
+            for i in 1..=10 {
+                assert!(name_values.contains(&format!("TestUser{}", i).as_str()));
+            }
+
+            let snapshot_data = JsonApiResponseSnapshot::new(
+                body_text,
+                status,
+                &headers,
+                "api_v1_names_large_dataset",
+            );
+
+            assert_yaml_snapshot!(snapshot_data);
+        }
+
+        #[tokio::test]
+        async fn api_v1_names_endpoint_returns_names_in_consistent_order() {
+            let state = setup().await.expect("Failed to setup test context");
+            create_test_names(&state.db).await;
+
+            let name_state = NameState {
+                db: Arc::new(state.db),
+            };
+            let app = create_name_router(name_state.clone());
+
+            // Make two requests to ensure consistent ordering
+            let request1 = Request::builder()
+                .method(Method::GET)
+                .uri("/api/v1/names")
+                .body(Body::empty())
+                .unwrap();
+
+            let response1 = app.oneshot(request1).await.unwrap();
+            let body1 = axum::body::to_bytes(response1.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let body_text1 = std::str::from_utf8(&body1).unwrap();
+
+            let app2 = create_name_router(name_state);
+            let request2 = Request::builder()
+                .method(Method::GET)
+                .uri("/api/v1/names")
+                .body(Body::empty())
+                .unwrap();
+
+            let response2 = app2.oneshot(request2).await.unwrap();
+            let body2 = axum::body::to_bytes(response2.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let body_text2 = std::str::from_utf8(&body2).unwrap();
+
+            // Both responses should be identical
+            assert_eq!(body_text1, body_text2);
+
+            // Parse and verify structure
+            let json: Value = serde_json::from_str(body_text1).expect("Should be valid JSON");
+            assert!(json["names"].is_array());
+            assert_eq!(json["count"], 2);
+        }
+    }
+}

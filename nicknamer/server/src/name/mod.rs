@@ -474,7 +474,7 @@ async fn get_name_row_handler(
 
 /// Creates and returns the name router with all name-related routes.
 pub fn create_name_router(state: NameState) -> Router {
-    Router::new()
+    let web_router = Router::new()
         .route("/names", get(names_handler).post(create_name_handler))
         .route("/names/add", get(add_name_form_handler))
         .route(
@@ -485,5 +485,11 @@ pub fn create_name_router(state: NameState) -> Router {
         )
         .route("/names/{id}/edit", get(edit_name_handler))
         .route("/names/table", get(names_table_handler))
-        .with_state(state)
+        .with_state(state.clone());
+
+    let api_v1_router = api::v1::create_v1_router(state);
+
+    Router::new()
+        .merge(web_router)
+        .nest("/api/v1", api_v1_router)
 }
