@@ -1,4 +1,5 @@
 use crate::name::{Name, NameService, NameState};
+use crate::web::api::v1::ServerErrorResponse;
 use axum::{Router, extract::State, http::StatusCode, response::Json, routing::get};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -34,13 +35,6 @@ pub struct NamesResponse {
     count: usize,
 }
 
-/// Error response for API errors.
-#[derive(Debug, Serialize, ToSchema)]
-pub struct ErrorResponse {
-    /// Error message
-    error: String,
-}
-
 /// Handler for GET /api/v1/names - Returns all names in JSON format.
 #[tracing::instrument(skip(state))]
 #[utoipa::path(
@@ -48,13 +42,13 @@ pub struct ErrorResponse {
     path = "/api/v1/names",
     responses(
         (status = 200, description = "Successfully retrieved all names", body = NamesResponse),
-        (status = 500, description = "Internal server error", body = ErrorResponse)
+        (status = 500, description = "Internal server error", body = ServerErrorResponse)
     ),
     tag = "Names"
 )]
 pub async fn get_names_handler(
     State(state): State<Arc<NameState>>,
-) -> Result<Json<NamesResponse>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<Json<NamesResponse>, (StatusCode, Json<ServerErrorResponse>)> {
     let service = NameService::new(&state.db);
 
     match service.get_all_names().await {
@@ -71,9 +65,9 @@ pub async fn get_names_handler(
             tracing::error!("Failed to get names: {}", err);
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    error: "Failed to retrieve names".to_string(),
-                }),
+                Json(ServerErrorResponse::new(
+                    "Failed to retrieve names".to_string(),
+                )),
             ))
         }
     }

@@ -12,8 +12,30 @@ pub(crate) mod v1 {
     };
 
     use tower::ServiceBuilder;
-    use utoipa::OpenApi;
+    use utoipa::{OpenApi, ToSchema};
     use utoipa_swagger_ui::SwaggerUi;
+
+    /// Unified error response for all API endpoints
+    #[derive(serde::Serialize, Debug, ToSchema)]
+    pub struct ServerErrorResponse {
+        pub error: String,
+        pub message: String,
+    }
+
+    impl ServerErrorResponse {
+        /// Create a new error response with just an error code and default message
+        pub fn new(error: String) -> Self {
+            Self {
+                error: error.clone(),
+                message: format!("An error occurred: {}", error),
+            }
+        }
+
+        /// Create a new error response with both error code and custom message
+        pub fn new_with_message(error: String, message: String) -> Self {
+            Self { error, message }
+        }
+    }
 
     /// OpenAPI documentation for the v1 API
     #[derive(OpenApi)]
@@ -26,10 +48,9 @@ pub(crate) mod v1 {
             schemas(
                 crate::auth::api::v1::JsonLoginRequest,
                 crate::auth::api::v1::LoginResponse,
-                crate::auth::api::v1::ErrorResponse,
+                ServerErrorResponse,
                 crate::name::api::v1::NameJson,
                 crate::name::api::v1::NamesResponse,
-                crate::name::api::v1::ErrorResponse,
             )
         ),
         tags(

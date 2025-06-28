@@ -19,7 +19,7 @@ use crate::auth::{
 use crate::config::{self, Config};
 use crate::name::{NameState, create_name_router};
 use crate::web::api::v1::create_api_router;
-mod api;
+pub(crate) mod api;
 
 #[derive(Clone)]
 pub struct AppState {
