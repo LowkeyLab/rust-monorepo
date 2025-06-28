@@ -62,7 +62,7 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
 
     // Create AuthState from config
     let auth_state = Arc::new(AuthState::from_config(&config));
-    let name_state = NameState { db: Arc::new(db) };
+    let name_state = Arc::new(NameState { db: Arc::new(db) });
 
     let web_app = create_web_handler(auth_state.clone(), name_state.clone());
     let api = create_api_router(auth_state.clone());
@@ -82,7 +82,7 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
 /// # Returns
 ///
 /// A configured `Router` with all public and protected routes, middleware layers applied
-fn create_web_handler(auth_state: Arc<AuthState>, name_state: NameState) -> axum::Router {
+fn create_web_handler(auth_state: Arc<AuthState>, name_state: Arc<NameState>) -> axum::Router {
     use axum::Router;
 
     let sensitive_headers: Arc<[_]> = Arc::new([

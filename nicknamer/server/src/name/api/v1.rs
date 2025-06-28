@@ -1,6 +1,7 @@
 use crate::name::{Name, NameService, NameState};
 use axum::{Router, extract::State, http::StatusCode, response::Json, routing::get};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 /// JSON representation of a Name for API responses.
 #[derive(Debug, Serialize, Deserialize)]
@@ -36,7 +37,7 @@ pub struct ErrorResponse {
 /// Handler for GET /api/v1/names - Returns all names in JSON format.
 #[tracing::instrument(skip(state))]
 pub async fn get_names_handler(
-    State(state): State<NameState>,
+    State(state): State<Arc<NameState>>,
 ) -> Result<Json<NamesResponse>, (StatusCode, Json<ErrorResponse>)> {
     let service = NameService::new(&state.db);
 
@@ -62,8 +63,8 @@ pub async fn get_names_handler(
     }
 }
 
-/// Creates and returns the v1 API router.
-pub fn create_v1_router(state: NameState) -> Router {
+/// Creates and returns the names API router.
+pub fn create_names_router(state: Arc<NameState>) -> Router {
     Router::new()
         .route("/names", get(get_names_handler))
         .with_state(state)
