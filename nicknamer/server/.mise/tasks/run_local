@@ -19,4 +19,4 @@ docker compose up -d
 
 # Run your main task (could be tests or something else)
 echo "🚀 Running server"
-cargo run -p nicknamer_server
+bacon run-long
