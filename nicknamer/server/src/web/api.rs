@@ -65,6 +65,9 @@ pub(crate) mod v1 {
     )]
     pub struct ApiDoc;
 
+    const API_DOCS_PATH: &str = "/api-docs/openapi.json";
+    const SWAGGER_UI_PATH: &str = "/swagger-ui";
+
     /// Creates the API routes for JSON API endpoints.
     pub fn create_api_router(
         auth_state: Arc<AuthState>,
