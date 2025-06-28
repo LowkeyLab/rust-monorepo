@@ -11,6 +11,8 @@ use sea_orm::*;
 use serde::Deserialize;
 use std::sync::Arc;
 
+pub mod api;
+
 #[derive(Debug, Deserialize)]
 pub struct CreateNameForm {
     discord_id: u64,
@@ -354,7 +356,7 @@ async fn names_handler() -> Result<Html<String>, NameError> {
 /// Handler for creating a new name via POST request.
 #[tracing::instrument(skip(state))]
 async fn create_name_handler(
-    State(state): State<NameState>,
+    State(state): State<Arc<NameState>>,
     Form(form): Form<CreateNameForm>,
 ) -> Result<Html<String>, NameError> {
     let name_service = NameService::new(&state.db);
@@ -383,7 +385,7 @@ async fn add_name_form_handler() -> Result<Html<String>, NameError> {
 /// Handler for deleting a name via POST request.
 #[tracing::instrument(skip(state))]
 async fn delete_name_handler(
-    State(state): State<NameState>,
+    State(state): State<Arc<NameState>>,
     axum::extract::Path(id): axum::extract::Path<u32>,
 ) -> Result<Html<String>, NameError> {
     let name_service = NameService::new(&state.db);
@@ -404,7 +406,7 @@ async fn delete_name_handler(
 /// Handler for serving the edit name form.
 #[tracing::instrument(skip(state))]
 async fn edit_name_handler(
-    State(state): State<NameState>,
+    State(state): State<Arc<NameState>>,
     axum::extract::Path(id): axum::extract::Path<u32>,
 ) -> Result<Html<String>, NameError> {
     let name_service = NameService::new(&state.db);
@@ -421,7 +423,7 @@ async fn edit_name_handler(
 /// Handler for updating a name via PUT request.
 #[tracing::instrument(skip(state))]
 async fn update_name_handler(
-    State(state): State<NameState>,
+    State(state): State<Arc<NameState>>,
     axum::extract::Path(id): axum::extract::Path<u32>,
     Form(form): Form<EditNameForm>,
 ) -> Result<Html<String>, NameError> {
@@ -444,7 +446,9 @@ async fn update_name_handler(
 
 /// Handler for GET /names/table that returns just the names table fragment.
 #[tracing::instrument(skip(state))]
-async fn names_table_handler(State(state): State<NameState>) -> Result<Html<String>, NameError> {
+async fn names_table_handler(
+    State(state): State<Arc<NameState>>,
+) -> Result<Html<String>, NameError> {
     let name_service = NameService::new(&state.db);
     let table_html = render_names_table(&name_service, |names| {
         names.sort_by_key(|name| name.id());
@@ -456,7 +460,7 @@ async fn names_table_handler(State(state): State<NameState>) -> Result<Html<Stri
 /// Handler for GET /names/{id} that returns a single name row.
 #[tracing::instrument(skip(state))]
 async fn get_name_row_handler(
-    State(state): State<NameState>,
+    State(state): State<Arc<NameState>>,
     axum::extract::Path(id): axum::extract::Path<u32>,
 ) -> Result<Html<String>, NameError> {
     let name_service = NameService::new(&state.db);
@@ -471,7 +475,7 @@ async fn get_name_row_handler(
 }
 
 /// Creates and returns the name router with all name-related routes.
-pub fn create_name_router(state: NameState) -> Router {
+pub fn create_name_router(state: Arc<NameState>) -> Router {
     Router::new()
         .route("/names", get(names_handler).post(create_name_handler))
         .route("/names/add", get(add_name_form_handler))
@@ -483,5 +487,5 @@ pub fn create_name_router(state: NameState) -> Router {
         )
         .route("/names/{id}/edit", get(edit_name_handler))
         .route("/names/table", get(names_table_handler))
-        .with_state(state)
+        .with_state(state.clone())
 }
