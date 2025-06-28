@@ -1,18 +1,18 @@
 /// JSON request payload for API login
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, ToSchema)]
 pub struct JsonLoginRequest {
     pub username: String,
     pub password: String,
 }
 
 /// JSON response for successful API login
-#[derive(serde::Serialize, Debug)]
+#[derive(serde::Serialize, Debug, ToSchema)]
 pub struct LoginResponse {
     pub token: String,
 }
 
 /// JSON response for API errors
-#[derive(serde::Serialize, Debug)]
+#[derive(serde::Serialize, Debug, ToSchema)]
 pub struct ErrorResponse {
     pub error: String,
     pub message: String,
@@ -27,6 +27,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use std::sync::Arc;
+use utoipa::ToSchema;
 
 /// Creates a JSON API router for authentication endpoints.
 pub fn create_api_router(state: Arc<AuthState>) -> Router<()> {
@@ -78,6 +79,17 @@ pub async fn require_auth_middleware(request: Request, next: Next) -> Response {
 /// Handles JSON login requests and returns a JWT token.
 /// Validates credentials and returns either a success response with token or an error.
 #[tracing::instrument(skip(state, payload))]
+#[utoipa::path(
+    post,
+    path = "/api/v1/login",
+    request_body = JsonLoginRequest,
+    responses(
+        (status = 200, description = "Successful login", body = LoginResponse),
+        (status = 401, description = "Invalid credentials", body = ErrorResponse),
+        (status = 500, description = "Internal server error", body = ErrorResponse)
+    ),
+    tag = "Authentication"
+)]
 pub async fn json_login_handler(
     State(state): State<Arc<AuthState>>,
     Json(payload): Json<JsonLoginRequest>,
