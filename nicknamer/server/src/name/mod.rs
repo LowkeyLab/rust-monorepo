@@ -11,6 +11,8 @@ use sea_orm::*;
 use serde::Deserialize;
 use std::sync::Arc;
 
+pub mod api;
+
 #[derive(Debug, Deserialize)]
 pub struct CreateNameForm {
     discord_id: u64,
