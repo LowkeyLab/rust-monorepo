@@ -71,7 +71,17 @@ async fn create_editable_test_name(db: &DatabaseConnection) -> i32 {
     result.id
 }
 
-/// Test helper to create a NameState wrapped in Arc for use in tests.
+/// Test helper to create a `NameState` wrapped in `Arc` for use in tests.
+/// 
+/// This function is used to create a shared state (`NameState`) that can be safely
+/// accessed across multiple threads during tests. The `Arc` wrapper ensures that
+/// the state can be shared and accessed concurrently without ownership issues.
+/// 
+/// # Parameters
+/// - `db`: A `DatabaseConnection` instance used to initialize the `NameState`.
+/// 
+/// # Returns
+/// An `Arc<NameState>` instance that wraps the shared state.
 fn create_name_state(db: DatabaseConnection) -> Arc<NameState> {
     Arc::new(NameState { db: Arc::new(db) })
 }
