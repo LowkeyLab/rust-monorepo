@@ -64,7 +64,7 @@ pub async fn get_names_handler(
 }
 
 /// Creates and returns the names API router.
-pub fn create_names_router(state: Arc<NameState>) -> Router {
+pub fn create_api_router(state: Arc<NameState>) -> Router {
     Router::new()
         .route("/names", get(get_names_handler))
         .with_state(state)

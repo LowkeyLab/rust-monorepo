@@ -2,7 +2,7 @@ use axum::body::Body;
 use axum::http::{Method, Request, StatusCode};
 use insta::assert_yaml_snapshot;
 use nicknamer_server::entities::name;
-use nicknamer_server::name::api::v1::create_names_router;
+use nicknamer_server::name::api::v1::create_api_router;
 use nicknamer_server::name::{NameState, create_name_router};
 use sea_orm::{ActiveModelTrait, DatabaseConnection, Set};
 use std::sync::Arc;
@@ -1202,7 +1202,7 @@ pub mod api {
             let name_state = Arc::new(NameState {
                 db: Arc::new(state.db),
             });
-            let app = create_names_router(name_state);
+            let app = create_api_router(name_state);
 
             let request = Request::builder()
                 .method(Method::GET)
@@ -1253,7 +1253,7 @@ pub mod api {
             let name_state = Arc::new(NameState {
                 db: Arc::new(state.db),
             });
-            let app = create_names_router(name_state);
+            let app = create_api_router(name_state);
 
             let request = Request::builder()
                 .method(Method::GET)
@@ -1296,7 +1296,7 @@ pub mod api {
             let name_state = Arc::new(NameState {
                 db: Arc::new(state.db),
             });
-            let app = create_names_router(name_state);
+            let app = create_api_router(name_state);
 
             let request = Request::builder()
                 .method(Method::GET)
@@ -1361,7 +1361,7 @@ pub mod api {
             let name_state = Arc::new(NameState {
                 db: Arc::new(state.db),
             });
-            let app = create_names_router(name_state);
+            let app = create_api_router(name_state);
 
             let request = Request::builder()
                 .method(Method::GET)
@@ -1413,7 +1413,7 @@ pub mod api {
             let name_state = Arc::new(NameState {
                 db: Arc::new(state.db),
             });
-            let app = create_names_router(name_state.clone());
+            let app = create_api_router(name_state.clone());
 
             // Make two requests to ensure consistent ordering
             let request1 = Request::builder()
@@ -1428,7 +1428,7 @@ pub mod api {
                 .unwrap();
             let body_text1 = std::str::from_utf8(&body1).unwrap();
 
-            let app2 = create_names_router(name_state);
+            let app2 = create_api_router(name_state);
             let request2 = Request::builder()
                 .method(Method::GET)
                 .uri("/names")

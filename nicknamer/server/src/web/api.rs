@@ -12,12 +12,9 @@ use axum::{
 
 use tower::ServiceBuilder;
 /// Creates the API routes for JSON API endpoints.
-pub fn create_api_router(
-    auth_state: Arc<AuthState>,
-    name_state: Arc<NameState>,
-) -> axum::Router {
+pub fn create_api_router(auth_state: Arc<AuthState>, name_state: Arc<NameState>) -> axum::Router {
     let login_router = auth::api::v1::create_api_router(auth_state.clone());
-    let names_router = crate::name::api::v1::create_names_router(name_state.clone());
+    let names_router = crate::name::api::v1::create_api_router(name_state.clone());
     let protected_routes = names_router
         .layer(ServiceBuilder::new().layer(from_fn(auth::api::v1::require_auth_middleware)));
     let public_routes = login_router;
