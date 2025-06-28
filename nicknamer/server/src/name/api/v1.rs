@@ -1,13 +1,18 @@
 use crate::name::{Name, NameService, NameState};
+use crate::web::api::v1::ServerErrorResponse;
 use axum::{Router, extract::State, http::StatusCode, response::Json, routing::get};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use utoipa::ToSchema;
 
 /// JSON representation of a Name for API responses.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct NameJson {
+    /// Unique identifier for the name
     id: u32,
+    /// Discord user ID associated with the name
     discord_id: u64,
+    /// The actual name/nickname
     name: String,
 }
 
@@ -22,23 +27,28 @@ impl From<Name> for NameJson {
 }
 
 /// API response for listing all names.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct NamesResponse {
+    /// List of names
     names: Vec<NameJson>,
+    /// Total number of names
     count: usize,
-}
-
-/// Error response for API errors.
-#[derive(Debug, Serialize)]
-pub struct ErrorResponse {
-    error: String,
 }
 
 /// Handler for GET /api/v1/names - Returns all names in JSON format.
 #[tracing::instrument(skip(state))]
+#[utoipa::path(
+    get,
+    path = "/api/v1/names",
+    responses(
+        (status = 200, description = "Successfully retrieved all names", body = NamesResponse),
+        (status = 500, description = "Internal server error", body = ServerErrorResponse)
+    ),
+    tag = "Names"
+)]
 pub async fn get_names_handler(
     State(state): State<Arc<NameState>>,
-) -> Result<Json<NamesResponse>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<Json<NamesResponse>, (StatusCode, Json<ServerErrorResponse>)> {
     let service = NameService::new(&state.db);
 
     match service.get_all_names().await {
@@ -55,9 +65,9 @@ pub async fn get_names_handler(
             tracing::error!("Failed to get names: {}", err);
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    error: "Failed to retrieve names".to_string(),
-                }),
+                Json(ServerErrorResponse::new(
+                    "Failed to retrieve names".to_string(),
+                )),
             ))
         }
     }
