@@ -71,14 +71,17 @@ async fn create_editable_test_name(db: &DatabaseConnection) -> i32 {
     result.id
 }
 
+/// Test helper to create a NameState wrapped in Arc for use in tests.
+fn create_name_state(db: DatabaseConnection) -> Arc<NameState> {
+    Arc::new(NameState { db: Arc::new(db) })
+}
+
 #[tokio::test]
 async fn can_display_names_table_when_names_exist() {
     let state = setup().await.expect("Failed to setup test context");
     create_test_names(&state.db).await;
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
     let request = Request::builder()
@@ -109,9 +112,7 @@ async fn can_display_names_table_when_names_exist() {
 async fn can_display_empty_names_table_when_no_names_exist() {
     let state = setup().await.expect("Failed to setup test context");
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
     let request = Request::builder()
@@ -137,9 +138,7 @@ async fn can_display_empty_names_table_when_no_names_exist() {
 async fn names_endpoint_returns_correct_content_type() {
     let state = setup().await.expect("Failed to setup test context");
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
     let request = Request::builder()
@@ -170,9 +169,7 @@ async fn names_endpoint_returns_correct_content_type() {
 async fn can_create_name_successfully() {
     let state = setup().await.expect("Failed to setup test context");
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state.clone());
 
     let form_data = "discord_id=555666777&name=NewTestUser";
@@ -203,9 +200,7 @@ async fn can_create_multiple_names_and_update_count() {
     let state = setup().await.expect("Failed to setup test context");
     create_test_names(&state.db).await;
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state.clone());
 
     let form_data = "discord_id=111222333&name=ThirdUser";
@@ -239,9 +234,7 @@ async fn can_create_multiple_names_and_update_count() {
 async fn can_handle_form_with_special_characters_in_name() {
     let state = setup().await.expect("Failed to setup test context");
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state.clone());
 
     let form_data = "discord_id=888999000&name=User%20With%20Spaces%21";
@@ -271,9 +264,7 @@ async fn can_handle_form_with_special_characters_in_name() {
 async fn can_serve_add_name_form() {
     let state = setup().await.expect("Failed to setup test context");
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
     let request = Request::builder()
@@ -299,9 +290,7 @@ async fn can_serve_add_name_form() {
 async fn post_endpoint_returns_table_fragment_not_full_page() {
     let state = setup().await.expect("Failed to setup test context");
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state.clone());
 
     let form_data = "discord_id=777888999&name=FragmentTestUser";
@@ -331,9 +320,7 @@ async fn post_endpoint_returns_table_fragment_not_full_page() {
 async fn cannot_create_name_with_duplicate_discord_id() {
     let state = setup().await.expect("Failed to setup test context");
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state.clone());
 
     // First, create a name with a specific Discord ID
@@ -383,9 +370,7 @@ async fn can_delete_name_successfully() {
     let state = setup().await.expect("Failed to setup test context");
     let name_id = create_single_test_name(&state.db).await;
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
     let request = Request::builder()
@@ -420,9 +405,7 @@ async fn can_delete_name_and_update_table_count() {
     create_test_names(&state.db).await;
     let delete_name_id = create_single_test_name(&state.db).await;
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
     let request = Request::builder()
@@ -460,9 +443,7 @@ async fn can_delete_name_and_update_table_count() {
 async fn can_handle_delete_request_for_nonexistent_name() {
     let state = setup().await.expect("Failed to setup test context");
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
     // Try to delete a name with ID that doesn't exist
@@ -495,9 +476,7 @@ async fn delete_endpoint_returns_table_fragment_not_full_page() {
     let state = setup().await.expect("Failed to setup test context");
     let name_id = create_single_test_name(&state.db).await;
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
     let request = Request::builder()
@@ -534,9 +513,7 @@ async fn delete_endpoint_returns_correct_content_type() {
     let state = setup().await.expect("Failed to setup test context");
     let name_id = create_single_test_name(&state.db).await;
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
     let request = Request::builder()
@@ -569,9 +546,7 @@ async fn can_serve_edit_name_form() {
     let state = setup().await.expect("Failed to setup test context");
     let name_id = create_editable_test_name(&state.db).await;
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
     let request = Request::builder()
@@ -602,9 +577,7 @@ async fn can_serve_edit_name_form() {
 async fn can_handle_edit_form_request_for_nonexistent_name() {
     let state = setup().await.expect("Failed to setup test context");
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
     let request = Request::builder()
@@ -639,9 +612,7 @@ async fn can_update_name_successfully() {
     let state = setup().await.expect("Failed to setup test context");
     let name_id = create_editable_test_name(&state.db).await;
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
     let form_data = "name=UpdatedTestUser";
@@ -676,9 +647,7 @@ async fn can_update_name_with_special_characters() {
     let state = setup().await.expect("Failed to setup test context");
     let name_id = create_editable_test_name(&state.db).await;
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
     let form_data = "name=Updated%20User%20With%20Spaces%21%40%23";
@@ -715,9 +684,7 @@ async fn can_update_name_with_special_characters() {
 async fn can_handle_update_request_for_nonexistent_name() {
     let state = setup().await.expect("Failed to setup test context");
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
     let form_data = "name=NonexistentUser";
@@ -751,9 +718,7 @@ async fn update_endpoint_returns_name_row_fragment_not_full_page() {
     let state = setup().await.expect("Failed to setup test context");
     let name_id = create_editable_test_name(&state.db).await;
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
     let form_data = "name=FragmentTestUser";
@@ -797,9 +762,7 @@ async fn update_endpoint_returns_correct_content_type() {
     let state = setup().await.expect("Failed to setup test context");
     let name_id = create_editable_test_name(&state.db).await;
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
     let form_data = "name=ContentTypeTestUser";
@@ -834,9 +797,7 @@ async fn edit_form_endpoint_returns_correct_content_type() {
     let state = setup().await.expect("Failed to setup test context");
     let name_id = create_editable_test_name(&state.db).await;
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
     let request = Request::builder()
@@ -868,9 +829,7 @@ async fn can_update_name_with_empty_string() {
     let state = setup().await.expect("Failed to setup test context");
     let name_id = create_editable_test_name(&state.db).await;
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
     let form_data = "name=";
@@ -904,9 +863,7 @@ async fn can_update_name_with_very_long_string() {
     let state = setup().await.expect("Failed to setup test context");
     let name_id = create_editable_test_name(&state.db).await;
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
     let long_name = "A".repeat(100); // 100 character name
@@ -945,9 +902,7 @@ async fn can_get_names_table_fragment_when_names_exist() {
     let state = setup().await.expect("Failed to setup test context");
     create_test_names(&state.db).await;
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
     let request = Request::builder()
@@ -979,9 +934,7 @@ async fn can_get_names_table_fragment_when_names_exist() {
 async fn can_get_empty_names_table_fragment_when_no_names_exist() {
     let state = setup().await.expect("Failed to setup test context");
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
     let request = Request::builder()
@@ -1010,9 +963,7 @@ async fn names_table_endpoint_returns_correct_content_type() {
     let state = setup().await.expect("Failed to setup test context");
     create_test_names(&state.db).await;
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
     let request = Request::builder()
@@ -1045,9 +996,7 @@ async fn names_table_fragment_contains_table_structure() {
     let state = setup().await.expect("Failed to setup test context");
     create_test_names(&state.db).await;
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
     let request = Request::builder()
@@ -1105,9 +1054,7 @@ async fn names_table_fragment_sorts_names_by_id() {
     let _result1 = name1.insert(&state.db).await.unwrap();
     let _result2 = name2.insert(&state.db).await.unwrap();
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
     let request = Request::builder()
@@ -1149,9 +1096,7 @@ async fn names_table_fragment_handles_large_dataset() {
         let _result = name.insert(&state.db).await.unwrap();
     }
 
-    let name_state = Arc::new(NameState {
-        db: Arc::new(state.db),
-    });
+    let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
     let request = Request::builder()
@@ -1199,9 +1144,7 @@ pub mod api {
             let state = setup().await.expect("Failed to setup test context");
             create_test_names(&state.db).await;
 
-            let name_state = Arc::new(NameState {
-                db: Arc::new(state.db),
-            });
+            let name_state = create_name_state(state.db);
             let app = create_api_router(name_state);
 
             let request = Request::builder()
@@ -1250,9 +1193,7 @@ pub mod api {
         async fn can_get_empty_names_as_json_when_no_names_exist() {
             let state = setup().await.expect("Failed to setup test context");
 
-            let name_state = Arc::new(NameState {
-                db: Arc::new(state.db),
-            });
+            let name_state = create_name_state(state.db);
             let app = create_api_router(name_state);
 
             let request = Request::builder()
@@ -1293,9 +1234,7 @@ pub mod api {
             let state = setup().await.expect("Failed to setup test context");
             create_test_names(&state.db).await;
 
-            let name_state = Arc::new(NameState {
-                db: Arc::new(state.db),
-            });
+            let name_state = create_name_state(state.db);
             let app = create_api_router(name_state);
 
             let request = Request::builder()
@@ -1358,9 +1297,7 @@ pub mod api {
                 let _result = name.insert(&state.db).await.unwrap();
             }
 
-            let name_state = Arc::new(NameState {
-                db: Arc::new(state.db),
-            });
+            let name_state = create_name_state(state.db);
             let app = create_api_router(name_state);
 
             let request = Request::builder()
@@ -1410,9 +1347,7 @@ pub mod api {
             let state = setup().await.expect("Failed to setup test context");
             create_test_names(&state.db).await;
 
-            let name_state = Arc::new(NameState {
-                db: Arc::new(state.db),
-            });
+            let name_state = create_name_state(state.db);
             let app = create_api_router(name_state.clone());
 
             // Make two requests to ensure consistent ordering
