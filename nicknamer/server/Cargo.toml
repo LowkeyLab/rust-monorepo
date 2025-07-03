@@ -27,7 +27,7 @@ serde = "1.0.219"
 serde_json = "1.0"
 thiserror = "2.0.12"
 time = "0.3.36"
-tokio = "1.45.1"
+tokio = "1.46.0"
 tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.6.6", features = [
     "trace",
