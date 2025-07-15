@@ -3,6 +3,8 @@ use sea_orm_migration::prelude::*;
 #[derive(DeriveMigrationName)]
 pub struct Migration;
 
+const DEFAULT_SERVER_ID: &str = "89467777677468954757";
+
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
@@ -14,7 +16,7 @@ impl MigrationTrait for Migration {
                         ColumnDef::new(Name::ServerId)
                             .string()
                             .not_null()
-                            .default("89467777677468954757"),
+                            .default(DEFAULT_SERVER_ID),
                     )
                     .to_owned(),
             )
