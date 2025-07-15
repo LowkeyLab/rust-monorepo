@@ -34,12 +34,14 @@ async fn create_test_names(db: &DatabaseConnection) {
     let name1 = name::ActiveModel {
         discord_id: Set(123456789),
         name: Set("TestUser1".to_string()),
+        server_id: Set("test-server-1".to_string()),
         ..Default::default()
     };
 
     let name2 = name::ActiveModel {
         discord_id: Set(987654321),
         name: Set("TestUser2".to_string()),
+        server_id: Set("test-server-1".to_string()),
         ..Default::default()
     };
 
@@ -52,6 +54,7 @@ async fn create_single_test_name(db: &DatabaseConnection) -> i32 {
     let name = name::ActiveModel {
         discord_id: Set(555444333),
         name: Set("DeleteTestUser".to_string()),
+        server_id: Set("test-server-1".to_string()),
         ..Default::default()
     };
 
@@ -64,6 +67,7 @@ async fn create_editable_test_name(db: &DatabaseConnection) -> i32 {
     let name = name::ActiveModel {
         discord_id: Set(777888999),
         name: Set("EditableTestUser".to_string()),
+        server_id: Set("test-server-1".to_string()),
         ..Default::default()
     };
 
@@ -1046,18 +1050,21 @@ async fn names_table_fragment_sorts_names_by_id() {
         id: Set(3),
         discord_id: Set(333444555),
         name: Set("ThirdUser".to_string()),
+        server_id: Set("test-server-1".to_string()),
     };
 
     let name1 = name::ActiveModel {
         id: Set(1),
         discord_id: Set(111222333),
         name: Set("FirstUser".to_string()),
+        server_id: Set("test-server-1".to_string()),
     };
 
     let name2 = name::ActiveModel {
         id: Set(2),
         discord_id: Set(222333444),
         name: Set("SecondUser".to_string()),
+        server_id: Set("test-server-1".to_string()),
     };
 
     let _result3 = name3.insert(&state.db).await.unwrap();
@@ -1102,6 +1109,7 @@ async fn names_table_fragment_handles_large_dataset() {
             id: Set(i),
             discord_id: Set(100000000 + i as i64),
             name: Set(format!("TestUser{}", i)),
+            server_id: Set("test-server-1".to_string()),
         };
         let _result = name.insert(&state.db).await.unwrap();
     }
@@ -1302,6 +1310,7 @@ pub mod api {
                 let name = name::ActiveModel {
                     discord_id: Set(100000000 + i),
                     name: Set(format!("TestUser{}", i)),
+                    server_id: Set("test-server-1".to_string()),
                     ..Default::default()
                 };
                 let _result = name.insert(&state.db).await.unwrap();
