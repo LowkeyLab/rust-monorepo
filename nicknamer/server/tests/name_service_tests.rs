@@ -28,7 +28,7 @@ async fn can_register_name() {
     let discord_id = 123456789;
     let name = "TestUser".to_string();
     let created_name = name_service
-        .create_name(discord_id, name.clone())
+        .create_name(discord_id, name.clone(), "server123".to_string())
         .await
         .expect("Failed to create name");
 
@@ -49,6 +49,7 @@ async fn can_update_name() {
     let active_model = name::ActiveModel {
         discord_id: ActiveValue::Set(initial_discord_id),
         name: ActiveValue::Set(initial_name.clone()),
+        server_id: ActiveValue::Set("server123".to_string()),
         ..Default::default()
     };
     let initial_name_entry = active_model
@@ -63,13 +64,18 @@ async fn can_update_name() {
     // Edit the name
     let new_name = "UpdatedName".to_string();
     let updated_name = name_service
-        .edit_name_by_id(initial_name_entry.id as u32, new_name.clone())
+        .edit_name_by_id(
+            initial_name_entry.id as u32,
+            new_name.clone(),
+            "server456".to_string(),
+        )
         .await
         .expect("Failed to update name");
 
     let expected_updated_name = {
         let mut expected_model = initial_name_entry.clone();
         expected_model.name = new_name.clone();
+        expected_model.server_id = "server456".to_string();
         nicknamer_server::name::Name::from(expected_model)
     };
     assert_eq!(updated_name, expected_updated_name);
@@ -84,6 +90,7 @@ async fn can_handle_update_when_name_not_found() {
     let active_model = name::ActiveModel {
         discord_id: ActiveValue::Set(111222333),
         name: ActiveValue::Set("SomeUser".to_string()),
+        server_id: ActiveValue::Set("server789".to_string()),
         ..Default::default()
     };
     let initial_name = active_model
@@ -94,7 +101,11 @@ async fn can_handle_update_when_name_not_found() {
     // Verify that an error is returned if the name ID does not exist
     let non_existent_id = initial_name.id + 1; // Assuming this ID won't exist
     let result = name_service
-        .edit_name_by_id(non_existent_id as u32, "AnotherName".to_string())
+        .edit_name_by_id(
+            non_existent_id as u32,
+            "AnotherName".to_string(),
+            "server999".to_string(),
+        )
         .await;
     assert!(result.is_err());
     if let Err(e) = result {
@@ -170,7 +181,7 @@ async fn cannot_create_name_with_duplicate_discord_id() {
 
     // First name creation should succeed
     let first_name = name_service
-        .create_name(discord_id, "FirstUser".to_string())
+        .create_name(discord_id, "FirstUser".to_string(), "server123".to_string())
         .await
         .expect("Failed to create first name");
 
@@ -179,7 +190,11 @@ async fn cannot_create_name_with_duplicate_discord_id() {
 
     // Second name creation with same Discord ID should fail
     let second_creation_result = name_service
-        .create_name(discord_id, "SecondUser".to_string())
+        .create_name(
+            discord_id,
+            "SecondUser".to_string(),
+            "server456".to_string(),
+        )
         .await;
 
     assert!(second_creation_result.is_err());
