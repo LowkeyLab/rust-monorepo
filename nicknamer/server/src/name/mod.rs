@@ -73,9 +73,9 @@ pub struct NameState {
 /// Error type for NameService operations.
 #[derive(Debug, thiserror::Error)]
 pub enum NameServiceError {
-    /// Represents a duplicate Discord ID error.
-    #[error("Discord ID {0} already exists")]
-    DuplicateDiscordId(u64),
+    /// Represents a duplicate entry error (Discord ID + Server ID combination already exists).
+    #[error("Entry with Discord ID {0} and Server ID '{1}' already exists")]
+    DuplicateEntryError(u64, String),
     /// Represents a database error.
     #[error("Database error: {0}")]
     Database(#[from] sea_orm::DbErr),
@@ -121,9 +121,9 @@ impl NameService<'_> {
         name: String,
         server_id: String,
     ) -> Result<Name, NameServiceError> {
-        // Check if Discord ID already exists
-        if self.discord_id_exists(discord_id).await? {
-            return Err(NameServiceError::DuplicateDiscordId(discord_id));
+        // Check if Discord ID + Server ID combination already exists
+        if self.entry_exists(discord_id, &server_id).await? {
+            return Err(NameServiceError::DuplicateEntryError(discord_id, server_id));
         }
 
         let active_model = name::ActiveModel {
@@ -204,19 +204,25 @@ impl NameService<'_> {
         Ok(name_copy)
     }
 
-    /// Checks if a name entry with the given Discord ID already exists.
+    /// Checks if a name entry with the given Discord ID and Server ID combination already exists.
     ///
     /// # Arguments
     ///
     /// * `discord_id` - The Discord ID to check for.
+    /// * `server_id` - The Server ID to check for.
     ///
     /// # Returns
     ///
-    /// A `Result` containing `true` if the Discord ID exists, `false` otherwise, or an error.
+    /// A `Result` containing `true` if the combination exists, `false` otherwise, or an error.
     #[tracing::instrument(skip(self))]
-    async fn discord_id_exists(&self, discord_id: u64) -> Result<bool, NameServiceError> {
+    async fn entry_exists(
+        &self,
+        discord_id: u64,
+        server_id: &str,
+    ) -> Result<bool, NameServiceError> {
         let existing_name = name::Entity::find()
             .filter(name::Column::DiscordId.eq(discord_id as i64))
+            .filter(name::Column::ServerId.eq(server_id))
             .one(self.db)
             .await?;
         Ok(existing_name.is_some())
@@ -269,17 +275,17 @@ enum NameError {
     /// Represents a name service error.
     #[error("Name service error")]
     Service(#[from] NameServiceError),
-    /// Represents a duplicate Discord ID error.
-    #[error("A name entry already exists for this Discord ID")]
-    DuplicateDiscordId,
+    /// Represents a duplicate entry error (Discord ID + Server ID combination already exists).
+    #[error("A name entry already exists for this Discord ID and Server ID combination")]
+    DuplicateEntry,
 }
 
 impl axum::response::IntoResponse for NameError {
     fn into_response(self) -> axum::response::Response {
         let (status_code, user_facing_error_message) = match self {
-            NameError::DuplicateDiscordId => (
+            NameError::DuplicateEntry => (
                 StatusCode::UNPROCESSABLE_ENTITY,
-                "A name entry already exists for this Discord ID. Please use a different Discord ID.",
+                "A name entry already exists for this Discord ID and Server ID combination. Please use a different combination.",
             ),
             _ => (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -393,7 +399,7 @@ async fn create_name_handler(
             .await?;
             Ok(Html(table_html))
         }
-        Err(NameServiceError::DuplicateDiscordId(_)) => Err(NameError::DuplicateDiscordId),
+        Err(NameServiceError::DuplicateEntryError(_, _)) => Err(NameError::DuplicateEntry),
         Err(err) => Err(NameError::Service(err)),
     }
 }

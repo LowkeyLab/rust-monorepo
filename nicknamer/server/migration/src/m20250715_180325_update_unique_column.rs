@@ -6,7 +6,13 @@ pub struct Migration;
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        // First, modify the column to remove the unique constraint
+        // First, drop the existing unique constraint on discord_id using raw SQL
+        manager
+            .get_connection()
+            .execute_unprepared("ALTER TABLE name DROP CONSTRAINT user_discord_id_key;")
+            .await?;
+
+        // Modify the column to ensure correct type
         manager
             .alter_table(
                 Table::alter()
@@ -41,17 +47,14 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        // Recreate the original unique constraint on DiscordId by adding the column with unique key
+        // Recreate the original unique constraint on DiscordId
         manager
-            .alter_table(
-                Table::alter()
+            .create_index(
+                Index::create()
+                    .name("user_discord_id_key")
                     .table(Name::Table)
-                    .modify_column(
-                        ColumnDef::new(Name::DiscordId)
-                            .big_integer()
-                            .not_null()
-                            .unique_key(),
-                    )
+                    .col(Name::DiscordId)
+                    .unique()
                     .to_owned(),
             )
             .await
