@@ -14,6 +14,8 @@ pub struct NameJson {
     discord_id: u64,
     /// The actual name/nickname
     name: String,
+    /// Server ID associated with the name
+    server_id: String,
 }
 
 impl From<Name> for NameJson {
@@ -22,6 +24,7 @@ impl From<Name> for NameJson {
             id: name.id(),
             discord_id: name.discord_id(),
             name: name.name().to_string(),
+            server_id: name.server_id().to_string(),
         }
     }
 }
