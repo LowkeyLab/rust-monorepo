@@ -28,7 +28,7 @@ async fn can_register_name() {
     let discord_id = 123456789;
     let name = "TestUser".to_string();
     let created_name = name_service
-        .create_name(discord_id, name.clone())
+        .create_name(discord_id, name.clone(), "server123".to_string())
         .await
         .expect("Failed to create name");
 
@@ -49,6 +49,7 @@ async fn can_update_name() {
     let active_model = name::ActiveModel {
         discord_id: ActiveValue::Set(initial_discord_id),
         name: ActiveValue::Set(initial_name.clone()),
+        server_id: ActiveValue::Set("server123".to_string()),
         ..Default::default()
     };
     let initial_name_entry = active_model
@@ -63,13 +64,18 @@ async fn can_update_name() {
     // Edit the name
     let new_name = "UpdatedName".to_string();
     let updated_name = name_service
-        .edit_name_by_id(initial_name_entry.id as u32, new_name.clone())
+        .edit_name_by_id(
+            initial_name_entry.id as u32,
+            new_name.clone(),
+            "server456".to_string(),
+        )
         .await
         .expect("Failed to update name");
 
     let expected_updated_name = {
         let mut expected_model = initial_name_entry.clone();
         expected_model.name = new_name.clone();
+        expected_model.server_id = "server456".to_string();
         nicknamer_server::name::Name::from(expected_model)
     };
     assert_eq!(updated_name, expected_updated_name);
@@ -84,6 +90,7 @@ async fn can_handle_update_when_name_not_found() {
     let active_model = name::ActiveModel {
         discord_id: ActiveValue::Set(111222333),
         name: ActiveValue::Set("SomeUser".to_string()),
+        server_id: ActiveValue::Set("server789".to_string()),
         ..Default::default()
     };
     let initial_name = active_model
@@ -94,7 +101,11 @@ async fn can_handle_update_when_name_not_found() {
     // Verify that an error is returned if the name ID does not exist
     let non_existent_id = initial_name.id + 1; // Assuming this ID won't exist
     let result = name_service
-        .edit_name_by_id(non_existent_id as u32, "AnotherName".to_string())
+        .edit_name_by_id(
+            non_existent_id as u32,
+            "AnotherName".to_string(),
+            "server999".to_string(),
+        )
         .await;
     assert!(result.is_err());
     if let Err(e) = result {
@@ -163,29 +174,61 @@ async fn can_handle_empty_names_list() {
 }
 
 #[tokio::test]
-async fn cannot_create_name_with_duplicate_discord_id() {
+async fn cannot_create_name_with_duplicate_discord_id_and_server_id() {
     let state = setup().await.expect("Failed to setup test context");
     let name_service = NameService::new(&state.db);
     let discord_id = 123456789;
+    let server_id = "server123";
 
     // First name creation should succeed
     let first_name = name_service
-        .create_name(discord_id, "FirstUser".to_string())
+        .create_name(discord_id, "FirstUser".to_string(), server_id.to_string())
         .await
         .expect("Failed to create first name");
 
     assert_eq!(first_name.discord_id(), discord_id);
     assert_eq!(first_name.name(), "FirstUser");
 
-    // Second name creation with same Discord ID should fail
+    // Second name creation with same Discord ID and same Server ID should fail
     let second_creation_result = name_service
-        .create_name(discord_id, "SecondUser".to_string())
+        .create_name(discord_id, "SecondUser".to_string(), server_id.to_string())
         .await;
 
     assert!(second_creation_result.is_err());
     if let Err(e) = second_creation_result {
         assert!(e.to_string().contains("already exists"));
     }
+}
+
+#[tokio::test]
+async fn can_create_name_with_same_discord_id_but_different_server_id() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_service = NameService::new(&state.db);
+    let discord_id = 123456789;
+
+    // First name creation should succeed
+    let first_name = name_service
+        .create_name(discord_id, "FirstUser".to_string(), "server123".to_string())
+        .await
+        .expect("Failed to create first name");
+
+    assert_eq!(first_name.discord_id(), discord_id);
+    assert_eq!(first_name.name(), "FirstUser");
+
+    // Second name creation with same Discord ID but different Server ID should succeed
+    let second_creation_result = name_service
+        .create_name(
+            discord_id,
+            "SecondUser".to_string(),
+            "server456".to_string(),
+        )
+        .await;
+
+    assert!(second_creation_result.is_ok());
+    let second_name = second_creation_result.unwrap();
+    assert_eq!(second_name.discord_id(), discord_id);
+    assert_eq!(second_name.name(), "SecondUser");
+    assert_eq!(second_name.server_id(), "server456");
 }
 
 #[tokio::test]

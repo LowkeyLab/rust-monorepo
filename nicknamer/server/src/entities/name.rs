@@ -10,6 +10,7 @@ pub struct Model {
     #[sea_orm(unique)]
     pub discord_id: i64,
     pub name: String,
+    pub server_id: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

@@ -34,12 +34,14 @@ async fn create_test_names(db: &DatabaseConnection) {
     let name1 = name::ActiveModel {
         discord_id: Set(123456789),
         name: Set("TestUser1".to_string()),
+        server_id: Set("test-server-1".to_string()),
         ..Default::default()
     };
 
     let name2 = name::ActiveModel {
         discord_id: Set(987654321),
         name: Set("TestUser2".to_string()),
+        server_id: Set("test-server-1".to_string()),
         ..Default::default()
     };
 
@@ -52,6 +54,7 @@ async fn create_single_test_name(db: &DatabaseConnection) -> i32 {
     let name = name::ActiveModel {
         discord_id: Set(555444333),
         name: Set("DeleteTestUser".to_string()),
+        server_id: Set("test-server-1".to_string()),
         ..Default::default()
     };
 
@@ -64,6 +67,7 @@ async fn create_editable_test_name(db: &DatabaseConnection) -> i32 {
     let name = name::ActiveModel {
         discord_id: Set(777888999),
         name: Set("EditableTestUser".to_string()),
+        server_id: Set("test-server-1".to_string()),
         ..Default::default()
     };
 
@@ -182,7 +186,7 @@ async fn can_create_name_successfully() {
     let name_state = create_name_state(state.db);
     let app = create_name_router(name_state.clone());
 
-    let form_data = "discord_id=555666777&name=NewTestUser";
+    let form_data = "discord_id=555666777&name=NewTestUser&server_id=test-server-1";
     let request = Request::builder()
         .method(Method::POST)
         .uri("/names")
@@ -213,7 +217,7 @@ async fn can_create_multiple_names_and_update_count() {
     let name_state = create_name_state(state.db);
     let app = create_name_router(name_state.clone());
 
-    let form_data = "discord_id=111222333&name=ThirdUser";
+    let form_data = "discord_id=111222333&name=ThirdUser&server_id=test-server-1";
     let request = Request::builder()
         .method(Method::POST)
         .uri("/names")
@@ -247,7 +251,7 @@ async fn can_handle_form_with_special_characters_in_name() {
     let name_state = create_name_state(state.db);
     let app = create_name_router(name_state.clone());
 
-    let form_data = "discord_id=888999000&name=User%20With%20Spaces%21";
+    let form_data = "discord_id=888999000&name=User%20With%20Spaces%21&server_id=test-server-1";
     let request = Request::builder()
         .method(Method::POST)
         .uri("/names")
@@ -303,7 +307,7 @@ async fn post_endpoint_returns_table_fragment_not_full_page() {
     let name_state = create_name_state(state.db);
     let app = create_name_router(name_state.clone());
 
-    let form_data = "discord_id=777888999&name=FragmentTestUser";
+    let form_data = "discord_id=777888999&name=FragmentTestUser&server_id=test-server-1";
     let request = Request::builder()
         .method(Method::POST)
         .uri("/names")
@@ -334,7 +338,7 @@ async fn cannot_create_name_with_duplicate_discord_id() {
     let app = create_name_router(name_state.clone());
 
     // First, create a name with a specific Discord ID
-    let form_data = "discord_id=123456789&name=FirstUser";
+    let form_data = "discord_id=123456789&name=FirstUser&server_id=test-server-1";
     let request = Request::builder()
         .method(Method::POST)
         .uri("/names")
@@ -345,7 +349,7 @@ async fn cannot_create_name_with_duplicate_discord_id() {
     let _response = app.oneshot(request).await.unwrap();
 
     // Now try to create another name with the same Discord ID
-    let duplicate_form_data = "discord_id=123456789&name=SecondUser";
+    let duplicate_form_data = "discord_id=123456789&name=SecondUser&server_id=test-server-1";
     let app2 = create_name_router(name_state.clone());
     let duplicate_request = Request::builder()
         .method(Method::POST)
@@ -625,7 +629,7 @@ async fn can_update_name_successfully() {
     let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
-    let form_data = "name=UpdatedTestUser";
+    let form_data = "name=UpdatedTestUser&server_id=test-server-1";
     let request = Request::builder()
         .method(Method::PUT)
         .uri(format!("/names/{}", name_id))
@@ -660,7 +664,7 @@ async fn can_update_name_with_special_characters() {
     let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
-    let form_data = "name=Updated%20User%20With%20Spaces%21%40%23";
+    let form_data = "name=Updated%20User%20With%20Spaces%21%40%23&server_id=test-server-1";
     let request = Request::builder()
         .method(Method::PUT)
         .uri(format!("/names/{}", name_id))
@@ -697,7 +701,7 @@ async fn can_handle_update_request_for_nonexistent_name() {
     let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
-    let form_data = "name=NonexistentUser";
+    let form_data = "name=NonexistentUser&server_id=test-server-1";
     let request = Request::builder()
         .method(Method::PUT)
         .uri("/names/99999")
@@ -731,7 +735,7 @@ async fn update_endpoint_returns_name_row_fragment_not_full_page() {
     let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
-    let form_data = "name=FragmentTestUser";
+    let form_data = "name=FragmentTestUser&server_id=test-server-1";
     let request = Request::builder()
         .method(Method::PUT)
         .uri(format!("/names/{}", name_id))
@@ -775,7 +779,7 @@ async fn update_endpoint_returns_correct_content_type() {
     let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
-    let form_data = "name=ContentTypeTestUser";
+    let form_data = "name=ContentTypeTestUser&server_id=test-server-1";
     let request = Request::builder()
         .method(Method::PUT)
         .uri(format!("/names/{}", name_id))
@@ -842,7 +846,7 @@ async fn can_update_name_with_empty_string() {
     let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
-    let form_data = "name=";
+    let form_data = "name=&server_id=test-server-1";
     let request = Request::builder()
         .method(Method::PUT)
         .uri(format!("/names/{}", name_id))
@@ -877,7 +881,7 @@ async fn can_update_name_with_very_long_string() {
     let app = create_name_router(name_state);
 
     let long_name = "A".repeat(100); // 100 character name
-    let form_data = format!("name={}", long_name);
+    let form_data = format!("name={}&server_id=test-server-1", long_name);
     let request = Request::builder()
         .method(Method::PUT)
         .uri(format!("/names/{}", name_id))
@@ -1046,18 +1050,21 @@ async fn names_table_fragment_sorts_names_by_id() {
         id: Set(3),
         discord_id: Set(333444555),
         name: Set("ThirdUser".to_string()),
+        server_id: Set("test-server-1".to_string()),
     };
 
     let name1 = name::ActiveModel {
         id: Set(1),
         discord_id: Set(111222333),
         name: Set("FirstUser".to_string()),
+        server_id: Set("test-server-1".to_string()),
     };
 
     let name2 = name::ActiveModel {
         id: Set(2),
         discord_id: Set(222333444),
         name: Set("SecondUser".to_string()),
+        server_id: Set("test-server-1".to_string()),
     };
 
     let _result3 = name3.insert(&state.db).await.unwrap();
@@ -1102,6 +1109,7 @@ async fn names_table_fragment_handles_large_dataset() {
             id: Set(i),
             discord_id: Set(100000000 + i as i64),
             name: Set(format!("TestUser{}", i)),
+            server_id: Set("test-server-1".to_string()),
         };
         let _result = name.insert(&state.db).await.unwrap();
     }
@@ -1302,6 +1310,7 @@ pub mod api {
                 let name = name::ActiveModel {
                     discord_id: Set(100000000 + i),
                     name: Set(format!("TestUser{}", i)),
+                    server_id: Set("test-server-1".to_string()),
                     ..Default::default()
                 };
                 let _result = name.insert(&state.db).await.unwrap();

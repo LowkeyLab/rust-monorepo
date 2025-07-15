@@ -17,11 +17,13 @@ pub mod api;
 pub struct CreateNameForm {
     discord_id: u64,
     name: String,
+    server_id: String,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct EditNameForm {
     name: String,
+    server_id: String,
 }
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
@@ -29,14 +31,16 @@ pub struct Name {
     id: u32,
     discord_id: u64,
     name: String,
+    server_id: String,
 }
 
 impl Name {
-    pub fn new(id: u32, discord_id: u64, name: String) -> Self {
+    pub fn new(id: u32, discord_id: u64, name: String, server_id: String) -> Self {
         Self {
             id,
             discord_id,
             name,
+            server_id,
         }
     }
 
@@ -48,6 +52,11 @@ impl Name {
     /// Returns the name.
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    /// Returns the server ID of the name.
+    pub fn server_id(&self) -> &str {
+        &self.server_id
     }
 
     /// Returns the ID of the name.
@@ -64,9 +73,9 @@ pub struct NameState {
 /// Error type for NameService operations.
 #[derive(Debug, thiserror::Error)]
 pub enum NameServiceError {
-    /// Represents a duplicate Discord ID error.
-    #[error("Discord ID {0} already exists")]
-    DuplicateDiscordId(u64),
+    /// Represents a duplicate entry error (Discord ID + Server ID combination already exists).
+    #[error("Entry with Discord ID {0} and Server ID '{1}' already exists")]
+    DuplicateEntryError(u64, String),
     /// Represents a database error.
     #[error("Database error: {0}")]
     Database(#[from] sea_orm::DbErr),
@@ -81,7 +90,12 @@ pub struct NameService<'a> {
 
 impl From<name::Model> for Name {
     fn from(model: name::Model) -> Self {
-        Name::new(model.id as u32, model.discord_id as u64, model.name)
+        Name::new(
+            model.id as u32,
+            model.discord_id as u64,
+            model.name,
+            model.server_id,
+        )
     }
 }
 
@@ -95,6 +109,7 @@ impl NameService<'_> {
     ///
     /// * `discord_id` - The Discord ID of the user.
     /// * `name` - The name of the user.
+    /// * `server_id` - The server ID where the name is used.
     ///
     /// # Returns
     ///
@@ -104,15 +119,17 @@ impl NameService<'_> {
         &self,
         discord_id: u64,
         name: String,
+        server_id: String,
     ) -> Result<Name, NameServiceError> {
-        // Check if Discord ID already exists
-        if self.discord_id_exists(discord_id).await? {
-            return Err(NameServiceError::DuplicateDiscordId(discord_id));
+        // Check if Discord ID + Server ID combination already exists
+        if self.entry_exists(discord_id, &server_id).await? {
+            return Err(NameServiceError::DuplicateEntryError(discord_id, server_id));
         }
 
         let active_model = name::ActiveModel {
             discord_id: ActiveValue::Set(discord_id as i64),
             name: ActiveValue::Set(name.clone()),
+            server_id: ActiveValue::Set(server_id.clone()),
             ..Default::default()
         };
         let created_model = active_model.insert(self.db).await?;
@@ -125,6 +142,7 @@ impl NameService<'_> {
     ///
     /// * `id` - The ID of the name entry to edit.
     /// * `new_name` - The new name for the entry.
+    /// * `new_server_id` - The new server ID for the entry.
     ///
     /// # Returns
     ///
@@ -134,6 +152,7 @@ impl NameService<'_> {
         &self,
         id: u32,
         new_name: String,
+        new_server_id: String,
     ) -> Result<Name, NameServiceError> {
         let name_to_update = name::Entity::find_by_id(id as i32)
             .one(self.db)
@@ -142,6 +161,7 @@ impl NameService<'_> {
 
         let mut active_model: name::ActiveModel = name_to_update.into();
         active_model.name = ActiveValue::Set(new_name.clone());
+        active_model.server_id = ActiveValue::Set(new_server_id.clone());
         let updated_model = active_model.update(self.db).await?;
 
         Ok(Name::from(updated_model))
@@ -184,19 +204,25 @@ impl NameService<'_> {
         Ok(name_copy)
     }
 
-    /// Checks if a name entry with the given Discord ID already exists.
+    /// Checks if a name entry with the given Discord ID and Server ID combination already exists.
     ///
     /// # Arguments
     ///
     /// * `discord_id` - The Discord ID to check for.
+    /// * `server_id` - The Server ID to check for.
     ///
     /// # Returns
     ///
-    /// A `Result` containing `true` if the Discord ID exists, `false` otherwise, or an error.
+    /// A `Result` containing `true` if the combination exists, `false` otherwise, or an error.
     #[tracing::instrument(skip(self))]
-    async fn discord_id_exists(&self, discord_id: u64) -> Result<bool, NameServiceError> {
+    async fn entry_exists(
+        &self,
+        discord_id: u64,
+        server_id: &str,
+    ) -> Result<bool, NameServiceError> {
         let existing_name = name::Entity::find()
             .filter(name::Column::DiscordId.eq(discord_id as i64))
+            .filter(name::Column::ServerId.eq(server_id))
             .one(self.db)
             .await?;
         Ok(existing_name.is_some())
@@ -249,17 +275,17 @@ enum NameError {
     /// Represents a name service error.
     #[error("Name service error")]
     Service(#[from] NameServiceError),
-    /// Represents a duplicate Discord ID error.
-    #[error("A name entry already exists for this Discord ID")]
-    DuplicateDiscordId,
+    /// Represents a duplicate entry error (Discord ID + Server ID combination already exists).
+    #[error("A name entry already exists for this Discord ID and Server ID combination")]
+    DuplicateEntry,
 }
 
 impl axum::response::IntoResponse for NameError {
     fn into_response(self) -> axum::response::Response {
         let (status_code, user_facing_error_message) = match self {
-            NameError::DuplicateDiscordId => (
+            NameError::DuplicateEntry => (
                 StatusCode::UNPROCESSABLE_ENTITY,
-                "A name entry already exists for this Discord ID. Please use a different Discord ID.",
+                "A name entry already exists for this Discord ID and Server ID combination. Please use a different combination.",
             ),
             _ => (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -361,7 +387,10 @@ async fn create_name_handler(
 ) -> Result<Html<String>, NameError> {
     let name_service = NameService::new(&state.db);
 
-    match name_service.create_name(form.discord_id, form.name).await {
+    match name_service
+        .create_name(form.discord_id, form.name, form.server_id)
+        .await
+    {
         Ok(_) => {
             // Get updated names for the table and render
             let table_html = render_names_table(&name_service, |names| {
@@ -370,7 +399,7 @@ async fn create_name_handler(
             .await?;
             Ok(Html(table_html))
         }
-        Err(NameServiceError::DuplicateDiscordId(_)) => Err(NameError::DuplicateDiscordId),
+        Err(NameServiceError::DuplicateEntryError(_, _)) => Err(NameError::DuplicateEntry),
         Err(err) => Err(NameError::Service(err)),
     }
 }
@@ -429,7 +458,10 @@ async fn update_name_handler(
 ) -> Result<Html<String>, NameError> {
     let name_service = NameService::new(&state.db);
 
-    match name_service.edit_name_by_id(id, form.name).await {
+    match name_service
+        .edit_name_by_id(id, form.name, form.server_id)
+        .await
+    {
         Ok(_) => {
             // Get the updated name to render just this row
             let updated_name = name_service.get_name_by_id(id).await?;
