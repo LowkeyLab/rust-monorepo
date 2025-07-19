@@ -9,8 +9,8 @@ use axum::{
 };
 use sea_orm::*;
 use serde::Deserialize;
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 pub mod api;
 
@@ -171,52 +171,33 @@ impl NameService<'_> {
         let mut skipped_count = 0;
         let mut errors = Vec::new();
 
-        let batch_size = 100; // Define a batch size
-        let mut entries: Vec<(u64, String)> = yaml_map.into_iter().collect();
+        let entries: Vec<(u64, String)> = yaml_map.into_iter().collect();
 
-        while !entries.is_empty() {
-            let batch: Vec<(u64, String)> = entries.drain(..batch_size.min(entries.len())).collect();
-
-            let transaction = self.db.begin().await.map_err(|e| {
-                NameServiceError::Database(e)
-            })?;
-
-            for (discord_id, name) in &batch {
-                match self
-                    .create_name(discord_id.clone(), name.clone(), server_id.clone())
-                    .await
-                {
-                    Ok(_) => created_count += 1,
-                    Err(NameServiceError::DuplicateEntryError(_, _)) => {
-                        skipped_count += 1;
-                        tracing::info!(
-                            "Skipped existing entry for Discord ID {} in server {}",
-                            discord_id,
-                            server_id
-                        );
-                    }
-                    Err(e) => {
-                        errors.push(format!(
-                            "Failed to create entry for Discord ID {}: {}",
-                            discord_id, e
-                        ));
-                        tracing::error!(
-                            "Failed to create entry for Discord ID {}: {}",
-                            discord_id,
-                            e
-                        );
-                    }
+        for (discord_id, name) in &entries {
+            match self
+                .create_name(discord_id.clone(), name.clone(), server_id.clone())
+                .await
+            {
+                Ok(_) => created_count += 1,
+                Err(NameServiceError::DuplicateEntryError(_, _)) => {
+                    skipped_count += 1;
+                    tracing::info!(
+                        "Skipped existing entry for Discord ID {} in server {}",
+                        discord_id,
+                        server_id
+                    );
                 }
-            }
-
-            if errors.is_empty() {
-                transaction.commit().await.map_err(|e| {
-                    NameServiceError::Database(e)
-                })?;
-            } else {
-                transaction.rollback().await.map_err(|e| {
-                    NameServiceError::Database(e)
-                })?;
+                Err(e) => {
+                    errors.push(format!(
+                        "Failed to create entry for Discord ID {}: {}",
+                        discord_id, e
+                    ));
+                    tracing::error!(
+                        "Failed to create entry for Discord ID {}: {}",
+                        discord_id,
+                        e
+                    );
+                }
             }
         }
 
