@@ -450,14 +450,24 @@ struct BulkAddSuccessTemplate {
     created_count: usize,
     skipped_count: usize,
     errors: Vec<String>,
+    server_id: String,
+    yaml_content: String,
 }
 
 impl BulkAddSuccessTemplate {
-    pub fn new(created_count: usize, skipped_count: usize, errors: Vec<String>) -> Self {
+    pub fn new(
+        created_count: usize,
+        skipped_count: usize,
+        errors: Vec<String>,
+        server_id: String,
+        yaml_content: String,
+    ) -> Self {
         Self {
             created_count,
             skipped_count,
             errors,
+            server_id,
+            yaml_content,
         }
     }
 }
@@ -613,11 +623,17 @@ async fn bulk_add_handler(
 
     // Process the bulk upload using the pasted YAML content
     match name_service
-        .bulk_create_names(&form.yaml_content, form.server_id)
+        .bulk_create_names(&form.yaml_content, form.server_id.clone())
         .await
     {
         Ok((created_count, skipped_count, errors)) => {
-            let template = BulkAddSuccessTemplate::new(created_count, skipped_count, errors);
+            let template = BulkAddSuccessTemplate::new(
+                created_count,
+                skipped_count,
+                errors,
+                form.server_id,
+                form.yaml_content,
+            );
             template.render().map(Html).map_err(NameError::from)
         }
         Err(err) => Err(NameError::Service(err)),
