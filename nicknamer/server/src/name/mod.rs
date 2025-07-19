@@ -344,9 +344,6 @@ enum NameError {
     /// Represents a duplicate entry error (Discord ID + Server ID combination already exists).
     #[error("A name entry already exists for this Discord ID and Server ID combination")]
     DuplicateEntry,
-    /// Represents an error during file processing.
-    #[error("File processing error: {0}")]
-    FileProcessing(String),
     /// Represents an I/O error.
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
@@ -359,7 +356,6 @@ impl axum::response::IntoResponse for NameError {
                 StatusCode::UNPROCESSABLE_ENTITY,
                 "A name entry already exists for this Discord ID and Server ID combination. Please use a different combination.",
             ),
-            NameError::FileProcessing(ref msg) => (StatusCode::BAD_REQUEST, msg.as_str()),
             _ => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "An unexpected error occurred while processing your request. Please try again later.",
