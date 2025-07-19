@@ -1405,3 +1405,171 @@ pub mod api {
         }
     }
 }
+
+#[tokio::test]
+async fn can_serve_bulk_add_form() {
+    let state = setup().await.expect("Failed to setup test context");
+
+    let name_state = create_name_state(state.db);
+    let app = create_name_router(name_state);
+
+    let request = Request::builder()
+        .uri("/names/bulk-add")
+        .body(Body::empty())
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    let snapshot_data = HttpResponseSnapshot::new(body_text, status, &headers, "bulk_add_form");
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn can_process_bulk_add_with_valid_yaml() {
+    let state = setup().await.expect("Failed to setup test context");
+
+    let name_state = create_name_state(state.db);
+    let app = create_name_router(name_state);
+
+    let yaml_content = "123456789: TestUser1\n987654321: TestUser2\n111222333: TestUser3";
+    let form_data = format!("server_id=test-server-1&yaml_content={}", yaml_content);
+
+    let request = Request::builder()
+        .method(Method::POST)
+        .uri("/names/bulk-add")
+        .header("content-type", "application/x-www-form-urlencoded")
+        .body(Body::from(form_data))
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    let snapshot_data = HttpResponseSnapshot::new(
+        body_text,
+        status,
+        &headers,
+        "bulk_add_success_with_valid_yaml",
+    );
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn can_handle_bulk_add_with_some_duplicate_entries() {
+    let state = setup().await.expect("Failed to setup test context");
+
+    // Create some existing entries
+    create_test_names(&state.db).await;
+
+    let name_state = create_name_state(state.db);
+    let app = create_name_router(name_state);
+
+    // YAML that includes one existing entry (123456789) and two new ones
+    let yaml_content = "123456789: TestUser1\n555666777: NewUser1\n888999000: NewUser2";
+    let form_data = format!("server_id=test-server-1&yaml_content={}", yaml_content);
+
+    let request = Request::builder()
+        .method(Method::POST)
+        .uri("/names/bulk-add")
+        .header("content-type", "application/x-www-form-urlencoded")
+        .body(Body::from(form_data))
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    let snapshot_data = HttpResponseSnapshot::new(
+        body_text,
+        status,
+        &headers,
+        "bulk_add_success_with_duplicates",
+    );
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn can_handle_bulk_add_with_invalid_yaml() {
+    let state = setup().await.expect("Failed to setup test context");
+
+    let name_state = create_name_state(state.db);
+    let app = create_name_router(name_state);
+
+    // Invalid YAML content
+    let yaml_content = "invalid: yaml: content: [unclosed";
+    let form_data = format!("server_id=test-server-1&yaml_content={}", yaml_content);
+
+    let request = Request::builder()
+        .method(Method::POST)
+        .uri("/names/bulk-add")
+        .header("content-type", "application/x-www-form-urlencoded")
+        .body(Body::from(form_data))
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    let snapshot_data =
+        HttpResponseSnapshot::new(body_text, status, &headers, "bulk_add_with_invalid_yaml");
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn can_handle_bulk_add_with_empty_yaml() {
+    let state = setup().await.expect("Failed to setup test context");
+
+    let name_state = create_name_state(state.db);
+    let app = create_name_router(name_state);
+
+    // Empty YAML content
+    let yaml_content = "";
+    let form_data = format!("server_id=test-server-1&yaml_content={}", yaml_content);
+
+    let request = Request::builder()
+        .method(Method::POST)
+        .uri("/names/bulk-add")
+        .header("content-type", "application/x-www-form-urlencoded")
+        .body(Body::from(form_data))
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    let snapshot_data =
+        HttpResponseSnapshot::new(body_text, status, &headers, "bulk_add_with_empty_yaml");
+
+    assert_yaml_snapshot!(snapshot_data);
+}
