@@ -2,7 +2,7 @@ use crate::entities::*;
 use askama::Template;
 use axum::{
     Form, Router,
-    extract::State,
+    extract::{RawQuery, State},
     http::{HeaderMap, HeaderName, HeaderValue, StatusCode},
     response::Html,
     routing::get,
@@ -571,23 +571,26 @@ async fn delete_name_handler(
 #[tracing::instrument(skip(state))]
 async fn bulk_delete_names_handler(
     State(state): State<Arc<NameState>>,
-    body: axum::body::Bytes,
+    RawQuery(query): RawQuery,
 ) -> Result<Html<String>, NameError> {
     let name_service = NameService::new(&state.db);
 
-    // Parse form data manually to handle multiple values with the same key
-    let body_str = std::str::from_utf8(&body).unwrap_or("");
-    let selected_ids: Vec<u32> = body_str
-        .split('&')
-        .filter_map(|pair| {
-            if pair.starts_with("selected_ids=") {
-                pair.strip_prefix("selected_ids=")
-                    .and_then(|id_str| id_str.parse().ok())
-            } else {
-                None
-            }
-        })
-        .collect();
+    // Parse query parameters manually to handle multiple values with the same key
+    let selected_ids: Vec<u32> = if let Some(query_str) = query {
+        query_str
+            .split('&')
+            .filter_map(|pair| {
+                if pair.starts_with("selected_ids=") {
+                    pair.strip_prefix("selected_ids=")
+                        .and_then(|id_str| id_str.parse().ok())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
 
     if selected_ids.is_empty() {
         // No names selected for deletion, just return the current table

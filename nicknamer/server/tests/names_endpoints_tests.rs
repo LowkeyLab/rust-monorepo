@@ -1612,9 +1612,9 @@ async fn can_bulk_delete_selected_names() {
     let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
-    // Select first two names for deletion
+    // Select first two names for deletion using query parameters
     let selected_ids = [test_ids[0], test_ids[1]];
-    let form_data = selected_ids
+    let query_params = selected_ids
         .iter()
         .map(|id| format!("selected_ids={}", id))
         .collect::<Vec<_>>()
@@ -1622,9 +1622,8 @@ async fn can_bulk_delete_selected_names() {
 
     let request = Request::builder()
         .method(Method::DELETE)
-        .uri("/names")
-        .header("content-type", "application/x-www-form-urlencoded")
-        .body(Body::from(form_data))
+        .uri(format!("/names?{}", query_params))
+        .body(Body::empty())
         .unwrap();
 
     let response = app.oneshot(request).await.unwrap();
@@ -1657,14 +1656,11 @@ async fn can_handle_bulk_delete_with_no_selection() {
     let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
-    // No selected IDs (empty form data)
-    let form_data = "";
-
+    // No selected IDs (empty query parameters)
     let request = Request::builder()
         .method(Method::DELETE)
         .uri("/names")
-        .header("content-type", "application/x-www-form-urlencoded")
-        .body(Body::from(form_data))
+        .body(Body::empty())
         .unwrap();
 
     let response = app.oneshot(request).await.unwrap();
@@ -1695,13 +1691,13 @@ async fn can_handle_bulk_delete_with_nonexistent_ids() {
     let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
-    // Include some nonexistent IDs along with valid ones
+    // Include some nonexistent IDs along with valid ones using query parameters
     let valid_id = test_ids[0];
     let invalid_ids = [99999, 88888];
     let mut selected_ids = vec![valid_id];
     selected_ids.extend_from_slice(&invalid_ids);
 
-    let form_data = selected_ids
+    let query_params = selected_ids
         .iter()
         .map(|id| format!("selected_ids={}", id))
         .collect::<Vec<_>>()
@@ -1709,9 +1705,8 @@ async fn can_handle_bulk_delete_with_nonexistent_ids() {
 
     let request = Request::builder()
         .method(Method::DELETE)
-        .uri("/names")
-        .header("content-type", "application/x-www-form-urlencoded")
-        .body(Body::from(form_data))
+        .uri(format!("/names?{}", query_params))
+        .body(Body::empty())
         .unwrap();
 
     let response = app.oneshot(request).await.unwrap();
@@ -1744,8 +1739,8 @@ async fn can_bulk_delete_all_names() {
     let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
-    // Select all name IDs for deletion
-    let form_data = test_ids
+    // Select all name IDs for deletion using query parameters
+    let query_params = test_ids
         .iter()
         .map(|id| format!("selected_ids={}", id))
         .collect::<Vec<_>>()
@@ -1753,9 +1748,8 @@ async fn can_bulk_delete_all_names() {
 
     let request = Request::builder()
         .method(Method::DELETE)
-        .uri("/names")
-        .header("content-type", "application/x-www-form-urlencoded")
-        .body(Body::from(form_data))
+        .uri(format!("/names?{}", query_params))
+        .body(Body::empty())
         .unwrap();
 
     let response = app.oneshot(request).await.unwrap();
@@ -1785,13 +1779,12 @@ async fn bulk_delete_endpoint_returns_correct_content_type() {
     let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
 
-    let form_data = format!("selected_ids={}", test_ids[0]);
+    let query_params = format!("selected_ids={}", test_ids[0]);
 
     let request = Request::builder()
         .method(Method::DELETE)
-        .uri("/names")
-        .header("content-type", "application/x-www-form-urlencoded")
-        .body(Body::from(form_data))
+        .uri(format!("/names?{}", query_params))
+        .body(Body::empty())
         .unwrap();
 
     let response = app.oneshot(request).await.unwrap();
