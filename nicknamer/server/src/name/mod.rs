@@ -175,7 +175,7 @@ impl NameService<'_> {
 
         for (discord_id, name) in &entries {
             match self
-                .create_name(discord_id.clone(), name.clone(), server_id.clone())
+                .create_name(*discord_id, name.clone(), server_id.clone())
                 .await
             {
                 Ok(_) => created_count += 1,
