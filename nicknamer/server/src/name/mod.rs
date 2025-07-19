@@ -173,7 +173,7 @@ impl NameService<'_> {
 
         for (discord_id, name) in yaml_map {
             match self
-                .create_name(*discord_id, name.clone(), server_id.clone())
+                .create_name(discord_id, name.clone(), server_id.clone())
                 .await
             {
                 Ok(_) => created_count += 1,
