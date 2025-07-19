@@ -178,7 +178,7 @@ impl NameService<'_> {
             let batch: Vec<(u64, String)> = entries.drain(..batch_size.min(entries.len())).collect();
 
             let transaction = self.db.begin().await.map_err(|e| {
-                NameServiceError::DatabaseError(format!("Failed to start transaction: {}", e))
+                NameServiceError::Database(e)
             })?;
 
             for (discord_id, name) in &batch {
@@ -211,11 +211,11 @@ impl NameService<'_> {
 
             if errors.is_empty() {
                 transaction.commit().await.map_err(|e| {
-                    NameServiceError::DatabaseError(format!("Failed to commit transaction: {}", e))
+                    NameServiceError::Database(e)
                 })?;
             } else {
                 transaction.rollback().await.map_err(|e| {
-                    NameServiceError::DatabaseError(format!("Failed to rollback transaction: {}", e))
+                    NameServiceError::Database(e)
                 })?;
             }
         }
