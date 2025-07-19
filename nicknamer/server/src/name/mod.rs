@@ -88,6 +88,9 @@ pub enum NameServiceError {
     /// Represents a name not found error.
     #[error("Name entry with ID {0} not found")]
     NameNotFound(u32),
+    /// Represents malformed data error during bulk operations.
+    #[error("Malformed data: {0}")]
+    MalformedData(String),
 }
 
 pub struct NameService<'a> {
@@ -160,12 +163,8 @@ impl NameService<'_> {
         server_id: String,
     ) -> Result<(usize, usize, Vec<String>), NameServiceError> {
         // Parse YAML content
-        let yaml_map: HashMap<u64, String> = serde_yaml::from_str(yaml_content).map_err(|e| {
-            NameServiceError::Database(sea_orm::DbErr::Custom(format!(
-                "Invalid YAML format: {}",
-                e
-            )))
-        })?;
+        let yaml_map: HashMap<u64, String> = serde_yaml::from_str(yaml_content)
+            .map_err(|e| NameServiceError::MalformedData(format!("Invalid YAML format: {}", e)))?;
 
         let mut created_count = 0;
         let mut skipped_count = 0;

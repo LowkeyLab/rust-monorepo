@@ -387,3 +387,27 @@ async fn can_get_multiple_names_by_different_ids() {
         assert_eq!(retrieved_name, expected_name);
     }
 }
+
+#[tokio::test]
+async fn can_handle_malformed_yaml_in_bulk_create() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_service = NameService::new(&state.db);
+
+    // Test with invalid YAML content
+    let invalid_yaml = "invalid yaml content: not properly formatted";
+    let server_id = "test-server".to_string();
+
+    let result = name_service
+        .bulk_create_names(invalid_yaml, server_id)
+        .await;
+
+    // Should return MalformedData error
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    match error {
+        nicknamer_server::name::NameServiceError::MalformedData(msg) => {
+            assert!(msg.contains("Invalid YAML format"));
+        }
+        _ => panic!("Expected MalformedData error, got: {:?}", error),
+    }
+}
