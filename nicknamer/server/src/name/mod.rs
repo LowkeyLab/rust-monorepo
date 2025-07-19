@@ -9,6 +9,7 @@ use axum::{
 };
 use sea_orm::*;
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 pub mod api;
@@ -24,6 +25,12 @@ pub struct CreateNameForm {
 pub struct EditNameForm {
     name: String,
     server_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BulkAddForm {
+    server_id: String,
+    yaml_content: String,
 }
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
@@ -82,6 +89,9 @@ pub enum NameServiceError {
     /// Represents a name not found error.
     #[error("Name entry with ID {0} not found")]
     NameNotFound(u32),
+    /// Represents malformed data error during bulk operations.
+    #[error("Malformed data: {0}")]
+    MalformedData(String),
 }
 
 pub struct NameService<'a> {
@@ -134,6 +144,62 @@ impl NameService<'_> {
         };
         let created_model = active_model.insert(self.db).await?;
         Ok(Name::from(created_model))
+    }
+
+    /// Creates multiple name entries in the database from a YAML mapping.
+    /// Skips entries that already exist (Discord ID + Server ID combination).
+    ///
+    /// # Arguments
+    ///
+    /// * `yaml_content` - The YAML content as a string containing discord_id: name mappings.
+    /// * `server_id` - The server ID where the names are used.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing a tuple with (created_count, skipped_count, errors) if successful, or an error otherwise.
+    #[tracing::instrument(skip(self, yaml_content))]
+    pub async fn bulk_create_names(
+        &self,
+        yaml_content: &str,
+        server_id: String,
+    ) -> Result<(usize, usize, Vec<String>), NameServiceError> {
+        // Parse YAML content
+        let yaml_map: HashMap<u64, String> = serde_yaml::from_str(yaml_content)
+            .map_err(|e| NameServiceError::MalformedData(format!("Invalid YAML format: {}", e)))?;
+
+        let mut created_count = 0;
+        let mut skipped_count = 0;
+        let mut errors = Vec::new();
+
+        for (discord_id, name) in yaml_map {
+            match self
+                .create_name(discord_id, name.clone(), server_id.clone())
+                .await
+            {
+                Ok(_) => created_count += 1,
+                Err(NameServiceError::DuplicateEntryError(_, _)) => {
+                    skipped_count += 1;
+                    tracing::info!(
+                        "Skipped existing entry for Discord ID {} in server {}",
+                        discord_id,
+                        server_id
+                    );
+                }
+                Err(e) => {
+                    errors.push(format!(
+                        "Failed to create entry for Discord ID {}: {}",
+                        discord_id, e
+                    ));
+                    tracing::error!(
+                        "Failed to create entry for Discord ID {}: {}",
+                        discord_id,
+                        e
+                    );
+                }
+            }
+        }
+
+        Ok((created_count, skipped_count, errors))
     }
 
     /// Edits a name entry by their ID.
@@ -278,6 +344,9 @@ enum NameError {
     /// Represents a duplicate entry error (Discord ID + Server ID combination already exists).
     #[error("A name entry already exists for this Discord ID and Server ID combination")]
     DuplicateEntry,
+    /// Represents an I/O error.
+    #[error("I/O error: {0}")]
+    Io(#[from] std::io::Error),
 }
 
 impl axum::response::IntoResponse for NameError {
@@ -369,6 +438,38 @@ struct NameRowTemplate {
 impl NameRowTemplate {
     pub fn new(name: Name) -> Self {
         Self { name }
+    }
+}
+
+#[derive(Template)]
+#[template(path = "names/bulk_add_form.html")]
+struct BulkAddFormTemplate;
+
+#[derive(Template)]
+#[template(path = "names/bulk_add_success.html")]
+struct BulkAddSuccessTemplate {
+    created_count: usize,
+    skipped_count: usize,
+    errors: Vec<String>,
+    server_id: String,
+    yaml_content: String,
+}
+
+impl BulkAddSuccessTemplate {
+    pub fn new(
+        created_count: usize,
+        skipped_count: usize,
+        errors: Vec<String>,
+        server_id: String,
+        yaml_content: String,
+    ) -> Self {
+        Self {
+            created_count,
+            skipped_count,
+            errors,
+            server_id,
+            yaml_content,
+        }
     }
 }
 
@@ -506,11 +607,49 @@ async fn get_name_row_handler(
     }
 }
 
+/// Handler for GET /names/bulk-add that displays the bulk add form.
+#[tracing::instrument]
+async fn bulk_add_form_handler() -> Result<Html<String>, NameError> {
+    let template = BulkAddFormTemplate;
+    template.render().map(Html).map_err(NameError::from)
+}
+
+/// Handler for POST /names/bulk-add that processes the YAML content.
+#[tracing::instrument(skip(state, form))]
+async fn bulk_add_handler(
+    State(state): State<Arc<NameState>>,
+    Form(form): Form<BulkAddForm>,
+) -> Result<Html<String>, NameError> {
+    let name_service = NameService::new(&state.db);
+
+    // Process the bulk upload using the pasted YAML content
+    match name_service
+        .bulk_create_names(&form.yaml_content, form.server_id.clone())
+        .await
+    {
+        Ok((created_count, skipped_count, errors)) => {
+            let template = BulkAddSuccessTemplate::new(
+                created_count,
+                skipped_count,
+                errors,
+                form.server_id,
+                form.yaml_content,
+            );
+            template.render().map(Html).map_err(NameError::from)
+        }
+        Err(err) => Err(NameError::Service(err)),
+    }
+}
+
 /// Creates and returns the name router with all name-related routes.
 pub fn create_name_router(state: Arc<NameState>) -> Router {
     Router::new()
         .route("/names", get(names_handler).post(create_name_handler))
         .route("/names/add", get(add_name_form_handler))
+        .route(
+            "/names/bulk-add",
+            get(bulk_add_form_handler).post(bulk_add_handler),
+        )
         .route(
             "/names/{id}",
             get(get_name_row_handler)

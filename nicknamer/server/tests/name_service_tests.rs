@@ -387,3 +387,325 @@ async fn can_get_multiple_names_by_different_ids() {
         assert_eq!(retrieved_name, expected_name);
     }
 }
+
+#[tokio::test]
+async fn can_handle_malformed_yaml_in_bulk_create() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_service = NameService::new(&state.db);
+
+    // Test with invalid YAML content
+    let invalid_yaml = "invalid yaml content: not properly formatted";
+    let server_id = "test-server".to_string();
+
+    let result = name_service
+        .bulk_create_names(invalid_yaml, server_id)
+        .await;
+
+    // Should return MalformedData error
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    match error {
+        nicknamer_server::name::NameServiceError::MalformedData(msg) => {
+            assert!(msg.contains("Invalid YAML format"));
+        }
+        _ => panic!("Expected MalformedData error, got: {:?}", error),
+    }
+}
+
+#[tokio::test]
+async fn can_bulk_create_names_from_valid_yaml() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_service = NameService::new(&state.db);
+
+    // Create valid YAML content with multiple entries
+    let yaml_content = r#"
+123456789: "Alice"
+987654321: "Bob"
+555666777: "Charlie"
+"#;
+    let server_id = "test-server".to_string();
+
+    let result = name_service
+        .bulk_create_names(yaml_content, server_id.clone())
+        .await
+        .expect("Failed to bulk create names");
+
+    let (created_count, skipped_count, errors) = result;
+    assert_eq!(created_count, 3);
+    assert_eq!(skipped_count, 0);
+    assert!(errors.is_empty());
+
+    // Verify all names were created correctly
+    let all_names = name_service
+        .get_all_names()
+        .await
+        .expect("Failed to get all names");
+
+    assert_eq!(all_names.len(), 3);
+
+    // Check that each expected name exists
+    let expected_names = vec![
+        (123456789u64, "Alice"),
+        (987654321u64, "Bob"),
+        (555666777u64, "Charlie"),
+    ];
+
+    for (expected_discord_id, expected_name) in expected_names {
+        let found_name = all_names
+            .iter()
+            .find(|name| {
+                name.discord_id() == expected_discord_id
+                    && name.name() == expected_name
+                    && name.server_id() == server_id
+            })
+            .unwrap_or_else(|| {
+                panic!(
+                    "Expected name with Discord ID {} and name '{}' not found",
+                    expected_discord_id, expected_name
+                )
+            });
+        assert!(found_name.id() > 0);
+    }
+}
+
+#[tokio::test]
+async fn can_bulk_create_names_with_empty_yaml() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_service = NameService::new(&state.db);
+
+    // Test with empty YAML content
+    let yaml_content = "{}";
+    let server_id = "test-server".to_string();
+
+    let result = name_service
+        .bulk_create_names(yaml_content, server_id)
+        .await
+        .expect("Failed to bulk create names from empty YAML");
+
+    let (created_count, skipped_count, errors) = result;
+    assert_eq!(created_count, 0);
+    assert_eq!(skipped_count, 0);
+    assert!(errors.is_empty());
+
+    // Verify no names were created
+    let all_names = name_service
+        .get_all_names()
+        .await
+        .expect("Failed to get all names");
+    assert!(all_names.is_empty());
+}
+
+#[tokio::test]
+async fn can_bulk_create_names_and_skip_duplicates() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_service = NameService::new(&state.db);
+
+    let server_id = "test-server".to_string();
+
+    // First, create an existing name entry
+    name_service
+        .create_name(123456789, "ExistingUser".to_string(), server_id.clone())
+        .await
+        .expect("Failed to create existing name");
+
+    // Now try to bulk create names, including the duplicate
+    let yaml_content = r#"
+123456789: "Alice"
+987654321: "Bob"
+555666777: "Charlie"
+"#;
+
+    let result = name_service
+        .bulk_create_names(yaml_content, server_id.clone())
+        .await
+        .expect("Failed to bulk create names");
+
+    let (created_count, skipped_count, errors) = result;
+    assert_eq!(created_count, 2); // Bob and Charlie created
+    assert_eq!(skipped_count, 1); // Alice skipped (duplicate)
+    assert!(errors.is_empty());
+
+    // Verify correct names exist
+    let all_names = name_service
+        .get_all_names()
+        .await
+        .expect("Failed to get all names");
+
+    assert_eq!(all_names.len(), 3); // ExistingUser + Bob + Charlie
+
+    // Check that the original name is unchanged
+    let existing_name = all_names
+        .iter()
+        .find(|name| name.discord_id() == 123456789)
+        .expect("Expected existing name not found");
+    assert_eq!(existing_name.name(), "ExistingUser"); // Original name preserved
+
+    // Check that new names were created
+    let expected_new_names = vec![(987654321u64, "Bob"), (555666777u64, "Charlie")];
+
+    for (expected_discord_id, expected_name) in expected_new_names {
+        let found_name = all_names
+            .iter()
+            .find(|name| {
+                name.discord_id() == expected_discord_id
+                    && name.name() == expected_name
+                    && name.server_id() == server_id
+            })
+            .unwrap_or_else(|| {
+                panic!(
+                    "Expected name with Discord ID {} and name '{}' not found",
+                    expected_discord_id, expected_name
+                )
+            });
+        assert!(found_name.id() > 0);
+    }
+}
+
+#[tokio::test]
+async fn can_bulk_create_names_with_same_discord_id_different_servers() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_service = NameService::new(&state.db);
+
+    let server1_id = "server1".to_string();
+    let server2_id = "server2".to_string();
+
+    // Create names in first server
+    let yaml_content = r#"
+123456789: "Alice"
+987654321: "Bob"
+"#;
+
+    let result1 = name_service
+        .bulk_create_names(yaml_content, server1_id.clone())
+        .await
+        .expect("Failed to bulk create names for server1");
+
+    let (created_count1, skipped_count1, errors1) = result1;
+    assert_eq!(created_count1, 2);
+    assert_eq!(skipped_count1, 0);
+    assert!(errors1.is_empty());
+
+    // Create names with same Discord IDs but different server
+    let result2 = name_service
+        .bulk_create_names(yaml_content, server2_id.clone())
+        .await
+        .expect("Failed to bulk create names for server2");
+
+    let (created_count2, skipped_count2, errors2) = result2;
+    assert_eq!(created_count2, 2); // Should succeed since server is different
+    assert_eq!(skipped_count2, 0);
+    assert!(errors2.is_empty());
+
+    // Verify all names exist
+    let all_names = name_service
+        .get_all_names()
+        .await
+        .expect("Failed to get all names");
+
+    assert_eq!(all_names.len(), 4); // 2 per server
+
+    // Check names in server1
+    let server1_names: Vec<_> = all_names
+        .iter()
+        .filter(|name| name.server_id() == server1_id)
+        .collect();
+    assert_eq!(server1_names.len(), 2);
+
+    // Check names in server2
+    let server2_names: Vec<_> = all_names
+        .iter()
+        .filter(|name| name.server_id() == server2_id)
+        .collect();
+    assert_eq!(server2_names.len(), 2);
+}
+
+#[tokio::test]
+async fn can_bulk_create_names_with_single_entry() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_service = NameService::new(&state.db);
+
+    // Test with single entry YAML
+    let yaml_content = "123456789: \"SingleUser\"";
+    let server_id = "test-server".to_string();
+
+    let result = name_service
+        .bulk_create_names(yaml_content, server_id.clone())
+        .await
+        .expect("Failed to bulk create single name");
+
+    let (created_count, skipped_count, errors) = result;
+    assert_eq!(created_count, 1);
+    assert_eq!(skipped_count, 0);
+    assert!(errors.is_empty());
+
+    // Verify the name was created
+    let all_names = name_service
+        .get_all_names()
+        .await
+        .expect("Failed to get all names");
+
+    assert_eq!(all_names.len(), 1);
+    let created_name = &all_names[0];
+    assert_eq!(created_name.discord_id(), 123456789);
+    assert_eq!(created_name.name(), "SingleUser");
+    assert_eq!(created_name.server_id(), server_id);
+}
+
+#[tokio::test]
+async fn can_handle_bulk_create_with_special_characters_in_names() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_service = NameService::new(&state.db);
+
+    // Test with names containing special characters
+    let yaml_content = r#"
+123456789: "Alice O'Connor"
+987654321: "José María"
+555666777: "王小明"
+444333222: "user@domain.com"
+111000999: "🎮 GamerTag"
+"#;
+    let server_id = "test-server".to_string();
+
+    let result = name_service
+        .bulk_create_names(yaml_content, server_id.clone())
+        .await
+        .expect("Failed to bulk create names with special characters");
+
+    let (created_count, skipped_count, errors) = result;
+    assert_eq!(created_count, 5);
+    assert_eq!(skipped_count, 0);
+    assert!(errors.is_empty());
+
+    // Verify all names were created correctly with special characters preserved
+    let all_names = name_service
+        .get_all_names()
+        .await
+        .expect("Failed to get all names");
+
+    assert_eq!(all_names.len(), 5);
+
+    let expected_names = vec![
+        (123456789u64, "Alice O'Connor"),
+        (987654321u64, "José María"),
+        (555666777u64, "王小明"),
+        (444333222u64, "user@domain.com"),
+        (111000999u64, "🎮 GamerTag"),
+    ];
+
+    for (expected_discord_id, expected_name) in expected_names {
+        let found_name = all_names
+            .iter()
+            .find(|name| {
+                name.discord_id() == expected_discord_id
+                    && name.name() == expected_name
+                    && name.server_id() == server_id
+            })
+            .unwrap_or_else(|| {
+                panic!(
+                    "Expected name with Discord ID {} and name '{}' not found",
+                    expected_discord_id, expected_name
+                )
+            });
+        assert!(found_name.id() > 0);
+    }
+}
