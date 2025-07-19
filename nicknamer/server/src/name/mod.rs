@@ -171,7 +171,6 @@ impl NameService<'_> {
         let mut skipped_count = 0;
         let mut errors = Vec::new();
 
-
         for (discord_id, name) in yaml_map {
             match self
                 .create_name(*discord_id, name.clone(), server_id.clone())
