@@ -270,6 +270,40 @@ impl NameService<'_> {
         Ok(name_copy)
     }
 
+    /// Deletes multiple name entries by their IDs.
+    ///
+    /// # Arguments
+    ///
+    /// * `ids` - A slice of IDs of the name entries to delete.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing a tuple with (deleted_count, failed_deletes) if successful, or an error otherwise.
+    #[tracing::instrument(skip(self))]
+    pub async fn bulk_delete_names(
+        &self,
+        ids: &[u32],
+    ) -> Result<(usize, Vec<String>), NameServiceError> {
+        let mut deleted_count = 0;
+        let mut failed_deletes = Vec::new();
+
+        for &id in ids {
+            match self.delete_name_by_id(id).await {
+                Ok(_) => deleted_count += 1,
+                Err(NameServiceError::NameNotFound(_)) => {
+                    failed_deletes.push(format!("Name with ID {} not found", id));
+                    tracing::warn!("Failed to delete name with ID {}: not found", id);
+                }
+                Err(e) => {
+                    failed_deletes.push(format!("Failed to delete name with ID {}: {}", id, e));
+                    tracing::error!("Failed to delete name with ID {}: {}", id, e);
+                }
+            }
+        }
+
+        Ok((deleted_count, failed_deletes))
+    }
+
     /// Checks if a name entry with the given Discord ID and Server ID combination already exists.
     ///
     /// # Arguments
@@ -533,6 +567,50 @@ async fn delete_name_handler(
     }
 }
 
+/// Handler for bulk deleting names via DELETE request.
+#[tracing::instrument(skip(state))]
+async fn bulk_delete_names_handler(
+    State(state): State<Arc<NameState>>,
+    body: axum::body::Bytes,
+) -> Result<Html<String>, NameError> {
+    let name_service = NameService::new(&state.db);
+
+    // Parse form data manually to handle multiple values with the same key
+    let body_str = std::str::from_utf8(&body).unwrap_or("");
+    let selected_ids: Vec<u32> = body_str
+        .split('&')
+        .filter_map(|pair| {
+            if pair.starts_with("selected_ids=") {
+                pair.strip_prefix("selected_ids=")
+                    .and_then(|id_str| id_str.parse().ok())
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    if selected_ids.is_empty() {
+        // No names selected for deletion, just return the current table
+        let table_html = render_names_table(&name_service, |names| {
+            names.sort_by_key(|name| name.id());
+        })
+        .await?;
+        return Ok(Html(table_html));
+    }
+
+    match name_service.bulk_delete_names(&selected_ids).await {
+        Ok(_) => {
+            // Get updated names for the table and render
+            let table_html = render_names_table(&name_service, |names| {
+                names.sort_by_key(|name| name.id());
+            })
+            .await?;
+            Ok(Html(table_html))
+        }
+        Err(err) => Err(NameError::Service(err)),
+    }
+}
+
 /// Handler for serving the edit name form.
 #[tracing::instrument(skip(state))]
 async fn edit_name_handler(
@@ -644,7 +722,12 @@ async fn bulk_add_handler(
 /// Creates and returns the name router with all name-related routes.
 pub fn create_name_router(state: Arc<NameState>) -> Router {
     Router::new()
-        .route("/names", get(names_handler).post(create_name_handler))
+        .route(
+            "/names",
+            get(names_handler)
+                .post(create_name_handler)
+                .delete(bulk_delete_names_handler),
+        )
         .route("/names/add", get(add_name_form_handler))
         .route(
             "/names/bulk-add",

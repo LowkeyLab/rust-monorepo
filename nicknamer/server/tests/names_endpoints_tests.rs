@@ -49,6 +49,36 @@ async fn create_test_names(db: &DatabaseConnection) {
     let _result2 = name2.insert(db).await.unwrap();
 }
 
+/// Test helper to create test names in the database and return their IDs.
+async fn create_test_names_with_ids(db: &DatabaseConnection) -> Vec<i32> {
+    let name1 = name::ActiveModel {
+        discord_id: Set(123456789),
+        name: Set("TestUser1".to_string()),
+        server_id: Set("test-server-1".to_string()),
+        ..Default::default()
+    };
+
+    let name2 = name::ActiveModel {
+        discord_id: Set(987654321),
+        name: Set("TestUser2".to_string()),
+        server_id: Set("test-server-1".to_string()),
+        ..Default::default()
+    };
+
+    let name3 = name::ActiveModel {
+        discord_id: Set(555444333),
+        name: Set("TestUser3".to_string()),
+        server_id: Set("test-server-1".to_string()),
+        ..Default::default()
+    };
+
+    let result1 = name1.insert(db).await.unwrap();
+    let result2 = name2.insert(db).await.unwrap();
+    let result3 = name3.insert(db).await.unwrap();
+
+    vec![result1.id, result2.id, result3.id]
+}
+
 /// Test helper to create a single test name and return its ID.
 async fn create_single_test_name(db: &DatabaseConnection) -> i32 {
     let name = name::ActiveModel {
@@ -1570,6 +1600,215 @@ async fn can_handle_bulk_add_with_empty_yaml() {
 
     let snapshot_data =
         HttpResponseSnapshot::new(body_text, status, &headers, "bulk_add_with_empty_yaml");
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn can_bulk_delete_selected_names() {
+    let state = setup().await.expect("Failed to setup test context");
+    let test_ids = create_test_names_with_ids(&state.db).await;
+
+    let name_state = create_name_state(state.db);
+    let app = create_name_router(name_state);
+
+    // Select first two names for deletion
+    let selected_ids = [test_ids[0], test_ids[1]];
+    let form_data = selected_ids
+        .iter()
+        .map(|id| format!("selected_ids={}", id))
+        .collect::<Vec<_>>()
+        .join("&");
+
+    let request = Request::builder()
+        .method(Method::DELETE)
+        .uri("/names")
+        .header("content-type", "application/x-www-form-urlencoded")
+        .body(Body::from(form_data))
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    // Debug print for troubleshooting
+    println!("Status: {}", status);
+    println!("Body: {}", body_text);
+
+    // Should return updated table with remaining names
+    assert!(status.is_success());
+
+    let snapshot_data =
+        HttpResponseSnapshot::new(body_text, status, &headers, "bulk_delete_selected_names");
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn can_handle_bulk_delete_with_no_selection() {
+    let state = setup().await.expect("Failed to setup test context");
+    create_test_names(&state.db).await;
+
+    let name_state = create_name_state(state.db);
+    let app = create_name_router(name_state);
+
+    // No selected IDs (empty form data)
+    let form_data = "";
+
+    let request = Request::builder()
+        .method(Method::DELETE)
+        .uri("/names")
+        .header("content-type", "application/x-www-form-urlencoded")
+        .body(Body::from(form_data))
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    // Should return the table with all names still present
+    assert!(status.is_success());
+    assert!(body_text.contains("TestUser1"));
+    assert!(body_text.contains("TestUser2"));
+
+    let snapshot_data =
+        HttpResponseSnapshot::new(body_text, status, &headers, "bulk_delete_no_selection");
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn can_handle_bulk_delete_with_nonexistent_ids() {
+    let state = setup().await.expect("Failed to setup test context");
+    let test_ids = create_test_names_with_ids(&state.db).await;
+
+    let name_state = create_name_state(state.db);
+    let app = create_name_router(name_state);
+
+    // Include some nonexistent IDs along with valid ones
+    let valid_id = test_ids[0];
+    let invalid_ids = [99999, 88888];
+    let mut selected_ids = vec![valid_id];
+    selected_ids.extend_from_slice(&invalid_ids);
+
+    let form_data = selected_ids
+        .iter()
+        .map(|id| format!("selected_ids={}", id))
+        .collect::<Vec<_>>()
+        .join("&");
+
+    let request = Request::builder()
+        .method(Method::DELETE)
+        .uri("/names")
+        .header("content-type", "application/x-www-form-urlencoded")
+        .body(Body::from(form_data))
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    // Should successfully delete the valid ID and ignore invalid ones
+    assert!(status.is_success());
+
+    let snapshot_data = HttpResponseSnapshot::new(
+        body_text,
+        status,
+        &headers,
+        "bulk_delete_with_nonexistent_ids",
+    );
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn can_bulk_delete_all_names() {
+    let state = setup().await.expect("Failed to setup test context");
+    let test_ids = create_test_names_with_ids(&state.db).await;
+
+    let name_state = create_name_state(state.db);
+    let app = create_name_router(name_state);
+
+    // Select all name IDs for deletion
+    let form_data = test_ids
+        .iter()
+        .map(|id| format!("selected_ids={}", id))
+        .collect::<Vec<_>>()
+        .join("&");
+
+    let request = Request::builder()
+        .method(Method::DELETE)
+        .uri("/names")
+        .header("content-type", "application/x-www-form-urlencoded")
+        .body(Body::from(form_data))
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    // Should return empty table message
+    assert!(status.is_success());
+    assert!(body_text.contains("No names found in the database"));
+
+    let snapshot_data =
+        HttpResponseSnapshot::new(body_text, status, &headers, "bulk_delete_all_names");
+
+    assert_yaml_snapshot!(snapshot_data);
+}
+
+#[tokio::test]
+async fn bulk_delete_endpoint_returns_correct_content_type() {
+    let state = setup().await.expect("Failed to setup test context");
+    let test_ids = create_test_names_with_ids(&state.db).await;
+
+    let name_state = create_name_state(state.db);
+    let app = create_name_router(name_state);
+
+    let form_data = format!("selected_ids={}", test_ids[0]);
+
+    let request = Request::builder()
+        .method(Method::DELETE)
+        .uri("/names")
+        .header("content-type", "application/x-www-form-urlencoded")
+        .body(Body::from(form_data))
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    let snapshot_data = HttpResponseSnapshot::new(
+        body_text,
+        status,
+        &headers,
+        "bulk_delete_content_type_check",
+    );
 
     assert_yaml_snapshot!(snapshot_data);
 }

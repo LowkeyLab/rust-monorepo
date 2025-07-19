@@ -684,6 +684,7 @@ async fn can_handle_bulk_create_with_special_characters_in_names() {
 
     assert_eq!(all_names.len(), 5);
 
+    // Check that each expected name exists with proper special character handling
     let expected_names = vec![
         (123456789u64, "Alice O'Connor"),
         (987654321u64, "José María"),
@@ -708,4 +709,162 @@ async fn can_handle_bulk_create_with_special_characters_in_names() {
             });
         assert!(found_name.id() > 0);
     }
+}
+
+#[tokio::test]
+async fn can_bulk_delete_names() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_service = NameService::new(&state.db);
+
+    // Create multiple names to delete
+    let names_data = vec![
+        (123456789u64, "User1".to_string(), "server1".to_string()),
+        (987654321u64, "User2".to_string(), "server1".to_string()),
+        (555666777u64, "User3".to_string(), "server2".to_string()),
+    ];
+
+    let mut created_ids = Vec::new();
+    for (discord_id, name, server_id) in names_data {
+        let created_name = name_service
+            .create_name(discord_id, name, server_id)
+            .await
+            .expect("Failed to create name");
+        created_ids.push(created_name.id());
+    }
+
+    // Verify all names were created
+    let all_names_before = name_service
+        .get_all_names()
+        .await
+        .expect("Failed to get all names");
+    assert_eq!(all_names_before.len(), 3);
+
+    // Delete two of the three names
+    let ids_to_delete = &created_ids[0..2];
+    let result = name_service
+        .bulk_delete_names(ids_to_delete)
+        .await
+        .expect("Failed to bulk delete names");
+
+    let (deleted_count, failed_deletes) = result;
+    assert_eq!(deleted_count, 2);
+    assert!(failed_deletes.is_empty());
+
+    // Verify only one name remains
+    let all_names_after = name_service
+        .get_all_names()
+        .await
+        .expect("Failed to get all names");
+    assert_eq!(all_names_after.len(), 1);
+    assert_eq!(all_names_after[0].id(), created_ids[2]);
+}
+
+#[tokio::test]
+async fn can_handle_bulk_delete_with_nonexistent_ids() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_service = NameService::new(&state.db);
+
+    // Create one name
+    let created_name = name_service
+        .create_name(123456789, "TestUser".to_string(), "server1".to_string())
+        .await
+        .expect("Failed to create name");
+
+    // Try to delete the existing name and a non-existent one
+    let ids_to_delete = vec![created_name.id(), 99999];
+    let result = name_service
+        .bulk_delete_names(&ids_to_delete)
+        .await
+        .expect("Failed to bulk delete names");
+
+    let (deleted_count, failed_deletes) = result;
+    assert_eq!(deleted_count, 1); // Only the existing name was deleted
+    assert_eq!(failed_deletes.len(), 1); // One failure for the non-existent ID
+    assert!(failed_deletes[0].contains("99999"));
+    assert!(failed_deletes[0].contains("not found"));
+
+    // Verify no names remain
+    let all_names = name_service
+        .get_all_names()
+        .await
+        .expect("Failed to get all names");
+    assert!(all_names.is_empty());
+}
+
+#[tokio::test]
+async fn can_handle_bulk_delete_with_empty_list() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_service = NameService::new(&state.db);
+
+    // Create one name first
+    let _created_name = name_service
+        .create_name(123456789, "TestUser".to_string(), "server1".to_string())
+        .await
+        .expect("Failed to create name");
+
+    // Try to delete with empty list
+    let ids_to_delete: Vec<u32> = vec![];
+    let result = name_service
+        .bulk_delete_names(&ids_to_delete)
+        .await
+        .expect("Failed to bulk delete names");
+
+    let (deleted_count, failed_deletes) = result;
+    assert_eq!(deleted_count, 0);
+    assert!(failed_deletes.is_empty());
+
+    // Verify the original name still exists
+    let all_names = name_service
+        .get_all_names()
+        .await
+        .expect("Failed to get all names");
+    assert_eq!(all_names.len(), 1);
+}
+
+#[tokio::test]
+async fn can_handle_bulk_delete_all_names() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_service = NameService::new(&state.db);
+
+    // Create multiple names
+    let names_data = vec![
+        (123456789u64, "User1".to_string(), "server1".to_string()),
+        (987654321u64, "User2".to_string(), "server1".to_string()),
+        (555666777u64, "User3".to_string(), "server2".to_string()),
+        (444333222u64, "User4".to_string(), "server2".to_string()),
+        (111222333u64, "User5".to_string(), "server3".to_string()),
+    ];
+
+    let mut created_ids = Vec::new();
+    for (discord_id, name, server_id) in names_data {
+        let created_name = name_service
+            .create_name(discord_id, name, server_id)
+            .await
+            .expect("Failed to create name");
+        created_ids.push(created_name.id());
+    }
+
+    // Verify all names were created
+    let all_names_before = name_service
+        .get_all_names()
+        .await
+        .expect("Failed to get all names");
+    assert_eq!(all_names_before.len(), 5);
+
+    // Delete all names
+    let result = name_service
+        .bulk_delete_names(&created_ids)
+        .await
+        .expect("Failed to bulk delete all names");
+
+    let (deleted_count, failed_deletes) = result;
+    assert_eq!(deleted_count, 5);
+    assert!(failed_deletes.is_empty());
+
+    // Verify no names remain
+    let all_names_after = name_service
+        .get_all_names()
+        .await
+        .expect("Failed to get all names");
+    assert!(all_names_after.is_empty());
 }

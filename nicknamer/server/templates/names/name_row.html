@@ -1,4 +1,15 @@
 <tr id="name-row-{{ name.id }}">
+  <td>
+    <label>
+      <input
+        type="checkbox"
+        class="checkbox"
+        name="selected_ids"
+        value="{{ name.id }}"
+        onchange="updateDeleteButton()"
+      />
+    </label>
+  </td>
   <td>{{ name.discord_id }}</td>
   <td class="font-semibold">{{ name.name }}</td>
   <td>{{ name.server_id }}</td>
