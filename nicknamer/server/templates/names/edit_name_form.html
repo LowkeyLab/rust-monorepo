@@ -4,7 +4,7 @@
     <form
       id="edit-form-{{ name.id }}"
       hx-put="/names/{{ name.id }}"
-      hx-target="#name-row-{{ name.id }}"
+      hx-target="closest tr"
       hx-swap="outerHTML"
       class="inline-block"
     >
