@@ -8,17 +8,6 @@ headers:
   content-type: text/html; charset=utf-8
 html_body:
   - "<tr id=\"name-row-1\">"
-  - "  <td>"
-  - "    <label>"
-  - "      <input"
-  - "        type=\"checkbox\""
-  - "        class=\"checkbox\""
-  - "        name=\"selected_ids\""
-  - "        value=\"1\""
-  - "        onchange=\"updateDeleteButton()\""
-  - "      />"
-  - "    </label>"
-  - "  </td>"
   - "  <td>777888999</td>"
   - "  <td class=\"font-semibold\">Updated User With Spaces!@#</td>"
   - "  <td>test-server-1</td>"
