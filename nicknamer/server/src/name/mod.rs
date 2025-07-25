@@ -757,6 +757,43 @@ async fn bulk_delete_table_handler(
     template.render().map(Html).map_err(NameError::from)
 }
 
+/// Handler for DELETE /names/delete that processes bulk deletion and returns the updated bulk delete table.
+#[tracing::instrument(skip(state))]
+async fn bulk_delete_names_delete_handler(
+    State(state): State<Arc<NameState>>,
+    RawQuery(query): RawQuery,
+) -> Result<Html<String>, NameError> {
+    let name_service = NameService::new(&state.db);
+
+    // Parse query parameters manually to handle multiple values with the same key
+    let selected_ids: Vec<u32> = if let Some(query_str) = query {
+        query_str
+            .split('&')
+            .filter_map(|pair| {
+                if pair.starts_with("selected_ids=") {
+                    pair.strip_prefix("selected_ids=")
+                        .and_then(|id_str| id_str.parse().ok())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
+
+    // Perform the deletion if any IDs are selected
+    if !selected_ids.is_empty() {
+        let _ = name_service.bulk_delete_names(&selected_ids).await;
+    }
+
+    // Return the updated bulk delete table (same as GET /names/delete/table)
+    let mut names = name_service.get_all_names().await?;
+    names.sort_by_key(|name| name.id());
+    let template = BulkDeleteTableTemplate::new(names);
+    template.render().map(Html).map_err(NameError::from)
+}
+
 /// Creates and returns the name router with all name-related routes.
 pub fn create_name_router(state: Arc<NameState>) -> Router {
     Router::new()
@@ -771,7 +808,10 @@ pub fn create_name_router(state: Arc<NameState>) -> Router {
             "/names/bulk-add",
             get(bulk_add_form_handler).post(bulk_add_handler),
         )
-        .route("/names/delete", get(bulk_delete_page_handler))
+        .route(
+            "/names/delete",
+            get(bulk_delete_page_handler).delete(bulk_delete_names_delete_handler),
+        )
         .route("/names/delete/table", get(bulk_delete_table_handler))
         .route(
             "/names/{id}",

@@ -1622,7 +1622,7 @@ async fn can_bulk_delete_selected_names() {
 
     let request = Request::builder()
         .method(Method::DELETE)
-        .uri(format!("/names?{}", query_params))
+        .uri(format!("/names/delete?{}", query_params))
         .body(Body::empty())
         .unwrap();
 
@@ -1659,7 +1659,7 @@ async fn can_handle_bulk_delete_with_no_selection() {
     // No selected IDs (empty query parameters)
     let request = Request::builder()
         .method(Method::DELETE)
-        .uri("/names")
+        .uri("/names/delete")
         .body(Body::empty())
         .unwrap();
 
@@ -1705,7 +1705,7 @@ async fn can_handle_bulk_delete_with_nonexistent_ids() {
 
     let request = Request::builder()
         .method(Method::DELETE)
-        .uri(format!("/names?{}", query_params))
+        .uri(format!("/names/delete?{}", query_params))
         .body(Body::empty())
         .unwrap();
 
@@ -1748,7 +1748,7 @@ async fn can_bulk_delete_all_names() {
 
     let request = Request::builder()
         .method(Method::DELETE)
-        .uri(format!("/names?{}", query_params))
+        .uri(format!("/names/delete?{}", query_params))
         .body(Body::empty())
         .unwrap();
 
@@ -1783,7 +1783,7 @@ async fn bulk_delete_endpoint_returns_correct_content_type() {
 
     let request = Request::builder()
         .method(Method::DELETE)
-        .uri(format!("/names?{}", query_params))
+        .uri(format!("/names/delete?{}", query_params))
         .body(Body::empty())
         .unwrap();
 
@@ -1870,7 +1870,8 @@ async fn can_serve_bulk_delete_table_fragment() {
     assert!(body_text.contains("TestUser2"));
     // Should not contain individual edit/delete buttons (simplified view)
     assert!(!body_text.contains("Edit"));
-    assert!(!body_text.contains("hx-delete=\"/names/"));
+    assert!(!body_text.contains("hx-delete=\"/names/1\""));
+    assert!(!body_text.contains("hx-delete=\"/names/2\""));
     assert!(
         headers
             .get("content-type")
@@ -1904,7 +1905,7 @@ async fn bulk_delete_table_fragment_has_correct_form_structure() {
 
     // Check for proper form structure
     assert!(body_text.contains("id=\"bulk-delete-form\""));
-    assert!(body_text.contains("hx-delete=\"/names\""));
+    assert!(body_text.contains("hx-delete=\"/names/delete\""));
     assert!(body_text.contains("hx-target=\"#bulk-delete-table\""));
     assert!(body_text.contains("name=\"selected_ids\""));
     assert!(body_text.contains("id=\"select-all\""));
