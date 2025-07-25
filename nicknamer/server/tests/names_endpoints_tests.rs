@@ -1805,3 +1805,110 @@ async fn bulk_delete_endpoint_returns_correct_content_type() {
 
     assert_yaml_snapshot!(snapshot_data);
 }
+
+#[tokio::test]
+async fn can_serve_bulk_delete_page() {
+    let state = setup().await.expect("Failed to setup test context");
+
+    let name_state = create_name_state(state.db);
+    let app = create_name_router(name_state);
+
+    let request = Request::builder()
+        .method(Method::GET)
+        .uri("/names/delete")
+        .body(axum::body::Body::empty())
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(body_text.contains("Bulk Delete Names"));
+    assert!(body_text.contains("Select Names to Delete"));
+    assert!(
+        headers
+            .get("content-type")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .contains("text/html")
+    );
+}
+
+#[tokio::test]
+async fn can_serve_bulk_delete_table_fragment() {
+    let state = setup().await.expect("Failed to setup test context");
+    create_test_names(&state.db).await;
+
+    let name_state = create_name_state(state.db);
+    let app = create_name_router(name_state);
+
+    let request = Request::builder()
+        .method(Method::GET)
+        .uri("/names/delete/table")
+        .body(axum::body::Body::empty())
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(body_text.contains("Delete Selected"));
+    assert!(body_text.contains("TestUser1"));
+    assert!(body_text.contains("TestUser2"));
+    // Should not contain individual edit/delete buttons (simplified view)
+    assert!(!body_text.contains("Edit"));
+    assert!(!body_text.contains("hx-delete=\"/names/"));
+    assert!(
+        headers
+            .get("content-type")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .contains("text/html")
+    );
+}
+
+#[tokio::test]
+async fn bulk_delete_table_fragment_has_correct_form_structure() {
+    let state = setup().await.expect("Failed to setup test context");
+    create_test_names(&state.db).await;
+
+    let name_state = create_name_state(state.db);
+    let app = create_name_router(name_state);
+
+    let request = Request::builder()
+        .method(Method::GET)
+        .uri("/names/delete/table")
+        .body(axum::body::Body::empty())
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+
+    // Check for proper form structure
+    assert!(body_text.contains("id=\"bulk-delete-form\""));
+    assert!(body_text.contains("hx-delete=\"/names\""));
+    assert!(body_text.contains("hx-target=\"#bulk-delete-table\""));
+    assert!(body_text.contains("name=\"selected_ids\""));
+    assert!(body_text.contains("id=\"select-all\""));
+    assert!(body_text.contains("id=\"delete-selected-btn\""));
+    assert!(body_text.contains("toggleAllCheckboxes"));
+    assert!(body_text.contains("updateDeleteButton"));
+}

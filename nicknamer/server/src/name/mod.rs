@@ -507,6 +507,22 @@ impl BulkAddSuccessTemplate {
     }
 }
 
+#[derive(Template)]
+#[template(path = "names/bulk_delete.html")]
+struct BulkDeleteTemplate;
+
+#[derive(Template)]
+#[template(path = "names/bulk_delete_table.html")]
+struct BulkDeleteTableTemplate {
+    names: Vec<Name>,
+}
+
+impl BulkDeleteTableTemplate {
+    pub fn new(names: Vec<Name>) -> Self {
+        Self { names }
+    }
+}
+
 /// Handler for the /names endpoint that displays all names in a table.
 #[tracing::instrument]
 async fn names_handler() -> Result<Html<String>, NameError> {
@@ -722,6 +738,25 @@ async fn bulk_add_handler(
     }
 }
 
+/// Handler for GET /names/delete that displays the bulk delete interface.
+#[tracing::instrument]
+async fn bulk_delete_page_handler() -> Result<Html<String>, NameError> {
+    let template = BulkDeleteTemplate;
+    template.render().map(Html).map_err(NameError::from)
+}
+
+/// Handler for GET /names/delete/table that returns the bulk delete table fragment.
+#[tracing::instrument(skip(state))]
+async fn bulk_delete_table_handler(
+    State(state): State<Arc<NameState>>,
+) -> Result<Html<String>, NameError> {
+    let name_service = NameService::new(&state.db);
+    let mut names = name_service.get_all_names().await?;
+    names.sort_by_key(|name| name.id());
+    let template = BulkDeleteTableTemplate::new(names);
+    template.render().map(Html).map_err(NameError::from)
+}
+
 /// Creates and returns the name router with all name-related routes.
 pub fn create_name_router(state: Arc<NameState>) -> Router {
     Router::new()
@@ -736,6 +771,8 @@ pub fn create_name_router(state: Arc<NameState>) -> Router {
             "/names/bulk-add",
             get(bulk_add_form_handler).post(bulk_add_handler),
         )
+        .route("/names/delete", get(bulk_delete_page_handler))
+        .route("/names/delete/table", get(bulk_delete_table_handler))
         .route(
             "/names/{id}",
             get(get_name_row_handler)
