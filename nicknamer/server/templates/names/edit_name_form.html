@@ -1,10 +1,11 @@
 <tr id="name-row-{{ name.id }}">
   <td>{{ name.discord_id }}</td>
+  <td>{{ name.server_id }}</td>
   <td>
     <form
       id="edit-form-{{ name.id }}"
       hx-put="/names/{{ name.id }}"
-      hx-target="#name-row-{{ name.id }}"
+      hx-target="closest tr"
       hx-swap="outerHTML"
       class="inline-block"
     >
@@ -15,17 +16,8 @@
         class="input input-bordered input-sm w-full max-w-xs min-w-0"
         required
       />
+      <input type="hidden" name="server_id" value="{{ name.server_id }}" />
     </form>
-  </td>
-  <td>
-    <input
-      type="text"
-      name="server_id"
-      value="{{ name.server_id }}"
-      form="edit-form-{{ name.id }}"
-      class="input input-bordered input-sm w-full max-w-xs min-w-0"
-      required
-    />
   </td>
   <th>
     <button

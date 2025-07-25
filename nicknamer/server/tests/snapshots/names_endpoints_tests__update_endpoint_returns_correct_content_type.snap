@@ -9,8 +9,8 @@ headers:
 html_body:
   - "<tr id=\"name-row-1\">"
   - "  <td>777888999</td>"
-  - "  <td class=\"font-semibold\">ContentTypeTestUser</td>"
   - "  <td>test-server-1</td>"
+  - "  <td class=\"font-semibold\">ContentTypeTestUser</td>"
   - "  <th>"
   - "    <button"
   - "      class=\"btn btn-warning btn-sm mr-2\""
