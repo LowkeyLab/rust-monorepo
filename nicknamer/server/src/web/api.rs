@@ -3,7 +3,7 @@ pub(crate) mod v1 {
 
     use crate::{
         auth::{self, AuthState},
-        name::NameState,
+        name::web::NameState,
     };
 
     use axum::{

@@ -3,7 +3,7 @@ use axum::http::{Method, Request, StatusCode};
 use insta::assert_yaml_snapshot;
 use nicknamer_server::entities::name;
 use nicknamer_server::name::api::v1::create_api_router;
-use nicknamer_server::name::{NameState, create_name_router};
+use nicknamer_server::name::web::{NameState, create_name_router};
 use sea_orm::{ActiveModelTrait, DatabaseConnection, Set};
 use std::sync::Arc;
 use testcontainers_modules::{postgres, testcontainers};
