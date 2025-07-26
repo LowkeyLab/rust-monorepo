@@ -49,6 +49,44 @@ async fn create_test_names(db: &DatabaseConnection) {
     let _result2 = name2.insert(db).await.unwrap();
 }
 
+/// Test helper to create test names in multiple servers.
+async fn create_test_names_multiple_servers(db: &DatabaseConnection) {
+    // Server 1 names
+    let name1 = name::ActiveModel {
+        discord_id: Set(123456789),
+        name: Set("Alice".to_string()),
+        server_id: Set("server1".to_string()),
+        ..Default::default()
+    };
+
+    let name2 = name::ActiveModel {
+        discord_id: Set(987654321),
+        name: Set("Bob".to_string()),
+        server_id: Set("server1".to_string()),
+        ..Default::default()
+    };
+
+    // Server 2 names
+    let name3 = name::ActiveModel {
+        discord_id: Set(555666777),
+        name: Set("Charlie".to_string()),
+        server_id: Set("server2".to_string()),
+        ..Default::default()
+    };
+
+    let name4 = name::ActiveModel {
+        discord_id: Set(444333222),
+        name: Set("David".to_string()),
+        server_id: Set("server2".to_string()),
+        ..Default::default()
+    };
+
+    let _result1 = name1.insert(db).await.unwrap();
+    let _result2 = name2.insert(db).await.unwrap();
+    let _result3 = name3.insert(db).await.unwrap();
+    let _result4 = name4.insert(db).await.unwrap();
+}
+
 /// Test helper to create test names in the database and return their IDs.
 async fn create_test_names_with_ids(db: &DatabaseConnection) -> Vec<i32> {
     let name1 = name::ActiveModel {
@@ -1432,6 +1470,244 @@ pub mod api {
             let json: Value = serde_json::from_str(body_text1).expect("Should be valid JSON");
             assert!(json["names"].is_array());
             assert_eq!(json["count"], 2);
+        }
+
+        #[tokio::test]
+        async fn can_filter_names_by_server_id() {
+            let state = setup().await.expect("Failed to setup test context");
+            create_test_names_multiple_servers(&state.db).await;
+
+            let name_state = create_name_state(state.db);
+            let app = create_api_router(name_state);
+
+            // Request names for server1
+            let request = Request::builder()
+                .method(Method::GET)
+                .uri("/names?server_id=server1")
+                .body(Body::empty())
+                .unwrap();
+
+            let response = app.oneshot(request).await.unwrap();
+
+            let status = response.status();
+            let headers = response.headers().clone();
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let body_text = std::str::from_utf8(&body).unwrap();
+
+            // Should return 200 OK
+            assert_eq!(status, StatusCode::OK);
+
+            // Should return JSON content type
+            assert_eq!(headers.get("content-type").unwrap(), "application/json");
+
+            // Parse and validate JSON structure
+            let json: Value = serde_json::from_str(body_text).expect("Should be valid JSON");
+            assert!(json["names"].is_array());
+            assert_eq!(json["count"], 2);
+
+            // Validate that only server1 names are returned
+            let names = json["names"].as_array().unwrap();
+            assert_eq!(names.len(), 2);
+
+            let name_values: Vec<&str> =
+                names.iter().map(|n| n["name"].as_str().unwrap()).collect();
+            assert!(name_values.contains(&"Alice"));
+            assert!(name_values.contains(&"Bob"));
+            assert!(!name_values.contains(&"Charlie"));
+            assert!(!name_values.contains(&"David"));
+
+            // Verify all names have the correct server_id
+            for name in names {
+                assert_eq!(name["server_id"].as_str().unwrap(), "server1");
+            }
+
+            let snapshot_data =
+                JsonApiResponseSnapshot::new(body_text, status, &headers, "api_v1_names_filtered_server1");
+
+            assert_yaml_snapshot!(snapshot_data);
+        }
+
+        #[tokio::test]
+        async fn can_filter_names_by_different_server_id() {
+            let state = setup().await.expect("Failed to setup test context");
+            create_test_names_multiple_servers(&state.db).await;
+
+            let name_state = create_name_state(state.db);
+            let app = create_api_router(name_state);
+
+            // Request names for server2
+            let request = Request::builder()
+                .method(Method::GET)
+                .uri("/names?server_id=server2")
+                .body(Body::empty())
+                .unwrap();
+
+            let response = app.oneshot(request).await.unwrap();
+
+            let status = response.status();
+            let headers = response.headers().clone();
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let body_text = std::str::from_utf8(&body).unwrap();
+
+            // Should return 200 OK
+            assert_eq!(status, StatusCode::OK);
+
+            // Parse and validate JSON structure
+            let json: Value = serde_json::from_str(body_text).expect("Should be valid JSON");
+            assert!(json["names"].is_array());
+            assert_eq!(json["count"], 2);
+
+            // Validate that only server2 names are returned
+            let names = json["names"].as_array().unwrap();
+            assert_eq!(names.len(), 2);
+
+            let name_values: Vec<&str> =
+                names.iter().map(|n| n["name"].as_str().unwrap()).collect();
+            assert!(name_values.contains(&"Charlie"));
+            assert!(name_values.contains(&"David"));
+            assert!(!name_values.contains(&"Alice"));
+            assert!(!name_values.contains(&"Bob"));
+
+            // Verify all names have the correct server_id
+            for name in names {
+                assert_eq!(name["server_id"].as_str().unwrap(), "server2");
+            }
+
+            let snapshot_data =
+                JsonApiResponseSnapshot::new(body_text, status, &headers, "api_v1_names_filtered_server2");
+
+            assert_yaml_snapshot!(snapshot_data);
+        }
+
+        #[tokio::test]
+        async fn can_return_empty_list_for_nonexistent_server() {
+            let state = setup().await.expect("Failed to setup test context");
+            create_test_names_multiple_servers(&state.db).await;
+
+            let name_state = create_name_state(state.db);
+            let app = create_api_router(name_state);
+
+            // Request names for non-existent server
+            let request = Request::builder()
+                .method(Method::GET)
+                .uri("/names?server_id=nonexistent-server")
+                .body(Body::empty())
+                .unwrap();
+
+            let response = app.oneshot(request).await.unwrap();
+
+            let status = response.status();
+            let headers = response.headers().clone();
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let body_text = std::str::from_utf8(&body).unwrap();
+
+            // Should return 200 OK
+            assert_eq!(status, StatusCode::OK);
+
+            // Parse and validate JSON structure
+            let json: Value = serde_json::from_str(body_text).expect("Should be valid JSON");
+            assert!(json["names"].is_array());
+            assert_eq!(json["count"], 0);
+            assert_eq!(json["names"].as_array().unwrap().len(), 0);
+
+            let snapshot_data =
+                JsonApiResponseSnapshot::new(body_text, status, &headers, "api_v1_names_filtered_nonexistent");
+
+            assert_yaml_snapshot!(snapshot_data);
+        }
+
+        #[tokio::test]
+        async fn can_return_all_names_when_no_server_filter() {
+            let state = setup().await.expect("Failed to setup test context");
+            create_test_names_multiple_servers(&state.db).await;
+
+            let name_state = create_name_state(state.db);
+            let app = create_api_router(name_state);
+
+            // Request all names without filter
+            let request = Request::builder()
+                .method(Method::GET)
+                .uri("/names")
+                .body(Body::empty())
+                .unwrap();
+
+            let response = app.oneshot(request).await.unwrap();
+
+            let status = response.status();
+            let headers = response.headers().clone();
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let body_text = std::str::from_utf8(&body).unwrap();
+
+            // Should return 200 OK
+            assert_eq!(status, StatusCode::OK);
+
+            // Parse and validate JSON structure
+            let json: Value = serde_json::from_str(body_text).expect("Should be valid JSON");
+            assert!(json["names"].is_array());
+            assert_eq!(json["count"], 4); // All names from both servers
+
+            // Validate that all names are returned
+            let names = json["names"].as_array().unwrap();
+            assert_eq!(names.len(), 4);
+
+            let name_values: Vec<&str> =
+                names.iter().map(|n| n["name"].as_str().unwrap()).collect();
+            assert!(name_values.contains(&"Alice"));
+            assert!(name_values.contains(&"Bob"));
+            assert!(name_values.contains(&"Charlie"));
+            assert!(name_values.contains(&"David"));
+
+            let snapshot_data =
+                JsonApiResponseSnapshot::new(body_text, status, &headers, "api_v1_names_all_servers");
+
+            assert_yaml_snapshot!(snapshot_data);
+        }
+
+        #[tokio::test]
+        async fn can_handle_empty_server_id_parameter() {
+            let state = setup().await.expect("Failed to setup test context");
+            create_test_names_multiple_servers(&state.db).await;
+
+            let name_state = create_name_state(state.db);
+            let app = create_api_router(name_state);
+
+            // Request names with empty server_id
+            let request = Request::builder()
+                .method(Method::GET)
+                .uri("/names?server_id=")
+                .body(Body::empty())
+                .unwrap();
+
+            let response = app.oneshot(request).await.unwrap();
+
+            let status = response.status();
+            let headers = response.headers().clone();
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let body_text = std::str::from_utf8(&body).unwrap();
+
+            // Should return 200 OK
+            assert_eq!(status, StatusCode::OK);
+
+            // Parse and validate JSON structure
+            let json: Value = serde_json::from_str(body_text).expect("Should be valid JSON");
+            assert!(json["names"].is_array());
+            assert_eq!(json["count"], 0); // Empty string should match no servers
+            assert_eq!(json["names"].as_array().unwrap().len(), 0);
+
+            let snapshot_data =
+                JsonApiResponseSnapshot::new(body_text, status, &headers, "api_v1_names_empty_server_id");
+
+            assert_yaml_snapshot!(snapshot_data);
         }
     }
 }
