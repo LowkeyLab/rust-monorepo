@@ -1,4 +1,5 @@
-use crate::name::{Name, NameService, NameState};
+use crate::name::web::NameState;
+use crate::name::{Name, NameService};
 use crate::web::api::v1::ServerErrorResponse;
 use axum::{Router, extract::State, http::StatusCode, response::Json, routing::get};
 use serde::{Deserialize, Serialize};

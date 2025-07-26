@@ -17,7 +17,7 @@ use crate::auth::{
     AuthState, CurrentUser, auth_user_middleware, create_login_router, login_redirect_middleware,
 };
 use crate::config::{self, Config};
-use crate::name::{NameState, create_name_router};
+use crate::name::web::{NameState, create_name_router};
 use crate::web::api::v1::create_api_router;
 pub(crate) mod api;
 
