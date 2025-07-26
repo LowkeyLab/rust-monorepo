@@ -9,8 +9,6 @@ use axum::{
 use serde::Deserialize;
 use std::sync::Arc;
 
-use sea_orm::*;
-
 use crate::name::{Name, NameService, NameServiceError};
 
 #[derive(Debug, Deserialize)]

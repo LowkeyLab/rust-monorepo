@@ -1,16 +1,6 @@
 use crate::entities::*;
-use askama::Template;
-use axum::{
-    Form, Router,
-    extract::{RawQuery, State},
-    http::{HeaderMap, HeaderName, HeaderValue, StatusCode},
-    response::Html,
-    routing::get,
-};
 use sea_orm::*;
-use serde::Deserialize;
 use std::collections::HashMap;
-use std::sync::Arc;
 
 pub mod api;
 pub mod web;
