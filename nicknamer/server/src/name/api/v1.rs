@@ -1,7 +1,13 @@
 use crate::name::web::NameState;
 use crate::name::{Name, NameService};
 use crate::web::api::v1::ServerErrorResponse;
-use axum::{Router, extract::State, http::StatusCode, response::Json, routing::get};
+use axum::{
+    Router,
+    extract::{Query, State},
+    http::StatusCode,
+    response::Json,
+    routing::get,
+};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use utoipa::ToSchema;
@@ -39,23 +45,40 @@ pub struct NamesResponse {
     count: usize,
 }
 
+/// Query parameters for filtering names by server.
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct NamesQuery {
+    /// Optional server ID to filter names by
+    #[serde(default)]
+    server_id: Option<String>,
+}
+
 /// Handler for GET /api/v1/names - Returns all names in JSON format.
 #[tracing::instrument(skip(state))]
 #[utoipa::path(
     get,
     path = "/api/v1/names",
+    params(
+        ("server_id" = Option<String>, Query, description = "Optional server ID to filter names by")
+    ),
     responses(
-        (status = 200, description = "Successfully retrieved all names", body = NamesResponse),
+        (status = 200, description = "Successfully retrieved names", body = NamesResponse),
         (status = 500, description = "Internal server error", body = ServerErrorResponse)
     ),
     tag = "Names"
 )]
 pub async fn get_names_handler(
     State(state): State<Arc<NameState>>,
+    Query(query): Query<NamesQuery>,
 ) -> Result<Json<NamesResponse>, (StatusCode, Json<ServerErrorResponse>)> {
     let service = NameService::new(&state.db);
 
-    match service.get_all_names().await {
+    let names_result = match query.server_id {
+        Some(server_id) => service.get_names_by_server(&server_id).await,
+        None => service.get_all_names().await,
+    };
+
+    match names_result {
         Ok(names) => {
             let json_names: Vec<NameJson> = names.into_iter().map(NameJson::from).collect();
             let count = json_names.len();

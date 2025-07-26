@@ -868,3 +868,99 @@ async fn can_handle_bulk_delete_all_names() {
         .expect("Failed to get all names");
     assert!(all_names_after.is_empty());
 }
+
+#[tokio::test]
+async fn can_get_names_by_server() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_service = NameService::new(&state.db);
+
+    // Create names for different servers
+    let server1_id = "server1".to_string();
+    let server2_id = "server2".to_string();
+
+    let name1 = name_service
+        .create_name(123456789, "Alice".to_string(), server1_id.clone())
+        .await
+        .expect("Failed to create name1");
+
+    let name2 = name_service
+        .create_name(987654321, "Bob".to_string(), server1_id.clone())
+        .await
+        .expect("Failed to create name2");
+
+    let name3 = name_service
+        .create_name(555666777, "Charlie".to_string(), server2_id.clone())
+        .await
+        .expect("Failed to create name3");
+
+    // Get names for server1
+    let server1_names = name_service
+        .get_names_by_server(&server1_id)
+        .await
+        .expect("Failed to get names for server1");
+
+    assert_eq!(server1_names.len(), 2);
+    assert!(server1_names.contains(&name1));
+    assert!(server1_names.contains(&name2));
+    assert!(!server1_names.contains(&name3));
+
+    // Get names for server2
+    let server2_names = name_service
+        .get_names_by_server(&server2_id)
+        .await
+        .expect("Failed to get names for server2");
+
+    assert_eq!(server2_names.len(), 1);
+    assert!(server2_names.contains(&name3));
+    assert!(!server2_names.contains(&name1));
+    assert!(!server2_names.contains(&name2));
+}
+
+#[tokio::test]
+async fn can_get_empty_list_for_nonexistent_server() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_service = NameService::new(&state.db);
+
+    // Create a name for a specific server
+    name_service
+        .create_name(123456789, "TestUser".to_string(), "existing-server".to_string())
+        .await
+        .expect("Failed to create name");
+
+    // Query for a non-existent server
+    let names = name_service
+        .get_names_by_server("nonexistent-server")
+        .await
+        .expect("Failed to get names for nonexistent server");
+
+    assert!(names.is_empty());
+}
+
+#[tokio::test]
+async fn can_get_names_by_server_with_special_characters() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_service = NameService::new(&state.db);
+
+    // Create names with special characters in server ID
+    let special_server_id = "server-with-special!@#$%^&*()".to_string();
+
+    let name1 = name_service
+        .create_name(123456789, "Alice".to_string(), special_server_id.clone())
+        .await
+        .expect("Failed to create name with special server ID");
+
+    let name2 = name_service
+        .create_name(987654321, "Bob".to_string(), "normal-server".to_string())
+        .await
+        .expect("Failed to create name with normal server ID");
+
+    // Get names for the special server
+    let special_server_names = name_service
+        .get_names_by_server(&special_server_id)
+        .await
+        .expect("Failed to get names for special server");
+
+    assert_eq!(special_server_names.len(), 1);
+    assert!(special_server_names.contains(&name1));
+    assert!(!special_server_names.contains(&name2));
+}

@@ -216,6 +216,30 @@ impl NameService<'_> {
         Ok(names)
     }
 
+    /// Retrieves name entries from the database filtered by server ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `server_id` - The server ID to filter by.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing a vector of `Name` if successful, or an error otherwise.
+    #[tracing::instrument(skip(self))]
+    pub async fn get_names_by_server(
+        &self,
+        server_id: &str,
+    ) -> Result<Vec<Name>, NameServiceError> {
+        let names = name::Entity::find()
+            .filter(name::Column::ServerId.eq(server_id))
+            .all(self.db)
+            .await?
+            .into_iter()
+            .map(Name::from)
+            .collect();
+        Ok(names)
+    }
+
     /// Deletes a name entry by their ID.
     ///
     /// # Arguments
