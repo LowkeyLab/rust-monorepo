@@ -20,3 +20,7 @@ component_management:
       name: task-cli
       paths:
         - task-cli/**
+    - component_id: hot_dog
+      name: hot_dog
+      paths:
+        - hot_dog/**
