@@ -1,3 +1,3 @@
 [workspace]
 resolver = "3"
-members = ["grrs", "nicknamer/*", "task-cli"]
+members = [ "book-arena","grrs", "nicknamer/*", "task-cli"]
