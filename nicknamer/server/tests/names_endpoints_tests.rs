@@ -1523,8 +1523,12 @@ pub mod api {
                 assert_eq!(name["server_id"].as_str().unwrap(), "server1");
             }
 
-            let snapshot_data =
-                JsonApiResponseSnapshot::new(body_text, status, &headers, "api_v1_names_filtered_server1");
+            let snapshot_data = JsonApiResponseSnapshot::new(
+                body_text,
+                status,
+                &headers,
+                "api_v1_names_filtered_server1",
+            );
 
             assert_yaml_snapshot!(snapshot_data);
         }
@@ -1577,8 +1581,12 @@ pub mod api {
                 assert_eq!(name["server_id"].as_str().unwrap(), "server2");
             }
 
-            let snapshot_data =
-                JsonApiResponseSnapshot::new(body_text, status, &headers, "api_v1_names_filtered_server2");
+            let snapshot_data = JsonApiResponseSnapshot::new(
+                body_text,
+                status,
+                &headers,
+                "api_v1_names_filtered_server2",
+            );
 
             assert_yaml_snapshot!(snapshot_data);
         }
@@ -1616,8 +1624,12 @@ pub mod api {
             assert_eq!(json["count"], 0);
             assert_eq!(json["names"].as_array().unwrap().len(), 0);
 
-            let snapshot_data =
-                JsonApiResponseSnapshot::new(body_text, status, &headers, "api_v1_names_filtered_nonexistent");
+            let snapshot_data = JsonApiResponseSnapshot::new(
+                body_text,
+                status,
+                &headers,
+                "api_v1_names_filtered_nonexistent",
+            );
 
             assert_yaml_snapshot!(snapshot_data);
         }
@@ -1665,8 +1677,12 @@ pub mod api {
             assert!(name_values.contains(&"Charlie"));
             assert!(name_values.contains(&"David"));
 
-            let snapshot_data =
-                JsonApiResponseSnapshot::new(body_text, status, &headers, "api_v1_names_all_servers");
+            let snapshot_data = JsonApiResponseSnapshot::new(
+                body_text,
+                status,
+                &headers,
+                "api_v1_names_all_servers",
+            );
 
             assert_yaml_snapshot!(snapshot_data);
         }
@@ -1704,8 +1720,12 @@ pub mod api {
             assert_eq!(json["count"], 0); // Empty string should match no servers
             assert_eq!(json["names"].as_array().unwrap().len(), 0);
 
-            let snapshot_data =
-                JsonApiResponseSnapshot::new(body_text, status, &headers, "api_v1_names_empty_server_id");
+            let snapshot_data = JsonApiResponseSnapshot::new(
+                body_text,
+                status,
+                &headers,
+                "api_v1_names_empty_server_id",
+            );
 
             assert_yaml_snapshot!(snapshot_data);
         }
