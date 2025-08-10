@@ -1,0 +1,21 @@
+[application]
+
+[web.app]
+
+# HTML title tag content
+title = "guess_the_word_v2"
+
+# include `assets` in web platform
+[web.resource]
+
+# Additional CSS style files
+style = []
+
+# Additional JavaScript files
+script = []
+
+[web.resource.dev]
+
+# Javascript code file
+# serve: [dev-server] only
+script = []
