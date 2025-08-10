@@ -923,7 +923,11 @@ async fn can_get_empty_list_for_nonexistent_server() {
 
     // Create a name for a specific server
     name_service
-        .create_name(123456789, "TestUser".to_string(), "existing-server".to_string())
+        .create_name(
+            123456789,
+            "TestUser".to_string(),
+            "existing-server".to_string(),
+        )
         .await
         .expect("Failed to create name");
 

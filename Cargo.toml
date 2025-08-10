@@ -1,3 +1,16 @@
 [workspace]
 resolver = "3"
-members = ["grrs", "nicknamer/*", "task-cli"]
+members = ["grrs", "nicknamer/*", "task-cli", "hot_dog"]
+
+[profile]
+
+[profile.wasm-dev]
+inherits = "dev"
+opt-level = 1
+
+[profile.server-dev]
+inherits = "dev"
+
+[profile.android-dev]
+inherits = "dev"
+

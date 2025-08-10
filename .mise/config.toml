@@ -7,3 +7,20 @@ pnpm = "10"
 "cargo:cargo-watch" = "8.5.3"
 "cargo:sea-orm-cli" = "1.1.12"
 "cargo:cargo-llvm-cov" = "0.6.16"
+"cargo:dioxus-cli" = "0.6.1"
+"cargo:bacon" = "latest"
+
+[tasks."nicknamer:server:test"]
+run = "cargo test -p nicknamer_server --all-features"
+
+[tasks."nicknamer:bot:test"]
+run = "cargo test -p nicknamer-bot --all-features"
+
+[tasks."hot_dog:test"]
+run = "cargo test -p hot_dog --features web,server"
+
+[tasks.ci]
+depends = [
+    "*:test",
+]
+run = "cargo llvm-cov --all-features --workspace --lcov --output-path codecov.json"

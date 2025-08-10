@@ -12,6 +12,11 @@
       <sourceFolder url="file://$MODULE_DIR$/nicknamer/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/nicknamer-server/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/nicknamer-server/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/nicknamer/bot/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/nicknamer/server/migration/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/nicknamer/server/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/nicknamer/server/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/hot_dog/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/nicknamer-server/target" />
       <excludeFolder url="file://$MODULE_DIR$/nicknamer/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
