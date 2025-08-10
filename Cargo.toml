@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["grrs", "nicknamer/*", "task-cli", "hot_dog"]
+members = ["grrs", "nicknamer/*", "task-cli", "hot_dog", "guess_the_word_v2"]
 
 [profile]
 

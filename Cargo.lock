@@ -3053,6 +3053,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "guess_the_word_v2"
+version = "0.1.0"
+dependencies = [
+ "dioxus",
+]
+
+[[package]]
 name = "h2"
 version = "0.3.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
