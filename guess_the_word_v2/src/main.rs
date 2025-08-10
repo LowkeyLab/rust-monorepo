@@ -3,13 +3,15 @@ use dioxus::prelude::*;
 mod components;
 mod views;
 
-use views::Home;
+use views::{Home, NotFound};
 
 #[derive(Debug, Clone, Routable, PartialEq)]
 #[rustfmt::skip]
 enum Route {
     #[route("/")]
     Home {},
+    #[route("/:..route")]
+    NotFound { route: Vec<String> },
 }
 
 // We can import assets in dioxus with the `asset!` macro. This macro takes a path to an asset relative to the crate root.
