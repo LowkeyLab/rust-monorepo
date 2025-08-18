@@ -744,7 +744,7 @@ dependencies = [
  "serde_json",
  "serde_repr",
  "serde_urlencoded",
- "thiserror 2.0.14",
+ "thiserror 2.0.15",
  "tokio",
  "tokio-util",
  "tower-service",
@@ -4379,7 +4379,7 @@ dependencies = [
  "poise",
  "serde",
  "serde_yml",
- "thiserror 2.0.14",
+ "thiserror 2.0.15",
  "tokio",
  "toml 0.9.5",
  "tracing",
@@ -4407,7 +4407,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "testcontainers-modules",
- "thiserror 2.0.14",
+ "thiserror 2.0.15",
  "time",
  "tokio",
  "tower 0.5.2",
@@ -4972,7 +4972,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "198db74531d58c70a361c42201efde7e2591e976d518caf7662a47dc5720e7b6"
 dependencies = [
  "memchr",
- "thiserror 2.0.14",
+ "thiserror 2.0.15",
  "ucd-trie",
 ]
 
@@ -5579,7 +5579,7 @@ checksum = "dd6f9d3d47bdd2ad6945c5015a226ec6155d0bcdfd8f7cd29f86b71f8de99d2b"
 dependencies = [
  "getrandom 0.2.15",
  "libredox",
- "thiserror 2.0.14",
+ "thiserror 2.0.15",
 ]
 
 [[package]]
@@ -6138,7 +6138,7 @@ dependencies = [
  "serde_json",
  "sqlx",
  "strum",
- "thiserror 2.0.14",
+ "thiserror 2.0.15",
  "time",
  "tracing",
  "url",
@@ -6237,7 +6237,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.100",
- "thiserror 2.0.14",
+ "thiserror 2.0.15",
 ]
 
 [[package]]
@@ -6732,7 +6732,7 @@ checksum = "297f631f50729c8c99b84667867963997ec0b50f32b2a7dbcab828ef0541e8bb"
 dependencies = [
  "num-bigint",
  "num-traits",
- "thiserror 2.0.14",
+ "thiserror 2.0.15",
  "time",
 ]
 
@@ -6929,7 +6929,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "smallvec",
- "thiserror 2.0.14",
+ "thiserror 2.0.15",
  "time",
  "tokio",
  "tokio-stream",
@@ -7017,7 +7017,7 @@ dependencies = [
  "smallvec",
  "sqlx-core",
  "stringprep",
- "thiserror 2.0.14",
+ "thiserror 2.0.15",
  "time",
  "tracing",
  "uuid",
@@ -7060,7 +7060,7 @@ dependencies = [
  "smallvec",
  "sqlx-core",
  "stringprep",
- "thiserror 2.0.14",
+ "thiserror 2.0.15",
  "time",
  "tracing",
  "uuid",
@@ -7087,7 +7087,7 @@ dependencies = [
  "serde",
  "serde_urlencoded",
  "sqlx-core",
- "thiserror 2.0.14",
+ "thiserror 2.0.15",
  "time",
  "tracing",
  "url",
@@ -7428,7 +7428,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with",
- "thiserror 2.0.14",
+ "thiserror 2.0.15",
  "tokio",
  "tokio-stream",
  "tokio-tar",
@@ -7462,11 +7462,11 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "2.0.14"
+version = "2.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b0949c3a6c842cbde3f1686d6eea5a010516deb7085f79db747562d4102f41e"
+checksum = "80d76d3f064b981389ecb4b6b7f45a0bf9fdac1d5b9204c7bd6714fecc302850"
 dependencies = [
- "thiserror-impl 2.0.14",
+ "thiserror-impl 2.0.15",
 ]
 
 [[package]]
@@ -7482,9 +7482,9 @@ dependencies = [
 
 [[package]]
 name = "thiserror-impl"
-version = "2.0.14"
+version = "2.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc5b44b4ab9c2fdd0e0512e6bece8388e214c0749f5862b114cc5b7a25daf227"
+checksum = "44d29feb33e986b6ea906bd9c3559a856983f92371b3eaa5e83782a351623de0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7979,7 +7979,7 @@ dependencies = [
  "objc2-foundation 0.3.1",
  "once_cell",
  "png",
- "thiserror 2.0.14",
+ "thiserror 2.0.15",
  "windows-sys 0.59.0",
 ]
 
