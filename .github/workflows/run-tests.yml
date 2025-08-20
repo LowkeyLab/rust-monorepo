@@ -17,6 +17,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
       - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
