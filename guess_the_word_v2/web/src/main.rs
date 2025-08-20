@@ -1,6 +1,7 @@
 use dioxus::prelude::*;
 
 mod components;
+mod server;
 mod views;
 
 use views::{Home, NotFound};

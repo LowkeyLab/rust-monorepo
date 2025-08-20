@@ -10,8 +10,18 @@ pub fn Hero() -> Element {
                     "MindReadr is an exciting game where you and your friends try to read each other's minds! "
                     "Challenge your intuition, test your connection, and see how well you can predict what others are thinking."
                 }
-                p { class: "text-lg opacity-90",
+                p { class: "text-lg opacity-90 mb-8",
                     "Can you unlock the secrets of the mind? Let the games begin!"
+                }
+                div { class: "flex flex-col sm:flex-row gap-4 justify-center",
+                    button {
+                        class: "bg-white text-purple-600 px-8 py-3 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-colors",
+                        "Start Playing"
+                    }
+                    button {
+                        class: "border-2 border-white text-white px-8 py-3 rounded-lg font-semibold text-lg hover:bg-white hover:text-purple-600 transition-colors",
+                        "How to Play"
+                    }
                 }
             }
         }
