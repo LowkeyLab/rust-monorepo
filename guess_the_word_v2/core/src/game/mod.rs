@@ -6,17 +6,17 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-struct Game {
-    id: u32,
-    players: Vec<Player>,
-    rounds: Vec<Round>,
-    current_round: Option<Round>,
-    state: GameState,
+pub struct Game {
+    pub id: u32,
+    pub players: Vec<Player>,
+    pub rounds: Vec<Round>,
+    pub current_round: Option<Round>,
+    pub state: GameState,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-enum GameState {
+pub enum GameState {
     WaitingForPlayers,
     InProgress,
     Finished,
@@ -24,20 +24,20 @@ enum GameState {
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-struct Round {
-    guesses: HashMap<Player, String>,
+pub struct Round {
+    pub guesses: HashMap<Player, String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-struct Player {
-    id: u32,
-    name: String,
+pub struct Player {
+    pub id: u32,
+    pub name: String,
 }
 
 #[derive(Error, Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-enum GameError {
+pub enum GameError {
     #[error("Game is full - only 2 players are allowed")]
     GameFull,
     #[error("Game is not in progress")]
@@ -50,7 +50,7 @@ enum GameError {
 
 impl Game {
     /// Creates a new game with the given ID
-    fn new(id: u32) -> Self {
+    pub fn new(id: u32) -> Self {
         Game {
             id,
             players: Vec::new(),
@@ -62,7 +62,7 @@ impl Game {
 
     /// Adds a player to the game and starts the game if we have 2 players
     /// Returns an error if the game already has 2 players
-    fn add_player(&mut self, player: Player) -> Result<(), GameError> {
+    pub fn add_player(&mut self, player: Player) -> Result<(), GameError> {
         if self.players.len() >= 2 {
             return Err(GameError::GameFull);
         }
@@ -78,12 +78,12 @@ impl Game {
     }
 
     /// Starts the game by changing state to InProgress
-    fn start_game(&mut self) {
+    pub fn start_game(&mut self) {
         self.state = GameState::InProgress;
     }
 
     /// Starts a new round
-    fn start_round(&mut self) {
+    pub fn start_round(&mut self) {
         let round = Round {
             guesses: HashMap::new(),
         };
@@ -91,21 +91,21 @@ impl Game {
     }
 
     /// Ends the current round and moves it to completed rounds
-    fn end_round(&mut self) {
+    pub fn end_round(&mut self) {
         if let Some(round) = self.current_round.take() {
             self.rounds.push(round);
         }
     }
 
     /// Ends the game by setting state to Finished
-    fn end_game(&mut self) {
+    pub fn end_game(&mut self) {
         self.state = GameState::Finished;
         // End the current round if there is one
         self.end_round();
     }
 
     /// Submits a guess for a player in the current round
-    fn submit_guess(&mut self, player: Player, guess: String) -> Result<(), GameError> {
+    pub fn submit_guess(&mut self, player: Player, guess: String) -> Result<(), GameError> {
         if !matches!(self.state, GameState::InProgress) {
             return Err(GameError::GameNotInProgress);
         }
@@ -135,22 +135,22 @@ impl Game {
     }
 
     /// Returns whether the game has ended
-    fn has_ended(&self) -> bool {
+    pub fn has_ended(&self) -> bool {
         matches!(self.state, GameState::Finished)
     }
 
     /// Gets the current game state
-    fn get_state(&self) -> &GameState {
+    pub fn get_state(&self) -> &GameState {
         &self.state
     }
 
     /// Gets the number of players in the game
-    fn player_count(&self) -> usize {
+    pub fn player_count(&self) -> usize {
         self.players.len()
     }
 
     /// Gets the guesses for the current round
-    fn get_current_round_guesses(&self) -> Result<&HashMap<Player, String>, GameError> {
+    pub fn get_current_round_guesses(&self) -> Result<&HashMap<Player, String>, GameError> {
         let current_round = self
             .current_round
             .as_ref()

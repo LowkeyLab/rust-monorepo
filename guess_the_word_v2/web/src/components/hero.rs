@@ -14,7 +14,8 @@ pub fn Hero() -> Element {
                     "Can you unlock the secrets of the mind? Let the games begin!"
                 }
                 div { class: "flex flex-col sm:flex-row gap-4 justify-center",
-                    button {
+                    Link {
+                        to: crate::Route::Games {},
                         class: "bg-white text-purple-600 px-8 py-3 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-colors",
                         "Start Playing"
                     }
