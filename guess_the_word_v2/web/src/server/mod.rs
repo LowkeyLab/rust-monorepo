@@ -1,13 +1,28 @@
 use crate::App;
-use dioxus::prelude::*;
 pub use game::*;
+use tracing::{info, instrument};
 
 mod game;
 
 #[cfg(feature = "server")]
-pub(crate) async fn launch_server(component: fn() -> Element) {
+#[instrument]
+pub(crate) async fn launch_server() {
     use dioxus::fullstack::prelude::*;
+    use migration::{Migrator, MigratorTrait};
+    use sea_orm::{Database, DatabaseConnection};
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+
+    // Run migrations on startup
+    let database_url =
+        std::env::var("DATABASE_URL").expect("DATABASE_URL environment variable must be set");
+
+    let db: DatabaseConnection = Database::connect(&database_url)
+        .await
+        .expect("Failed to connect to database");
+
+    Migrator::up(&db, None)
+        .await
+        .expect("Failed to run migrations");
 
     // Get the address the server should run on. If the CLI is running, the CLI proxies fullstack into the main address
     // and we use the generated address the CLI gives us

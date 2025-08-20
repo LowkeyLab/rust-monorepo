@@ -1,4 +1,5 @@
 use dioxus::prelude::*;
+use tracing::Level;
 
 mod components;
 mod server;
@@ -23,6 +24,7 @@ const FAVICON: Asset = asset!("/assets/favicon.ico");
 const TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
 
 fn main() {
+    dioxus::logger::init(Level::INFO).expect("failed to init logger");
     #[cfg(feature = "web")]
     // Hydrate the application on the client
     dioxus::launch(App);
@@ -33,7 +35,7 @@ fn main() {
         tokio::runtime::Runtime::new()
             .unwrap()
             .block_on(async move {
-                server::launch_server(App).await;
+                server::launch_server().await;
             });
     }
 }
