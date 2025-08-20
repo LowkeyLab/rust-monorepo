@@ -18,6 +18,7 @@
       <sourceFolder url="file://$MODULE_DIR$/nicknamer/server/tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/hot_dog/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/guess_the_word_v2/core/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/guess_the_word_v2/web/migration/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/guess_the_word_v2/web/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/nicknamer-server/target" />
       <excludeFolder url="file://$MODULE_DIR$/nicknamer/target" />

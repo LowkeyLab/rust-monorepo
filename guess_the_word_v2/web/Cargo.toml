@@ -1,15 +1,16 @@
 [package]
-name = "guess_the_word_v2"
+name = "guess_the_word_v2_web"
 version = "0.1.0"
-authors = ["tacascer <trandangthanh2000@gmail.com>"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-dioxus = { version = "0.6.0", features = ["router", "fullstack"] }
+dioxus = { version = "0.6.3", features = ["router", "fullstack"] }
 guess_the_word_v2_core = { path = "../core", features = ["serde"] }
-serde = { version = "1.0", features = ["derive"]}
+serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1.47.1", features = ["full"], optional = true }
+axum = { version = "0.7", optional = true }
 
 [features]
 default = []
@@ -20,5 +21,5 @@ desktop = ["dioxus/desktop"]
 # The feature that are only required for the mobile build target should be optional and only enabled in the mobile feature
 mobile = ["dioxus/mobile"]
 # The feature that are only required for the server build target should be optional and only enabled in the server feature
-server = ["dioxus/server"]
+server = ["dioxus/server", "tokio", "axum"]
 
