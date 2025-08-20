@@ -3064,14 +3064,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "guess-the-word-core"
-version = "0.1.0"
-
-[[package]]
 name = "guess_the_word_v2"
 version = "0.1.0"
 dependencies = [
  "dioxus",
+]
+
+[[package]]
+name = "guess_the_word_v2_core"
+version = "0.1.0"
+dependencies = [
+ "thiserror 2.0.16",
 ]
 
 [[package]]

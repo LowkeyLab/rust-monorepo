@@ -19,6 +19,9 @@ run = "cargo test -p nicknamer-bot --all-features"
 [tasks."hot_dog:test"]
 run = "cargo test -p hot_dog --features web,server"
 
+[tasks."guess_the_word_v2:core:test"]
+run = "cargo test -p guess_the_word_v2_core --all-features"
+
 [tasks.ci]
 depends = [
     "*:test",
