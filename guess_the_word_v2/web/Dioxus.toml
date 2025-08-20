@@ -3,7 +3,7 @@
 [web.app]
 
 # HTML title tag content
-title = "guess_the_word_v2"
+title = "MindReadr"
 
 # include `assets` in web platform
 [web.resource]

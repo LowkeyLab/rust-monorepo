@@ -4,7 +4,7 @@
 Run the following command:
 
 ```bash
-pnpm tailwindcss -i ./input.css -o ./assets/input.css --watch
+pnpm tailwindcss -i ./input.css -o ./assets/tailwind.css --watch
 ```
 
 ## Serving Your App
