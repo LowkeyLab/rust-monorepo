@@ -1,7 +1,11 @@
 use std::collections::HashMap;
 use thiserror::Error;
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 struct Game {
     id: u32,
     players: Vec<Player>,
@@ -11,6 +15,7 @@ struct Game {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 enum GameState {
     WaitingForPlayers,
     InProgress,
@@ -18,17 +23,20 @@ enum GameState {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 struct Round {
     guesses: HashMap<Player, String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 struct Player {
     id: u32,
     name: String,
 }
 
 #[derive(Error, Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 enum GameError {
     #[error("Game is full - only 2 players are allowed")]
     GameFull,
