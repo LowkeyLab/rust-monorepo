@@ -97,8 +97,7 @@ impl Game {
     }
 
     /// Submits a guess for a player in the current round
-    /// Returns true if the game should end (both players guessed the same word)
-    fn submit_guess(&mut self, player: Player, guess: String) -> Result<bool, GameError> {
+    fn submit_guess(&mut self, player: Player, guess: String) -> Result<(), GameError> {
         if !matches!(self.state, GameState::InProgress) {
             return Err(GameError::GameNotInProgress);
         }
@@ -121,11 +120,15 @@ impl Game {
             // If both players guessed the same word, end the game
             if guesses[0] == guesses[1] {
                 self.end_game();
-                return Ok(true);
             }
         }
 
-        Ok(false)
+        Ok(())
+    }
+
+    /// Returns whether the game has ended
+    fn has_ended(&self) -> bool {
+        matches!(self.state, GameState::Finished)
     }
 
     /// Gets the current game state
@@ -298,31 +301,23 @@ mod tests {
         game.start_round();
 
         // Submit different guesses first
-        let result = game
-            .submit_guess(player1.clone(), "apple".to_string())
+        game.submit_guess(player1.clone(), "apple".to_string())
             .unwrap();
-        assert!(!result); // Game should not end yet
         assert_eq!(game.get_current_round_guesses().unwrap().len(), 1);
         assert_eq!(game.get_state(), &GameState::InProgress);
 
-        let result = game
-            .submit_guess(player2.clone(), "banana".to_string())
+        game.submit_guess(player2.clone(), "banana".to_string())
             .unwrap();
-        assert!(!result); // Game should not end yet
         assert_eq!(game.get_current_round_guesses().unwrap().len(), 2);
         assert_eq!(game.get_state(), &GameState::InProgress);
 
         // Start a new round and have both players guess the same word
         game.start_round();
-        let result1 = game
-            .submit_guess(player1.clone(), "orange".to_string())
+        game.submit_guess(player1.clone(), "orange".to_string())
             .unwrap();
-        assert!(!result1); // Game should not end yet
 
-        let result2 = game
-            .submit_guess(player2.clone(), "orange".to_string())
+        game.submit_guess(player2.clone(), "orange".to_string())
             .unwrap();
-        assert!(result2); // Game should end now
         assert_eq!(game.get_state(), &GameState::Finished);
     }
 
@@ -403,17 +398,15 @@ mod tests {
         game.start_round();
 
         // First player guesses
-        let result1 = game
-            .submit_guess(player1.clone(), "apple".to_string())
+        game.submit_guess(player1.clone(), "apple".to_string())
             .unwrap();
-        assert!(!result1); // Game should not end yet
+        assert!(!game.has_ended()); // Game should not end yet
         assert_eq!(game.get_state(), &GameState::InProgress);
 
         // Second player guesses the same word
-        let result2 = game
-            .submit_guess(player2.clone(), "apple".to_string())
+        game.submit_guess(player2.clone(), "apple".to_string())
             .unwrap();
-        assert!(result2); // Game should end now
+        assert!(game.has_ended()); // Game should end now
         assert_eq!(game.get_state(), &GameState::Finished);
 
         // Current round should be ended and moved to completed rounds
@@ -438,15 +431,46 @@ mod tests {
         game.start_round();
 
         // Players guess different words
-        let result1 = game
-            .submit_guess(player1.clone(), "apple".to_string())
+        game.submit_guess(player1.clone(), "apple".to_string())
             .unwrap();
-        assert!(!result1); // Game should not end yet
+        assert!(!game.has_ended()); // Game should not end yet
 
-        let result2 = game
-            .submit_guess(player2.clone(), "banana".to_string())
+        game.submit_guess(player2.clone(), "banana".to_string())
             .unwrap();
-        assert!(!result2); // Game should still not end
+        assert!(!game.has_ended()); // Game should still not end
         assert_eq!(game.get_state(), &GameState::InProgress);
+    }
+
+    #[test]
+    fn can_check_if_game_has_ended() {
+        let mut game = Game::new(1);
+        let player1 = Player {
+            id: 1,
+            name: "Alice".to_string(),
+        };
+        let player2 = Player {
+            id: 2,
+            name: "Bob".to_string(),
+        };
+
+        // Game should not be ended initially
+        assert!(!game.has_ended());
+
+        game.add_player(player1.clone()).unwrap();
+        game.add_player(player2.clone()).unwrap();
+        game.start_round();
+
+        // Game should not be ended after starting
+        assert!(!game.has_ended());
+
+        // Game should not be ended after first guess
+        game.submit_guess(player1.clone(), "test".to_string())
+            .unwrap();
+        assert!(!game.has_ended());
+
+        // Game should be ended after both players guess same word
+        game.submit_guess(player2.clone(), "test".to_string())
+            .unwrap();
+        assert!(game.has_ended());
     }
 }
