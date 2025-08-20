@@ -3070,7 +3070,6 @@ dependencies = [
  "dioxus",
  "guess_the_word_v2_core",
  "serde",
- "tokio",
 ]
 
 [[package]]
@@ -7588,7 +7587,6 @@ dependencies = [
  "io-uring",
  "libc",
  "mio",
- "parking_lot",
  "pin-project-lite",
  "signal-hook-registry",
  "slab",

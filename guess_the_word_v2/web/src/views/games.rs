@@ -5,7 +5,7 @@ use guess_the_word_v2_core::GameState;
 
 #[component]
 pub fn Games() -> Element {
-    let mut games = use_signal(|| Vec::<GameSummary>::new());
+    let mut games = use_signal(Vec::<GameSummary>::new);
     let mut loading = use_signal(|| true);
     let mut error = use_signal(|| None::<String>);
 

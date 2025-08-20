@@ -10,7 +10,6 @@ edition = "2021"
 dioxus = { version = "0.6.0", features = ["router", "fullstack"] }
 guess_the_word_v2_core = { path = "../core", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
-tokio = { version = "1.0", features = ["full"] }
 
 [features]
 default = ["web"]
