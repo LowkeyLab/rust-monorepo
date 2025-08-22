@@ -2,6 +2,8 @@ use crate::App;
 pub use game::*;
 use tracing::{info, instrument};
 
+#[cfg(feature = "server")]
+mod entities;
 mod game;
 
 #[cfg(feature = "server")]
