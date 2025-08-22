@@ -39,7 +39,7 @@ pub(crate) async fn launch_server() {
         .await
         .expect("Failed to run migrations");
 
-    let app_state = AppState { db: db.clone() };
+    let app_state = AppState { db };
 
     // Get the address the server should run on. If the CLI is running, the CLI proxies fullstack into the main address
     // and we use the generated address the CLI gives us
@@ -51,6 +51,7 @@ pub(crate) async fn launch_server() {
     let router = axum::Router::new()
         // serve_dioxus_application adds routes to server side render the application, serve static assets, and register server functions
         .serve_dioxus_application(ServeConfig::new().unwrap(), App)
+        .with_state(app_state)
         .into_make_service();
     axum::serve(listener, router).await.unwrap();
 }
