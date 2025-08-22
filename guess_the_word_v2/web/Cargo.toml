@@ -6,11 +6,11 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-dioxus = { version = "0.7.0-rc.0", features = ["router", "fullstack"] }
+dioxus = { version = "0.6", features = ["router", "fullstack"] }
 guess_the_word_v2_core = { path = "../core", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1.47.1", features = ["full"], optional = true }
-axum = { version = "0.8.4", optional = true }
+axum = { version = "0.7", optional = true }
 guess_the_word_v2_web_migration = { path = "./migration", optional = true }
 sea-orm = { version = "1.1.0", features = ["runtime-tokio-rustls", "sqlx-postgres"], optional = true }
 tracing = "0.1.41"
