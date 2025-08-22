@@ -3,26 +3,18 @@
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "games")]
+#[sea_orm(table_name = "players")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
-    pub player_id: String,
-    pub word: String,
-    pub guesses: Json,
-    pub status: String,
-    pub score: Option<i32>,
-    pub max_attempts: i32,
+    pub name: String,
     pub created_at: DateTime,
-    pub updated_at: DateTime,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(has_many = "super::game_players::Entity")]
     GamePlayers,
-    #[sea_orm(has_many = "super::rounds::Entity")]
-    Rounds,
 }
 
 impl Related<super::game_players::Entity> for Entity {
@@ -31,18 +23,12 @@ impl Related<super::game_players::Entity> for Entity {
     }
 }
 
-impl Related<super::rounds::Entity> for Entity {
+impl Related<super::games::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::Rounds.def()
-    }
-}
-
-impl Related<super::players::Entity> for Entity {
-    fn to() -> RelationDef {
-        super::game_players::Relation::Players.def()
+        super::game_players::Relation::Games.def()
     }
     fn via() -> Option<RelationDef> {
-        Some(super::game_players::Relation::Games.def().rev())
+        Some(super::game_players::Relation::Players.def().rev())
     }
 }
 

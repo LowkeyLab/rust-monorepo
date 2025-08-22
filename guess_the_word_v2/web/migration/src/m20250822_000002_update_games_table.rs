@@ -18,16 +18,11 @@ impl MigrationTrait for Migration {
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(Games::PlayerId).string().not_null())
-                    .col(ColumnDef::new(Games::Word).string().not_null())
-                    .col(ColumnDef::new(Games::Guesses).json().not_null())
-                    .col(ColumnDef::new(Games::Status).string().not_null())
-                    .col(ColumnDef::new(Games::Score).integer().null())
                     .col(
-                        ColumnDef::new(Games::MaxAttempts)
-                            .integer()
+                        ColumnDef::new(Games::State)
+                            .string()
                             .not_null()
-                            .default(6),
+                            .default("WaitingForPlayers"),
                     )
                     .col(
                         ColumnDef::new(Games::CreatedAt)
@@ -54,15 +49,10 @@ impl MigrationTrait for Migration {
 }
 
 #[derive(DeriveIden)]
-enum Games {
+pub enum Games {
     Table,
     Id,
-    PlayerId,
-    Word,
-    Guesses,
-    Status,
-    Score,
-    MaxAttempts,
+    State,
     CreatedAt,
     UpdatedAt,
 }
