@@ -15,6 +15,7 @@ guess_the_word_v2_web_migration = { path = "./migration", optional = true }
 sea-orm = { version = "1.1.0", features = ["runtime-tokio-rustls", "sqlx-postgres"], optional = true }
 tracing = "0.1.41"
 tracing-futures = "0.2.5"
+config = { version = "0.15.14", optional = true }
 
 [features]
 default = ["web"]
@@ -25,4 +26,4 @@ desktop = ["dioxus/desktop"]
 # The feature that are only required for the mobile build target should be optional and only enabled in the mobile feature
 mobile = ["dioxus/mobile"]
 # The feature that are only required for the server build target should be optional and only enabled in the server feature
-server = ["dioxus/server", "tokio", "axum", "guess_the_word_v2_web_migration", "sea-orm"]
+server = ["dioxus/server", "tokio", "axum", "guess_the_word_v2_web_migration", "sea-orm", "config"]

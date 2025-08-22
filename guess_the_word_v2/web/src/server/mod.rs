@@ -1,7 +1,9 @@
 use crate::App;
 pub use game::*;
-use tracing::{info, instrument};
+use tracing::instrument;
 
+#[cfg(feature = "server")]
+mod config;
 #[cfg(feature = "server")]
 mod entities;
 mod game;
@@ -14,11 +16,10 @@ pub(crate) async fn launch_server() {
     use sea_orm::{Database, DatabaseConnection};
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
-    // Run migrations on startup
-    let database_url =
-        std::env::var("DATABASE_URL").expect("DATABASE_URL environment variable must be set");
+    // Load configuration from environment variables
+    let config = config::ServerConfig::load().expect("Failed to load server configuration");
 
-    let db: DatabaseConnection = Database::connect(&database_url)
+    let db: DatabaseConnection = Database::connect(&config.database_url)
         .await
         .expect("Failed to connect to database");
 
