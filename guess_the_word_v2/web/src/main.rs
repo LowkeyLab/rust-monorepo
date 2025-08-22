@@ -2,6 +2,7 @@ use dioxus::prelude::*;
 use tracing::Level;
 
 mod components;
+#[cfg(feature = "server")]
 mod server;
 mod views;
 

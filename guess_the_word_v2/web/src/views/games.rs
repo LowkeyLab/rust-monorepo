@@ -1,5 +1,5 @@
 use crate::components::Header;
-use crate::server::{get_games, GameSummary};
+use backend::{get_games, GameSummary};
 use dioxus::prelude::*;
 use guess_the_word_v2_core::GameState;
 
@@ -140,5 +140,24 @@ fn GameCard(game: GameSummary) -> Element {
                 }
             }
         }
+    }
+}
+
+mod backend {
+    use dioxus::prelude::*;
+    use guess_the_word_v2_core::{GameState, Player};
+    use serde::{Deserialize, Serialize};
+
+    #[server]
+    pub async fn get_games() -> Result<Vec<GameSummary>, ServerFnError> {
+        Ok(vec![])
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+    pub struct GameSummary {
+        pub id: u32,
+        pub player_count: usize,
+        pub state: GameState,
+        pub players: Vec<Player>,
     }
 }
