@@ -144,12 +144,17 @@ fn GameCard(game: GameSummary) -> Element {
 }
 
 mod backend {
+    #[cfg(feature = "server")]
+    use crate::server::AppState;
+    use anyhow::Result;
     use dioxus::prelude::*;
     use guess_the_word_v2_core::{GameState, Player};
     use serde::{Deserialize, Serialize};
 
     #[server]
     pub async fn get_games() -> Result<Vec<GameSummary>, ServerFnError> {
+        let app_state = extract::<AppState, _>().await?;
+        let _db = &app_state.db;
         Ok(vec![])
     }
 

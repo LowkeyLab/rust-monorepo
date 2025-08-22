@@ -4,23 +4,45 @@ mod config;
 mod entities;
 
 use crate::App;
-use axum::extract::FromRef;
+use axum::extract::{FromRef, FromRequestParts};
+use axum::http::request::Parts;
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
+use axum::{async_trait, RequestPartsExt};
+use dioxus::prelude::ServerFnError;
+use thiserror::Error;
 use tracing::instrument;
 
-#[cfg(feature = "server")]
 #[derive(Clone)]
 pub struct AppState {
     pub db: sea_orm::DatabaseConnection,
 }
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("Server error with coder: {0}")]
+    ServerError(StatusCode),
+}
 
-#[cfg(feature = "server")]
-impl FromRef<()> for AppState {
-    fn from_ref(_: &()) -> Self {
-        panic!("AppState cannot be created from ()");
+#[async_trait]
+impl FromRequestParts<()> for AppState {
+    type Rejection = Error;
+
+    async fn from_request_parts(parts: &mut Parts, _state: &()) -> Result<Self, Self::Rejection> {
+        let state = parts
+            .extract_with_state::<AppState, _>(_state)
+            .await
+            .map_err(|_| Error::ServerError(StatusCode::INTERNAL_SERVER_ERROR))?;
+        Ok(state)
     }
 }
 
-#[cfg(feature = "server")]
+impl IntoResponse for Error {
+    fn into_response(self) -> Response {
+        let Error::ServerError(status_code) = self;
+        (status_code, self.to_string()).into_response()
+    }
+}
+
 #[instrument]
 pub(crate) async fn launch_server() {
     use dioxus::prelude::*;
