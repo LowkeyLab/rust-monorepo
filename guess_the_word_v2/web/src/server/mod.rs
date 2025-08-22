@@ -9,6 +9,13 @@ mod entities;
 mod game;
 
 #[cfg(feature = "server")]
+/// Application state containing shared resources
+#[derive(Clone)]
+pub struct AppState {
+    pub db: sea_orm::DatabaseConnection,
+}
+
+#[cfg(feature = "server")]
 #[instrument]
 pub(crate) async fn launch_server() {
     use dioxus::fullstack::prelude::*;
@@ -27,6 +34,9 @@ pub(crate) async fn launch_server() {
         .await
         .expect("Failed to run migrations");
 
+    // Create application state
+    let app_state = AppState { db };
+
     // Get the address the server should run on. If the CLI is running, the CLI proxies fullstack into the main address
     // and we use the generated address the CLI gives us
     let ip =
@@ -37,6 +47,7 @@ pub(crate) async fn launch_server() {
     let router = axum::Router::new()
         // serve_dioxus_application adds routes to server side render the application, serve static assets, and register server functions
         .serve_dioxus_application(ServeConfigBuilder::default(), App)
+        .with_state(app_state)
         .into_make_service();
     axum::serve(listener, router).await.unwrap();
 }
