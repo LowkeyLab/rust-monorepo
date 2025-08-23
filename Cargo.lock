@@ -3181,41 +3181,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "guess_the_word_v2_core"
-version = "0.1.0"
-dependencies = [
- "serde",
- "thiserror 2.0.16",
-]
-
-[[package]]
-name = "guess_the_word_v2_web"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum 0.7.9",
- "config",
- "dioxus",
- "gloo-storage",
- "guess_the_word_v2_core",
- "guess_the_word_v2_web_migration",
- "sea-orm",
- "serde",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
- "tracing-futures",
-]
-
-[[package]]
-name = "guess_the_word_v2_web_migration"
-version = "0.1.0"
-dependencies = [
- "async-std",
- "sea-orm-migration",
-]
-
-[[package]]
 name = "h2"
 version = "0.3.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4351,6 +4316,41 @@ checksum = "f7c44f8e672c00fe5308fa235f821cb4198414e1c77935c1ab6948d3fd78550e"
 dependencies = [
  "mime",
  "unicase",
+]
+
+[[package]]
+name = "mindreadr_core"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "thiserror 2.0.16",
+]
+
+[[package]]
+name = "mindreadr_web"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum 0.7.9",
+ "config",
+ "dioxus",
+ "gloo-storage",
+ "mindreadr_core",
+ "mindreadr_web_migration",
+ "sea-orm",
+ "serde",
+ "thiserror 2.0.16",
+ "tokio",
+ "tracing",
+ "tracing-futures",
+]
+
+[[package]]
+name = "mindreadr_web_migration"
+version = "0.1.0"
+dependencies = [
+ "async-std",
+ "sea-orm-migration",
 ]
 
 [[package]]

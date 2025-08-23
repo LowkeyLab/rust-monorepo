@@ -12,7 +12,7 @@ importers:
         specifier: ^4.1.11
         version: 4.1.11
 
-  guess_the_word_v2:
+  mindreadr:
     dependencies:
       tailwindcss:
         specifier: ^4.1.11
