@@ -4,10 +4,6 @@ mod config;
 pub mod entities;
 
 use crate::App;
-use axum::extract::FromRequestParts;
-use axum::response::IntoResponse;
-use axum::RequestPartsExt;
-use dioxus::prelude::FromServerContext;
 use dioxus::prelude::*;
 use migration::{Migrator, MigratorTrait};
 use sea_orm::{Database, DatabaseConnection};
