@@ -157,71 +157,17 @@ async fn get_games() -> Result<Vec<GameSummary>, ServerFnError> {}
 
 #[cfg(feature = "server")]
 mod backend {
-    trait GameRepository {
-        fn get_all_games_with_status(&self, status: Option<GameState>) -> Vec<Game>;
-    }
-
-    struct PostgresGameRepository {
-        db_conn: DatabaseConnection,
-    }
-
-    impl GameRepository for PostgresGameRepository {
-        fn get_all_games_with_status(&self, status: Option<GameState>) -> Vec<Game> {
-            if let Some(state) = status {
-            } else {
-                // Query the database for all games
-                vec![] // Replace with actual query result
-            }
-        }
-    }
-
+    use crate::server::entities;
+    use crate::views::games::GameSummary;
     #[cfg(feature = "server")]
     use anyhow::Result;
+    use dioxus::prelude::ServerFnError;
     use guess_the_word_v2_core::{Game, GameState};
     use sea_orm::DatabaseConnection;
 
-    pub async fn get_games() -> Result<Vec<super::GameSummary>> {
-        // Mock data for demonstration purposes
-        Ok(vec![
-            super::GameSummary {
-                id: 1,
-                player_count: 1,
-                state: super::GameState::WaitingForPlayers,
-                players: vec![super::Player {
-                    id: 1,
-                    name: "Alice".into(),
-                }],
-            },
-            super::GameSummary {
-                id: 2,
-                player_count: 2,
-                state: super::GameState::InProgress,
-                players: vec![
-                    super::Player {
-                        id: 2,
-                        name: "Bob".into(),
-                    },
-                    super::Player {
-                        id: 3,
-                        name: "Charlie".into(),
-                    },
-                ],
-            },
-            super::GameSummary {
-                id: 3,
-                player_count: 2,
-                state: super::GameState::Finished,
-                players: vec![
-                    super::Player {
-                        id: 4,
-                        name: "Dave".into(),
-                    },
-                    super::Player {
-                        id: 5,
-                        name: "Eve".into(),
-                    },
-                ],
-            },
-        ])
+    pub async fn get_games(
+        status: Option<GameState>,
+    ) -> impl Fn(&DatabaseConnection) -> Result<Vec<GameSummary>, ServerFnError> {
+        move |db_conn: &DatabaseConnection| {}
     }
 }
