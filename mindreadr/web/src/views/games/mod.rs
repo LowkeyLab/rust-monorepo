@@ -16,10 +16,10 @@ pub fn Games() -> Element {
     let mut show_name_modal = use_signal(|| false);
     let mut user_name = use_signal(|| None::<String>);
 
-    // Load user name from storage on component mount
+    // Load username from storage on component mount
     use_effect(move || {
         spawn(async move {
-            // Load user name from storage
+            // Load username from storage
             if let Ok(stored_name) = LocalStorage::get::<String>("user_name") {
                 if !stored_name.trim().is_empty() {
                     user_name.set(Some(stored_name));
@@ -41,7 +41,7 @@ pub fn Games() -> Element {
     });
 
     let handle_create_game = move |_| {
-        // Check if user name is stored
+        // Check if username is stored
         if user_name().is_none() {
             show_name_modal.set(true);
         } else {
