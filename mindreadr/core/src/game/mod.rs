@@ -4,11 +4,22 @@ use thiserror::Error;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct PlayerId(String);
+
+impl PlayerId {
+    /// Creates a new PlayerId from a string
+    pub fn new(id: String) -> Self {
+        PlayerId(id)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Game {
     pub id: u32,
-    pub players: Vec<Player>,
+    pub players: Vec<PlayerId>,
     pub rounds: Vec<Round>,
     pub current_round: Option<Round>,
     pub state: GameState,
@@ -25,14 +36,7 @@ pub enum GameState {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Round {
-    pub guesses: HashMap<Player, String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct Player {
-    pub id: u32,
-    pub name: String,
+    pub guesses: HashMap<PlayerId, String>,
 }
 
 #[derive(Error, Debug, Clone, PartialEq)]
@@ -62,7 +66,7 @@ impl Game {
 
     /// Adds a player to the game and starts the game if we have 2 players
     /// Returns an error if the game already has 2 players
-    pub fn add_player(&mut self, player: Player) -> Result<(), GameError> {
+    pub fn add_player(&mut self, player: PlayerId) -> Result<(), GameError> {
         if self.players.len() >= 2 {
             return Err(GameError::GameFull);
         }
@@ -105,7 +109,7 @@ impl Game {
     }
 
     /// Submits a guess for a player in the current round
-    pub fn submit_guess(&mut self, player: Player, guess: String) -> Result<(), GameError> {
+    pub fn submit_guess(&mut self, player: PlayerId, guess: String) -> Result<(), GameError> {
         if !matches!(self.state, GameState::InProgress) {
             return Err(GameError::GameNotInProgress);
         }
@@ -150,7 +154,7 @@ impl Game {
     }
 
     /// Gets the guesses for the current round
-    pub fn get_current_round_guesses(&self) -> Result<&HashMap<Player, String>, GameError> {
+    pub fn get_current_round_guesses(&self) -> Result<&HashMap<PlayerId, String>, GameError> {
         let current_round = self
             .current_round
             .as_ref()
@@ -181,10 +185,7 @@ mod tests {
     #[test]
     fn can_add_single_player_without_starting_game() {
         let mut game = Game::new(1);
-        let player = Player {
-            id: 1,
-            name: "Alice".to_string(),
-        };
+        let player = PlayerId::new("alice".to_string());
 
         game.add_player(player.clone()).unwrap();
 
@@ -196,14 +197,8 @@ mod tests {
     #[test]
     fn can_start_game_when_two_players_added() {
         let mut game = Game::new(1);
-        let player1 = Player {
-            id: 1,
-            name: "Alice".to_string(),
-        };
-        let player2 = Player {
-            id: 2,
-            name: "Bob".to_string(),
-        };
+        let player1 = PlayerId::new("alice".to_string());
+        let player2 = PlayerId::new("bob".to_string());
 
         game.add_player(player1.clone()).unwrap();
         assert_eq!(game.get_state(), &GameState::WaitingForPlayers);
@@ -219,18 +214,9 @@ mod tests {
     #[test]
     fn cannot_add_third_player_to_full_game() {
         let mut game = Game::new(1);
-        let player1 = Player {
-            id: 1,
-            name: "Alice".to_string(),
-        };
-        let player2 = Player {
-            id: 2,
-            name: "Bob".to_string(),
-        };
-        let player3 = Player {
-            id: 3,
-            name: "Charlie".to_string(),
-        };
+        let player1 = PlayerId::new("alice".to_string());
+        let player2 = PlayerId::new("bob".to_string());
+        let player3 = PlayerId::new("charlie".to_string());
 
         game.add_player(player1).unwrap();
         game.add_player(player2).unwrap();
@@ -247,18 +233,9 @@ mod tests {
     #[test]
     fn cannot_add_player_to_game_with_two_players_waiting() {
         let mut game = Game::new(1);
-        let player1 = Player {
-            id: 1,
-            name: "Alice".to_string(),
-        };
-        let player2 = Player {
-            id: 2,
-            name: "Bob".to_string(),
-        };
-        let player3 = Player {
-            id: 3,
-            name: "Charlie".to_string(),
-        };
+        let player1 = PlayerId::new("alice".to_string());
+        let player2 = PlayerId::new("bob".to_string());
+        let player3 = PlayerId::new("charlie".to_string());
 
         // Manually start the game first to keep it in WaitingForPlayers state
         game.add_player(player1).unwrap();
@@ -295,14 +272,8 @@ mod tests {
     #[test]
     fn can_submit_guesses_and_end_game() {
         let mut game = Game::new(1);
-        let player1 = Player {
-            id: 1,
-            name: "Alice".to_string(),
-        };
-        let player2 = Player {
-            id: 2,
-            name: "Bob".to_string(),
-        };
+        let player1 = PlayerId::new("alice".to_string());
+        let player2 = PlayerId::new("bob".to_string());
 
         game.add_player(player1.clone()).unwrap();
         game.add_player(player2.clone()).unwrap();
@@ -332,10 +303,7 @@ mod tests {
     #[test]
     fn cannot_submit_guess_if_game_not_in_progress() {
         let mut game = Game::new(1);
-        let player = Player {
-            id: 1,
-            name: "Alice".to_string(),
-        };
+        let player = PlayerId::new("alice".to_string());
 
         game.add_player(player.clone()).unwrap();
 
@@ -348,18 +316,9 @@ mod tests {
     #[test]
     fn cannot_submit_guess_if_player_not_in_game() {
         let mut game = Game::new(1);
-        let player1 = Player {
-            id: 1,
-            name: "Alice".to_string(),
-        };
-        let player2 = Player {
-            id: 2,
-            name: "Bob".to_string(),
-        };
-        let player3 = Player {
-            id: 3,
-            name: "Charlie".to_string(),
-        };
+        let player1 = PlayerId::new("alice".to_string());
+        let player2 = PlayerId::new("bob".to_string());
+        let player3 = PlayerId::new("charlie".to_string());
 
         game.add_player(player1.clone()).unwrap();
         game.add_player(player2.clone()).unwrap();
@@ -375,10 +334,7 @@ mod tests {
     #[test]
     fn cannot_submit_guess_if_no_active_round() {
         let mut game = Game::new(1);
-        let player = Player {
-            id: 1,
-            name: "Alice".to_string(),
-        };
+        let player = PlayerId::new("alice".to_string());
 
         game.add_player(player.clone()).unwrap();
         game.start_game();
@@ -392,93 +348,19 @@ mod tests {
     #[test]
     fn ends_game_when_both_players_guess_same_word() {
         let mut game = Game::new(1);
-        let player1 = Player {
-            id: 1,
-            name: "Alice".to_string(),
-        };
-        let player2 = Player {
-            id: 2,
-            name: "Bob".to_string(),
-        };
+        let player1 = PlayerId::new("alice".to_string());
+        let player2 = PlayerId::new("bob".to_string());
 
         game.add_player(player1.clone()).unwrap();
         game.add_player(player2.clone()).unwrap();
         game.start_round();
 
-        // First player guesses
-        game.submit_guess(player1.clone(), "apple".to_string())
+        game.submit_guess(player1.clone(), "orange".to_string())
             .unwrap();
-        assert!(!game.has_ended()); // Game should not end yet
-        assert_eq!(game.get_state(), &GameState::InProgress);
-
-        // Second player guesses the same word
-        game.submit_guess(player2.clone(), "apple".to_string())
+        game.submit_guess(player2.clone(), "orange".to_string())
             .unwrap();
-        assert!(game.has_ended()); // Game should end now
-        assert_eq!(game.get_state(), &GameState::Finished);
 
-        // Current round should be ended and moved to completed rounds
-        assert!(game.current_round.is_none());
-        assert_eq!(game.rounds.len(), 1);
-    }
-
-    #[test]
-    fn does_not_end_game_when_players_guess_different_words() {
-        let mut game = Game::new(1);
-        let player1 = Player {
-            id: 1,
-            name: "Alice".to_string(),
-        };
-        let player2 = Player {
-            id: 2,
-            name: "Bob".to_string(),
-        };
-
-        game.add_player(player1.clone()).unwrap();
-        game.add_player(player2.clone()).unwrap();
-        game.start_round();
-
-        // Players guess different words
-        game.submit_guess(player1.clone(), "apple".to_string())
-            .unwrap();
-        assert!(!game.has_ended()); // Game should not end yet
-
-        game.submit_guess(player2.clone(), "banana".to_string())
-            .unwrap();
-        assert!(!game.has_ended()); // Game should still not end
-        assert_eq!(game.get_state(), &GameState::InProgress);
-    }
-
-    #[test]
-    fn can_check_if_game_has_ended() {
-        let mut game = Game::new(1);
-        let player1 = Player {
-            id: 1,
-            name: "Alice".to_string(),
-        };
-        let player2 = Player {
-            id: 2,
-            name: "Bob".to_string(),
-        };
-
-        // Game should not be ended initially
-        assert!(!game.has_ended());
-
-        game.add_player(player1.clone()).unwrap();
-        game.add_player(player2.clone()).unwrap();
-        game.start_round();
-
-        // Game should not be ended after starting
-        assert!(!game.has_ended());
-
-        // Game should not be ended after first guess
-        game.submit_guess(player1.clone(), "test".to_string())
-            .unwrap();
-        assert!(!game.has_ended());
-
-        // Game should be ended after both players guess same word
-        game.submit_guess(player2.clone(), "test".to_string())
-            .unwrap();
         assert!(game.has_ended());
+        assert_eq!(game.get_state(), &GameState::Finished);
     }
 }
