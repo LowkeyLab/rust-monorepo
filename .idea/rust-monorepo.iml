@@ -23,6 +23,7 @@
       <sourceFolder url="file://$MODULE_DIR$/mindreadr/core/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/mindreadr/web/migration/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/mindreadr/web/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/mindreadr/web/entities/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/nicknamer-server/target" />
       <excludeFolder url="file://$MODULE_DIR$/nicknamer/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />

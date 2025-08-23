@@ -4346,6 +4346,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "mindreadr_web_entities"
+version = "0.1.0"
+dependencies = [
+ "sea-orm",
+]
+
+[[package]]
 name = "mindreadr_web_migration"
 version = "0.1.0"
 dependencies = [
