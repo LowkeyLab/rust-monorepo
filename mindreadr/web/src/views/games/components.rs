@@ -89,8 +89,8 @@ pub fn GameCard(game: GameSummary) -> Element {
                     div { class: "space-y-1",
                         h4 { class: "text-sm font-medium text-gray-700", "Players:" }
                         {game.players.iter().map(|player| rsx! {
-                            div { key: "{player.id}", class: "text-sm text-gray-600 ml-4",
-                                "• {player.name}"
+                            div { key: "{player.as_str()}", class: "text-sm text-gray-600 ml-4",
+                                "• {player.as_str()}"
                             }
                         })}
                     }

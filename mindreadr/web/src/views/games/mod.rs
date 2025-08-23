@@ -1,7 +1,7 @@
 use crate::components::{ErrorMessage, Header, LoadingSpinner};
 use dioxus::prelude::*;
 use gloo_storage::{LocalStorage, Storage};
-use mindreadr_core::Player;
+use mindreadr_core::PlayerId;
 use mindreadr_core::{Game, GameState};
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "server")]
@@ -70,7 +70,7 @@ pub struct GameSummary {
     pub id: u32,
     pub player_count: usize,
     pub state: GameState,
-    pub players: Vec<Player>,
+    pub players: Vec<PlayerId>,
 }
 
 impl From<Game> for GameSummary {

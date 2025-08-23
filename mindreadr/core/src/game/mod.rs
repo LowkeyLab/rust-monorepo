@@ -13,6 +13,11 @@ impl PlayerId {
     pub fn new(id: String) -> Self {
         PlayerId(id)
     }
+
+    /// Gets the inner string value of the PlayerId
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -65,12 +70,15 @@ impl Game {
     }
 
     /// Adds a player to the game and starts the game if we have 2 players
+    /// Returns the player ID in the form "Player1" or "Player2"
     /// Returns an error if the game already has 2 players
-    pub fn add_player(&mut self, player: PlayerId) -> Result<(), GameError> {
+    pub fn add_player(&mut self) -> Result<String, GameError> {
         if self.players.len() >= 2 {
             return Err(GameError::GameFull);
         }
 
+        let player_id = format!("Player{}", self.players.len() + 1);
+        let player = PlayerId::new(player_id.clone());
         self.players.push(player);
 
         // Start the game when we have exactly 2 players
@@ -78,7 +86,7 @@ impl Game {
             self.start_game();
         }
 
-        Ok(())
+        Ok(player_id)
     }
 
     /// Starts the game by changing state to InProgress
@@ -185,45 +193,42 @@ mod tests {
     #[test]
     fn can_add_single_player_without_starting_game() {
         let mut game = Game::new(1);
-        let player = PlayerId::new("alice".to_string());
 
-        game.add_player(player.clone()).unwrap();
+        let player_id = game.add_player().unwrap();
 
         assert_eq!(game.player_count(), 1);
         assert_eq!(game.get_state(), &GameState::WaitingForPlayers);
-        assert_eq!(game.players[0], player);
+        assert_eq!(player_id, "Player1");
+        assert_eq!(game.players[0], PlayerId::new("Player1".to_string()));
     }
 
     #[test]
     fn can_start_game_when_two_players_added() {
         let mut game = Game::new(1);
-        let player1 = PlayerId::new("alice".to_string());
-        let player2 = PlayerId::new("bob".to_string());
 
-        game.add_player(player1.clone()).unwrap();
+        let player1_id = game.add_player().unwrap();
         assert_eq!(game.get_state(), &GameState::WaitingForPlayers);
+        assert_eq!(player1_id, "Player1");
 
-        game.add_player(player2.clone()).unwrap();
+        let player2_id = game.add_player().unwrap();
 
         assert_eq!(game.player_count(), 2);
         assert_eq!(game.get_state(), &GameState::InProgress);
-        assert_eq!(game.players[0], player1);
-        assert_eq!(game.players[1], player2);
+        assert_eq!(player2_id, "Player2");
+        assert_eq!(game.players[0], PlayerId::new("Player1".to_string()));
+        assert_eq!(game.players[1], PlayerId::new("Player2".to_string()));
     }
 
     #[test]
     fn cannot_add_third_player_to_full_game() {
         let mut game = Game::new(1);
-        let player1 = PlayerId::new("alice".to_string());
-        let player2 = PlayerId::new("bob".to_string());
-        let player3 = PlayerId::new("charlie".to_string());
 
-        game.add_player(player1).unwrap();
-        game.add_player(player2).unwrap();
+        game.add_player().unwrap();
+        game.add_player().unwrap();
         assert_eq!(game.get_state(), &GameState::InProgress);
 
         // Adding a third player should return an error
-        let result = game.add_player(player3);
+        let result = game.add_player();
 
         assert_eq!(result, Err(GameError::GameFull));
         assert_eq!(game.player_count(), 2);
@@ -233,16 +238,13 @@ mod tests {
     #[test]
     fn cannot_add_player_to_game_with_two_players_waiting() {
         let mut game = Game::new(1);
-        let player1 = PlayerId::new("alice".to_string());
-        let player2 = PlayerId::new("bob".to_string());
-        let player3 = PlayerId::new("charlie".to_string());
 
         // Manually start the game first to keep it in WaitingForPlayers state
-        game.add_player(player1).unwrap();
-        game.add_player(player2).unwrap();
+        game.add_player().unwrap();
+        game.add_player().unwrap();
 
         // Try to add third player - should fail
-        let result = game.add_player(player3);
+        let result = game.add_player();
 
         assert_eq!(result, Err(GameError::GameFull));
         assert_eq!(game.player_count(), 2);
@@ -272,12 +274,13 @@ mod tests {
     #[test]
     fn can_submit_guesses_and_end_game() {
         let mut game = Game::new(1);
-        let player1 = PlayerId::new("alice".to_string());
-        let player2 = PlayerId::new("bob".to_string());
 
-        game.add_player(player1.clone()).unwrap();
-        game.add_player(player2.clone()).unwrap();
+        game.add_player().unwrap();
+        game.add_player().unwrap();
         game.start_round();
+
+        let player1 = PlayerId::new("Player1".to_string());
+        let player2 = PlayerId::new("Player2".to_string());
 
         // Submit different guesses first
         game.submit_guess(player1.clone(), "apple".to_string())
@@ -303,9 +306,9 @@ mod tests {
     #[test]
     fn cannot_submit_guess_if_game_not_in_progress() {
         let mut game = Game::new(1);
-        let player = PlayerId::new("alice".to_string());
 
-        game.add_player(player.clone()).unwrap();
+        game.add_player().unwrap();
+        let player = PlayerId::new("Player1".to_string());
 
         // Game is not started, so submitting a guess should fail
         let result = game.submit_guess(player, "apple".to_string());
@@ -316,15 +319,13 @@ mod tests {
     #[test]
     fn cannot_submit_guess_if_player_not_in_game() {
         let mut game = Game::new(1);
-        let player1 = PlayerId::new("alice".to_string());
-        let player2 = PlayerId::new("bob".to_string());
-        let player3 = PlayerId::new("charlie".to_string());
 
-        game.add_player(player1.clone()).unwrap();
-        game.add_player(player2.clone()).unwrap();
+        game.add_player().unwrap();
+        game.add_player().unwrap();
 
         game.start_round();
 
+        let player3 = PlayerId::new("charlie".to_string());
         // Submitting a guess for a player not in the game should return an error
         let result = game.submit_guess(player3, "apple".to_string());
 
@@ -334,11 +335,11 @@ mod tests {
     #[test]
     fn cannot_submit_guess_if_no_active_round() {
         let mut game = Game::new(1);
-        let player = PlayerId::new("alice".to_string());
 
-        game.add_player(player.clone()).unwrap();
+        game.add_player().unwrap();
         game.start_game();
 
+        let player = PlayerId::new("Player1".to_string());
         // If no round is active, submitting a guess should return an error
         let result = game.submit_guess(player, "apple".to_string());
 
@@ -348,12 +349,13 @@ mod tests {
     #[test]
     fn ends_game_when_both_players_guess_same_word() {
         let mut game = Game::new(1);
-        let player1 = PlayerId::new("alice".to_string());
-        let player2 = PlayerId::new("bob".to_string());
 
-        game.add_player(player1.clone()).unwrap();
-        game.add_player(player2.clone()).unwrap();
+        game.add_player().unwrap();
+        game.add_player().unwrap();
         game.start_round();
+
+        let player1 = PlayerId::new("Player1".to_string());
+        let player2 = PlayerId::new("Player2".to_string());
 
         game.submit_guess(player1.clone(), "orange".to_string())
             .unwrap();
