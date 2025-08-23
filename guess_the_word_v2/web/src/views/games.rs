@@ -191,9 +191,9 @@ mod backend {
         DatabaseError(#[from] sea_orm::DbErr),
     }
 
-    type GamesFuture<'a> = Pin<Box<dyn Future<Output = Result<Vec<Game>, Error>> + Send + 'a>>;
+    type GamesFuture<'a> = Box<dyn Future<Output = Result<Vec<Game>, Error>> + Send + 'a>;
 
-    pub fn get_games(state: GameState) -> impl Fn(&DatabaseConnection) -> GamesFuture<'_> {
+    pub fn get_games(state: GameState) -> impl Fn(&DatabaseConnection) -> Pin<GamesFuture<'_>> {
         move |db: &DatabaseConnection| {
             let entity_state: EntityGameState = match state {
                 GameState::WaitingForPlayers => EntityGameState::WaitingForPlayers,
