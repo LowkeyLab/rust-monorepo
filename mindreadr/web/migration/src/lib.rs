@@ -4,6 +4,7 @@ mod m20250822_000001_create_players_table;
 mod m20250822_000002_update_games_table;
 mod m20250822_000003_create_game_players_table;
 mod m20250822_000004_create_rounds_table;
+mod m20250823_000001_add_password_to_players;
 
 pub struct Migrator;
 
@@ -15,6 +16,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20250822_000002_update_games_table::Migration),
             Box::new(m20250822_000003_create_game_players_table::Migration),
             Box::new(m20250822_000004_create_rounds_table::Migration),
+            Box::new(m20250823_000001_add_password_to_players::Migration),
         ]
     }
 }

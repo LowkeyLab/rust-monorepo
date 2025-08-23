@@ -45,3 +45,5 @@ pub async fn launch_server() {
         .into_make_service();
     axum::serve(listener, router).await.unwrap();
 }
+
+mod auth {}
