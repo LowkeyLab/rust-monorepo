@@ -553,6 +553,9 @@
   .flex-1 {
     flex: 1;
   }
+  .flex-2 {
+    flex: 2;
+  }
   .animate-spin {
     animation: var(--animate-spin);
   }
