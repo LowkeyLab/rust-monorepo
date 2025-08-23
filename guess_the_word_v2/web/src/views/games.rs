@@ -1,6 +1,8 @@
 use crate::components::Header;
 use dioxus::prelude::*;
 use guess_the_word_v2_core::GameState;
+use guess_the_word_v2_core::Player;
+use serde::{Deserialize, Serialize};
 
 #[component]
 pub fn Games() -> Element {
@@ -142,64 +144,84 @@ fn GameCard(game: GameSummary) -> Element {
     }
 }
 
-#[cfg(feature = "server")]
-use crate::server::AppState;
-use anyhow::Result;
-use axum::extract::State;
-use guess_the_word_v2_core::Player;
-use serde::{Deserialize, Serialize};
-
-#[server]
-pub async fn get_games() -> Result<Vec<GameSummary>, ServerFnError> {
-    let app_state = extract::<AppState, State<AppState>>().await?;
-
-    use crate::server::entities::{games, players};
-    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
-
-    // Query games that are waiting for players
-    let games_with_players = games::Entity::find()
-        .filter(games::Column::State.eq("WaitingForPlayers"))
-        .find_with_related(players::Entity)
-        .all(&app_state.db)
-        .await?;
-
-    let mut game_summaries = Vec::new();
-
-    for (game, related_players) in games_with_players {
-        // Convert state string to GameState enum
-        let state = match game.state.as_str() {
-            "WaitingForPlayers" => GameState::WaitingForPlayers,
-            "InProgress" => GameState::InProgress,
-            "Finished" => GameState::Finished,
-            _ => GameState::WaitingForPlayers, // Default fallback
-        };
-
-        // Convert database players to core Player structs
-        let players: Vec<Player> = related_players
-            .into_iter()
-            .map(|p| Player {
-                id: p.id as u32,
-                name: p.name,
-            })
-            .collect();
-
-        let game_summary = GameSummary {
-            id: game.id as u32,
-            player_count: players.len(),
-            state,
-            players,
-        };
-
-        game_summaries.push(game_summary);
-    }
-
-    Ok(game_summaries)
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct GameSummary {
     pub id: u32,
     pub player_count: usize,
     pub state: GameState,
     pub players: Vec<Player>,
+}
+
+#[server]
+async fn get_games() -> Result<Vec<GameSummary>, ServerFnError> {}
+
+#[cfg(feature = "server")]
+mod backend {
+    trait GameRepository {
+        fn get_all_games_with_status(&self, status: Option<GameState>) -> Vec<Game>;
+    }
+
+    struct PostgresGameRepository {
+        db_conn: DatabaseConnection,
+    }
+
+    impl GameRepository for PostgresGameRepository {
+        fn get_all_games_with_status(&self, status: Option<GameState>) -> Vec<Game> {
+            if let Some(state) = status {
+            } else {
+                // Query the database for all games
+                vec![] // Replace with actual query result
+            }
+        }
+    }
+
+    #[cfg(feature = "server")]
+    use anyhow::Result;
+    use guess_the_word_v2_core::{Game, GameState};
+    use sea_orm::DatabaseConnection;
+
+    pub async fn get_games() -> Result<Vec<super::GameSummary>> {
+        // Mock data for demonstration purposes
+        Ok(vec![
+            super::GameSummary {
+                id: 1,
+                player_count: 1,
+                state: super::GameState::WaitingForPlayers,
+                players: vec![super::Player {
+                    id: 1,
+                    name: "Alice".into(),
+                }],
+            },
+            super::GameSummary {
+                id: 2,
+                player_count: 2,
+                state: super::GameState::InProgress,
+                players: vec![
+                    super::Player {
+                        id: 2,
+                        name: "Bob".into(),
+                    },
+                    super::Player {
+                        id: 3,
+                        name: "Charlie".into(),
+                    },
+                ],
+            },
+            super::GameSummary {
+                id: 3,
+                player_count: 2,
+                state: super::GameState::Finished,
+                players: vec![
+                    super::Player {
+                        id: 4,
+                        name: "Dave".into(),
+                    },
+                    super::Player {
+                        id: 5,
+                        name: "Eve".into(),
+                    },
+                ],
+            },
+        ])
+    }
 }
