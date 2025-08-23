@@ -4,7 +4,7 @@
 Run the following command:
 
 ```bash
-pnpm tailwindcss -i ./input.css -o ./assets/tailwind.css --watch
+mise run tailwind
 ```
 
 ## Serving Your App
@@ -12,7 +12,7 @@ pnpm tailwindcss -i ./input.css -o ./assets/tailwind.css --watch
 Run the following command in the root of your project to start developing with the default platform:
 
 ```bash
-dx serve --platform web
+mise run-local
 ```
 
 To run for a different platform, use the `--platform platform` flag. E.g.

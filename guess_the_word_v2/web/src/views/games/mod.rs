@@ -78,9 +78,5 @@ async fn get_games() -> Result<Vec<GameSummary>, ServerFnError> {
     use crate::server::get_db_pool;
     let db = get_db_pool().await;
     let games = backend::get_games(GameState::WaitingForPlayers)(db).await?;
-    let mut summaries = Vec::new();
-    for game in games {
-        summaries.push(game.into());
-    }
-    Ok(summaries)
+    Ok(games.into_iter().map(Game::into).collect())
 }
