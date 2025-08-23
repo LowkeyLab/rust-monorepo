@@ -1,4 +1,4 @@
-use crate::components::{ErrorMessage, Header, LoadingSpinner, NameInputModal};
+use crate::components::{ErrorMessage, Header, LoadingSpinner};
 use dioxus::prelude::*;
 use gloo_storage::{LocalStorage, Storage};
 use mindreadr_core::Player;
@@ -13,7 +13,6 @@ pub fn Games() -> Element {
     let mut games = use_signal(Vec::<GameSummary>::new);
     let mut loading = use_signal(|| true);
     let mut error = use_signal(|| None::<String>);
-    let mut show_name_modal = use_signal(|| false);
     let mut user_name = use_signal(|| None::<String>);
 
     // Load username from storage on component mount
@@ -41,37 +40,12 @@ pub fn Games() -> Element {
     });
 
     let handle_create_game = move |_| {
-        // Check if username is stored
-        if user_name().is_none() {
-            show_name_modal.set(true);
-        } else {
-            // TODO: Implement actual game creation logic
-            println!("Creating new game for user: {:?}", user_name());
-        }
-    };
-
-    let handle_name_submit = move |name: String| {
-        // Store name in storage
-        let _ = LocalStorage::set("user_name", &name);
-
-        user_name.set(Some(name.clone()));
-        show_name_modal.set(false);
         // TODO: Implement actual game creation logic
-        println!("Creating new game for user: {}", name);
-    };
-
-    let handle_name_cancel = move |_| {
-        show_name_modal.set(false);
+        println!("Creating new game for user: {:?}", user_name());
     };
 
     rsx! {
         Header {}
-
-        NameInputModal {
-            show: show_name_modal(),
-            on_name_submit: handle_name_submit,
-            on_cancel: handle_name_cancel
-        }
 
         main { class: "min-h-screen bg-gray-50 py-8",
             div { class: "max-w-6xl mx-auto px-6",

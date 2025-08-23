@@ -1,24 +1,12 @@
 pub use sea_orm_migration::prelude::*;
 
-mod m20250822_000001_create_players_table;
-mod m20250822_000002_update_games_table;
-mod m20250822_000003_create_game_players_table;
-mod m20250822_000004_create_rounds_table;
-mod m20250823_000001_add_password_to_players;
-mod m20250823_000002_remove_password_from_players;
+mod m20250822_000001_create_games_table;
 
 pub struct Migrator;
 
 #[async_trait::async_trait]
 impl MigratorTrait for Migrator {
     fn migrations() -> Vec<Box<dyn MigrationTrait>> {
-        vec![
-            Box::new(m20250822_000001_create_players_table::Migration),
-            Box::new(m20250822_000002_update_games_table::Migration),
-            Box::new(m20250822_000003_create_game_players_table::Migration),
-            Box::new(m20250822_000004_create_rounds_table::Migration),
-            Box::new(m20250823_000001_add_password_to_players::Migration),
-            Box::new(m20250823_000002_remove_password_from_players::Migration),
-        ]
+        vec![Box::new(m20250822_000001_create_games_table::Migration)]
     }
 }

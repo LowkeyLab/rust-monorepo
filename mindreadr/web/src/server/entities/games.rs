@@ -7,48 +7,21 @@ use sea_orm::entity::prelude::*;
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
-    pub state: GameState,
+    pub state: String,
     pub created_at: DateTime,
     pub updated_at: DateTime,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum)]
-#[sea_orm(rs_type = "String", db_type = "String(StringLen::N(20))")]
-pub enum GameState {
-    #[sea_orm(string_value = "WaitingForPlayers")]
-    WaitingForPlayers,
-    #[sea_orm(string_value = "InProgress")]
-    InProgress,
-    #[sea_orm(string_value = "Finished")]
-    Finished,
+    pub players: Json,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(has_many = "super::game_players::Entity")]
-    GamePlayers,
     #[sea_orm(has_many = "super::rounds::Entity")]
     Rounds,
-}
-
-impl Related<super::game_players::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::GamePlayers.def()
-    }
 }
 
 impl Related<super::rounds::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Rounds.def()
-    }
-}
-
-impl Related<super::players::Entity> for Entity {
-    fn to() -> RelationDef {
-        super::game_players::Relation::Players.def()
-    }
-    fn via() -> Option<RelationDef> {
-        Some(super::game_players::Relation::Games.def().rev())
     }
 }
 

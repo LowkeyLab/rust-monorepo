@@ -2,7 +2,5 @@
 
 pub mod prelude;
 
-pub mod game_players;
 pub mod games;
-pub mod players;
 pub mod rounds;

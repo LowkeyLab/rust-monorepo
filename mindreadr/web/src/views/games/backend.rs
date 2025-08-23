@@ -1,5 +1,4 @@
-use crate::server::entities::games::GameState as EntityGameState;
-use crate::server::entities::{games, prelude::*};
+use crate::server::entities;
 use anyhow::Result;
 use mindreadr_core::{Game, GameState, Player};
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
@@ -16,10 +15,10 @@ type GamesFuture<'a> = Box<dyn Future<Output = Result<Vec<Game>, Error>> + Send 
 
 pub fn get_games(state: GameState) -> impl Fn(&DatabaseConnection) -> Pin<GamesFuture<'_>> {
     move |db: &DatabaseConnection| {
-        let entity_state: EntityGameState = match state {
-            GameState::WaitingForPlayers => EntityGameState::WaitingForPlayers,
-            GameState::InProgress => EntityGameState::InProgress,
-            GameState::Finished => EntityGameState::Finished,
+        let entity_state: entities::games::Column::State = match state {
+            GameState::WaitingForPlayers => entities::games::GameState::WaitingForPlayers,
+            GameState::InProgress => entities::games::GameState::InProgress,
+            GameState::Finished => entities::games::GameState::Finished,
         };
 
         Box::pin(get_games_with_state(db, entity_state))
@@ -28,19 +27,18 @@ pub fn get_games(state: GameState) -> impl Fn(&DatabaseConnection) -> Pin<GamesF
 
 async fn get_games_with_state(
     db: &DatabaseConnection,
-    entity_state: EntityGameState,
+    entity_state: entities::games::GameState,
 ) -> Result<Vec<Game>, Error> {
-    let games_with_state = GamesEntity::find()
-        .filter(games::Column::State.eq(entity_state))
-        .find_with_related(PlayersEntity)
+    let games_with_state = entities::games::Model::find()
+        .filter(entities::games::Column::State.eq(entity_state))
         .all(db)
         .await?;
     let mut games = Vec::new();
-    for (game, players) in games_with_state {
+    for (game) in games_with_state {
         let game_state = match game.state {
-            EntityGameState::WaitingForPlayers => GameState::WaitingForPlayers,
-            EntityGameState::InProgress => GameState::InProgress,
-            EntityGameState::Finished => GameState::Finished,
+            entities::games::GameState::WaitingForPlayers => GameState::WaitingForPlayers,
+            entities::games::GameState::InProgress => GameState::InProgress,
+            entities::games::GameState::Finished => GameState::Finished,
         };
         let player_list: Vec<Player> = players
             .into_iter()
