@@ -60,7 +60,7 @@ pub fn NameInputModal(
                 }
 
                 p { class: "text-gray-600 mb-6 text-center",
-                    "We'll save your name so you don't have to enter it again."
+                    "We'll save your name on this device so you don't have to enter it again."
                 }
 
                 form { onsubmit: handle_submit,
@@ -82,15 +82,15 @@ pub fn NameInputModal(
 
                     div { class: "flex space-x-3",
                         button {
+                            r#type: "submit",
+                            class: "flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium",
+                            "Save Name"
+                        }
+                        button {
                             r#type: "button",
                             onclick: move |_| on_cancel.call(()),
                             class: "flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors",
                             "Cancel"
-                        }
-                        button {
-                            r#type: "submit",
-                            class: "flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium",
-                            "Save Name"
                         }
                     }
                 }
