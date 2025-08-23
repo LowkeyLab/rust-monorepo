@@ -7,9 +7,20 @@ use sea_orm::entity::prelude::*;
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
-    pub state: String,
+    pub state: GameState,
     pub created_at: DateTime,
     pub updated_at: DateTime,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum)]
+#[sea_orm(rs_type = "String", db_type = "String(StringLen::N(20))")]
+pub enum GameState {
+    #[sea_orm(string_value = "WaitingForPlayers")]
+    WaitingForPlayers,
+    #[sea_orm(string_value = "InProgress")]
+    InProgress,
+    #[sea_orm(string_value = "Finished")]
+    Finished,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

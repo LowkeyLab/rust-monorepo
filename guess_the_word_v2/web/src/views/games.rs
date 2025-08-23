@@ -1,7 +1,7 @@
 use crate::components::Header;
 use dioxus::prelude::*;
-use guess_the_word_v2_core::GameState;
 use guess_the_word_v2_core::Player;
+use guess_the_word_v2_core::{Game, GameState};
 use serde::{Deserialize, Serialize};
 
 #[component]
@@ -152,20 +152,38 @@ pub struct GameSummary {
     pub players: Vec<Player>,
 }
 
+impl From<Game> for GameSummary {
+    fn from(game: Game) -> Self {
+        GameSummary {
+            id: game.id,
+            player_count: game.players.len(),
+            state: game.state,
+            players: game.players,
+        }
+    }
+}
+
 #[server]
 async fn get_games() -> Result<Vec<GameSummary>, ServerFnError> {
     use crate::server::get_db_pool;
-
     let db = get_db_pool().await;
-    backend::get_games_waiting_for_players()(db).await?
+    let games = backend::get_games(GameState::WaitingForPlayers)(db).await?;
+    let mut summaries = Vec::new();
+    for game in games {
+        summaries.push(game.into());
+    }
+    Ok(summaries)
 }
 
 #[cfg(feature = "server")]
 mod backend {
+    use crate::server::entities::games::GameState as EntityGameState;
     use crate::server::entities::{games, prelude::*};
     use anyhow::Result;
     use guess_the_word_v2_core::{Game, GameState, Player};
     use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
+    use std::future::Future;
+    use std::pin::Pin;
 
     #[derive(Debug, thiserror::Error)]
     pub enum Error {
@@ -175,34 +193,46 @@ mod backend {
         DatabaseError(#[from] sea_orm::DbErr),
     }
 
-    pub async fn get_games(
-        state: GameState,
-    ) -> impl AsyncFn(&DatabaseConnection) -> Result<Vec<Game>, Error> {
-        async move |db: &DatabaseConnection| {
-            let games_waiting_for_players = Games::find()
-                .filter(games::Column::State.eq("WaitingForPlayers"))
-                .find_with_related(Players)
-                .all(db)
-                .await?;
-            let mut games = Vec::new();
-            for (game, players) in games_waiting_for_players {
-                let state = GameState::WaitingForPlayers;
-                let player_list: Vec<Player> = players
-                    .into_iter()
-                    .map(|p| Player {
-                        id: p.id as u32,
-                        name: p.name,
-                    })
-                    .collect();
-                games.push(Game {
-                    id: game.id as u32,
-                    state,
-                    players: player_list,
-                    rounds: vec![],
-                    current_round: None,
-                });
-            }
-            Ok(games)
+    type GamesFuture<'a> = Pin<Box<dyn Future<Output = Result<Vec<Game>, Error>> + Send + 'a>>;
+
+    pub fn get_games(state: GameState) -> impl Fn(&DatabaseConnection) -> GamesFuture<'_> {
+        move |db: &DatabaseConnection| {
+            let entity_state = match state {
+                GameState::WaitingForPlayers => EntityGameState::WaitingForPlayers,
+                GameState::InProgress => EntityGameState::InProgress,
+                GameState::Finished => EntityGameState::Finished,
+            };
+
+            Box::pin(async move {
+                let games_with_state = Games::find()
+                    .filter(games::Column::State.eq(entity_state))
+                    .find_with_related(Players)
+                    .all(db)
+                    .await?;
+                let mut games = Vec::new();
+                for (game, players) in games_with_state {
+                    let game_state = match game.state {
+                        EntityGameState::WaitingForPlayers => GameState::WaitingForPlayers,
+                        EntityGameState::InProgress => GameState::InProgress,
+                        EntityGameState::Finished => GameState::Finished,
+                    };
+                    let player_list: Vec<Player> = players
+                        .into_iter()
+                        .map(|p| Player {
+                            id: p.id as u32,
+                            name: p.name,
+                        })
+                        .collect();
+                    games.push(Game {
+                        id: game.id as u32,
+                        state: game_state,
+                        players: player_list,
+                        rounds: vec![],
+                        current_round: None,
+                    });
+                }
+                Ok(games)
+            })
         }
     }
 }
