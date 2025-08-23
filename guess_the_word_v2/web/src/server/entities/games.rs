@@ -7,12 +7,7 @@ use sea_orm::entity::prelude::*;
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
-    pub player_id: String,
-    pub word: String,
-    pub guesses: Json,
-    pub status: String,
-    pub score: Option<i32>,
-    pub max_attempts: i32,
+    pub state: String,
     pub created_at: DateTime,
     pub updated_at: DateTime,
 }

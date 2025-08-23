@@ -1,15 +1,15 @@
 #[cfg(feature = "server")]
 mod config;
 #[cfg(feature = "server")]
-mod entities;
+pub mod entities;
 
 use crate::App;
-use axum::extract::{FromRef, FromRequestParts};
+use axum::extract::{FromRequestParts, State};
 use axum::http::request::Parts;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::{async_trait, RequestPartsExt};
-use dioxus::prelude::ServerFnError;
+use dioxus::prelude::{DioxusServerContext, FromServerContext};
 use thiserror::Error;
 use tracing::instrument;
 
@@ -17,10 +17,23 @@ use tracing::instrument;
 pub struct AppState {
     pub db: sea_orm::DatabaseConnection,
 }
+
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("Server error with coder: {0}")]
     ServerError(StatusCode),
+}
+
+impl FromServerContext<State<AppState>> for AppState {
+    type Rejection = Error;
+
+    async fn from_request(req: &DioxusServerContext) -> Result<Self, Self::Rejection> {
+        let state: State<AppState> = req
+            .extract()
+            .await
+            .map_err(|_| Error::ServerError(StatusCode::INTERNAL_SERVER_ERROR))?;
+        Ok(state)
+    }
 }
 
 #[async_trait]
@@ -63,7 +76,7 @@ pub(crate) async fn launch_server() {
 
     let app_state = AppState { db };
 
-    // Get the address the server should run on. If the CLI is running, the CLI proxies fullstack into the main address
+    // Get the address the server should run on. If the CLI is running, the CLI proxies fullstack into the main address,
     // and we use the generated address the CLI gives us
     let ip =
         dioxus::cli_config::server_ip().unwrap_or_else(|| IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)));

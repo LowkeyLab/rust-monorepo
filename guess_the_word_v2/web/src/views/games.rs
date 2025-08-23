@@ -1,5 +1,4 @@
 use crate::components::Header;
-use backend::{get_games, GameSummary};
 use dioxus::prelude::*;
 use guess_the_word_v2_core::GameState;
 
@@ -143,26 +142,64 @@ fn GameCard(game: GameSummary) -> Element {
     }
 }
 
-mod backend {
-    #[cfg(feature = "server")]
-    use crate::server::AppState;
-    use anyhow::Result;
-    use dioxus::prelude::*;
-    use guess_the_word_v2_core::{GameState, Player};
-    use serde::{Deserialize, Serialize};
+#[cfg(feature = "server")]
+use crate::server::AppState;
+use anyhow::Result;
+use axum::extract::State;
+use guess_the_word_v2_core::Player;
+use serde::{Deserialize, Serialize};
 
-    #[server]
-    pub async fn get_games() -> Result<Vec<GameSummary>, ServerFnError> {
-        let app_state = extract::<AppState, _>().await?;
-        let _db = &app_state.db;
-        Ok(vec![])
+#[server]
+pub async fn get_games() -> Result<Vec<GameSummary>, ServerFnError> {
+    let app_state = extract::<AppState, State<AppState>>().await?;
+
+    use crate::server::entities::{games, players};
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+
+    // Query games that are waiting for players
+    let games_with_players = games::Entity::find()
+        .filter(games::Column::State.eq("WaitingForPlayers"))
+        .find_with_related(players::Entity)
+        .all(&app_state.db)
+        .await?;
+
+    let mut game_summaries = Vec::new();
+
+    for (game, related_players) in games_with_players {
+        // Convert state string to GameState enum
+        let state = match game.state.as_str() {
+            "WaitingForPlayers" => GameState::WaitingForPlayers,
+            "InProgress" => GameState::InProgress,
+            "Finished" => GameState::Finished,
+            _ => GameState::WaitingForPlayers, // Default fallback
+        };
+
+        // Convert database players to core Player structs
+        let players: Vec<Player> = related_players
+            .into_iter()
+            .map(|p| Player {
+                id: p.id as u32,
+                name: p.name,
+            })
+            .collect();
+
+        let game_summary = GameSummary {
+            id: game.id as u32,
+            player_count: players.len(),
+            state,
+            players,
+        };
+
+        game_summaries.push(game_summary);
     }
 
-    #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-    pub struct GameSummary {
-        pub id: u32,
-        pub player_count: usize,
-        pub state: GameState,
-        pub players: Vec<Player>,
-    }
+    Ok(game_summaries)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct GameSummary {
+    pub id: u32,
+    pub player_count: usize,
+    pub state: GameState,
+    pub players: Vec<Player>,
 }
