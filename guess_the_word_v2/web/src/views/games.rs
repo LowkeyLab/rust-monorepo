@@ -157,55 +157,52 @@ async fn get_games() -> Result<Vec<GameSummary>, ServerFnError> {
     use crate::server::get_db_pool;
 
     let db = get_db_pool().await;
-    backend::get_games_from_db(db).await
+    backend::get_games_waiting_for_players()(db).await?
 }
 
 #[cfg(feature = "server")]
 mod backend {
-    use crate::server::entities::{self, prelude::*};
-    use crate::views::games::GameSummary;
+    use crate::server::entities::{games, prelude::*};
     use anyhow::Result;
-    use dioxus::prelude::*;
-    use guess_the_word_v2_core::{GameState, Player};
+    use guess_the_word_v2_core::{Game, GameState, Player};
     use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 
-    pub async fn get_games_from_db(
-        db: &DatabaseConnection,
-    ) -> Result<Vec<GameSummary>, ServerFnError> {
-        // Query games that are not in progress (waiting for players or finished)
-        let games_with_players = Games::find()
-            .filter(entities::games::Column::State.ne("InProgress"))
-            .find_with_related(Players)
-            .all(db)
-            .await
-            .map_err(|e| ServerFnError::new(format!("Database error: {}", e)))?;
+    #[derive(Debug, thiserror::Error)]
+    pub enum Error {
+        #[error("Game not found")]
+        NotFound,
+        #[error("Database error: {0}")]
+        DatabaseError(#[from] sea_orm::DbErr),
+    }
 
-        let mut game_summaries = Vec::new();
-
-        for (game, players) in games_with_players {
-            let state = match game.state.as_str() {
-                "WaitingForPlayers" => GameState::WaitingForPlayers,
-                "InProgress" => GameState::InProgress,
-                "Finished" => GameState::Finished,
-                _ => GameState::WaitingForPlayers, // Default fallback
-            };
-
-            let player_list: Vec<Player> = players
-                .into_iter()
-                .map(|p| Player {
-                    id: p.id as u32,
-                    name: p.name,
-                })
-                .collect();
-
-            game_summaries.push(GameSummary {
-                id: game.id as u32,
-                player_count: player_list.len(),
-                state,
-                players: player_list,
-            });
+    pub async fn get_games(
+        state: GameState,
+    ) -> impl AsyncFn(&DatabaseConnection) -> Result<Vec<Game>, Error> {
+        async move |db: &DatabaseConnection| {
+            let games_waiting_for_players = Games::find()
+                .filter(games::Column::State.eq("WaitingForPlayers"))
+                .find_with_related(Players)
+                .all(db)
+                .await?;
+            let mut games = Vec::new();
+            for (game, players) in games_waiting_for_players {
+                let state = GameState::WaitingForPlayers;
+                let player_list: Vec<Player> = players
+                    .into_iter()
+                    .map(|p| Player {
+                        id: p.id as u32,
+                        name: p.name,
+                    })
+                    .collect();
+                games.push(Game {
+                    id: game.id as u32,
+                    state,
+                    players: player_list,
+                    rounds: vec![],
+                    current_round: None,
+                });
+            }
+            Ok(games)
         }
-
-        Ok(game_summaries)
     }
 }
