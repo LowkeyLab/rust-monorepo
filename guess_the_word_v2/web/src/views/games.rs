@@ -153,21 +153,59 @@ pub struct GameSummary {
 }
 
 #[server]
-async fn get_games() -> Result<Vec<GameSummary>, ServerFnError> {}
+async fn get_games() -> Result<Vec<GameSummary>, ServerFnError> {
+    use crate::server::get_db_pool;
+
+    let db = get_db_pool().await;
+    backend::get_games_from_db(db).await
+}
 
 #[cfg(feature = "server")]
 mod backend {
-    use crate::server::entities;
+    use crate::server::entities::{self, prelude::*};
     use crate::views::games::GameSummary;
-    #[cfg(feature = "server")]
     use anyhow::Result;
-    use dioxus::prelude::ServerFnError;
-    use guess_the_word_v2_core::{Game, GameState};
-    use sea_orm::DatabaseConnection;
+    use dioxus::prelude::*;
+    use guess_the_word_v2_core::{GameState, Player};
+    use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 
-    pub async fn get_games(
-        status: Option<GameState>,
-    ) -> impl Fn(&DatabaseConnection) -> Result<Vec<GameSummary>, ServerFnError> {
-        move |db_conn: &DatabaseConnection| {}
+    pub async fn get_games_from_db(
+        db: &DatabaseConnection,
+    ) -> Result<Vec<GameSummary>, ServerFnError> {
+        // Query games that are not in progress (waiting for players or finished)
+        let games_with_players = Games::find()
+            .filter(entities::games::Column::State.ne("InProgress"))
+            .find_with_related(Players)
+            .all(db)
+            .await
+            .map_err(|e| ServerFnError::new(format!("Database error: {}", e)))?;
+
+        let mut game_summaries = Vec::new();
+
+        for (game, players) in games_with_players {
+            let state = match game.state.as_str() {
+                "WaitingForPlayers" => GameState::WaitingForPlayers,
+                "InProgress" => GameState::InProgress,
+                "Finished" => GameState::Finished,
+                _ => GameState::WaitingForPlayers, // Default fallback
+            };
+
+            let player_list: Vec<Player> = players
+                .into_iter()
+                .map(|p| Player {
+                    id: p.id as u32,
+                    name: p.name,
+                })
+                .collect();
+
+            game_summaries.push(GameSummary {
+                id: game.id as u32,
+                player_count: player_list.len(),
+                state,
+                players: player_list,
+            });
+        }
+
+        Ok(game_summaries)
     }
 }

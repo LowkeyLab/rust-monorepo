@@ -17,7 +17,7 @@ use tracing::instrument;
 
 static DB_POOL: OnceCell<DatabaseConnection> = OnceCell::const_new();
 
-async fn get_db_pool() -> &'static DatabaseConnection {
+pub async fn get_db_pool() -> &'static DatabaseConnection {
     DB_POOL
         .get_or_init(|| async {
             let config = config::ServerConfig::load().expect("Failed to load server configuration");
