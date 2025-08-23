@@ -1,0 +1,5 @@
+[tasks.test]
+# Runs the test suite for the mindreadr_core crate
+description = "Run cargo test for mindreadr_core"
+run = "cargo test"
+
