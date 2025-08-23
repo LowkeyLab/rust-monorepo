@@ -18,6 +18,7 @@ tracing-futures = "0.2.5"
 config = { version = "0.15.14", optional = true }
 anyhow = "1.0.99"
 thiserror = "1.0.69"
+gloo-storage = "0.3"
 
 [features]
 default = ["web"]
