@@ -10,8 +10,8 @@ use std::pin::Pin;
 pub enum Error {
     #[error("Database error: {0}")]
     Database(#[from] sea_orm::DbErr),
-    #[error("Invalid players JSON: {0}")]
-    PlayersJson(#[from] serde_json::Error),
+    #[error("Invalid stored JSON: {0}")]
+    DataDeserialization(#[from] serde_json::Error),
     #[error("Game domain error: {0}")]
     Domain(#[from] DomainGameError),
 }
