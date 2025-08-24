@@ -20,6 +20,8 @@ config = { version = "0.15.14", optional = true }
 anyhow = "1.0.99"
 thiserror = "2.0.16"
 gloo-storage = "0.3"
+gloo-timers = { version = "0.3", features = ["futures"] }
+futures = "0.3"
 
 [features]
 default = ["web"]

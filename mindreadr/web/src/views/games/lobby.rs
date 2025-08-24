@@ -1,10 +1,20 @@
 use crate::components::{ErrorMessage, Header, LoadingSpinner};
 use crate::state::use_game_player_map;
 use dioxus::prelude::*;
+use futures::channel::mpsc::UnboundedReceiver;
 use mindreadr_core::game::{GameState, PlayerName};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize}; // added for typed coroutine channel
+
+/// Actions that can be sent to the lobby sync coroutine.
+#[derive(Debug, Clone)]
+pub enum SyncAction {
+    /// Request to fetch the latest game state from the server.
+    GetGameState,
+}
 
 /// Detailed view of a single game lobby. Always attempts to join via backend and displays any join error.
+/// After initial load, a background coroutine polls the server every second for updated game state
+/// until the game reaches the Finished state.
 #[component]
 pub fn GameLobby(game_id: u32) -> Element {
     let mut loading = use_signal(|| true);
@@ -45,6 +55,35 @@ pub fn GameLobby(game_id: u32) -> Element {
             }
         });
     });
+
+    // Poll game state every second (wasm/web only) once initial load completes until finished.
+    #[cfg(feature = "web")]
+    {
+        use_coroutine(move |_rx: UnboundedReceiver<SyncAction>| async move {
+            loop {
+                gloo_timers::future::TimeoutFuture::new(1000).await;
+                if loading() {
+                    continue;
+                }
+                if let Some(current) = game() {
+                    if matches!(current.state, GameState::Finished) {
+                        break;
+                    }
+                }
+                match get_game(game_id).await {
+                    Ok(updated) => {
+                        // Update only if changed to avoid unnecessary rerenders.
+                        if game().as_ref() != Some(&updated) {
+                            game.set(Some(updated));
+                        }
+                    }
+                    Err(_e) => {
+                        // Silent: transient network errors will be retried next tick.
+                    }
+                }
+            }
+        });
+    }
 
     rsx! {
         Header {}
