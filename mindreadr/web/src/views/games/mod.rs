@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "server")]
 pub mod backend; // made public
 mod components;
+mod lobby; // new
+pub use lobby::GameLobby; // re-export
 
 #[component]
 pub fn Games() -> Element {
