@@ -137,6 +137,11 @@ fn LobbyGameDetails(detail: GetGameDto) -> Element {
         GameState::Finished => "Finished",
     };
     let full = detail.player_count >= 2;
+
+    // Determine current player's name (if this client has joined).
+    let player_map = use_game_player_map();
+    let you_name = player_map.get().get(detail.id).map(|s| s.to_string());
+
     rsx! {
         div { class: "bg-white rounded-lg shadow p-6 space-y-6",
             div { class: "flex justify-between items-start",
@@ -145,7 +150,8 @@ fn LobbyGameDetails(detail: GetGameDto) -> Element {
             }
             div { class: "space-y-2",
                 h2 { class: "text-lg font-semibold", "Players ({detail.player_count}/2)" }
-                if detail.players.is_empty() { p { class: "text-gray-500", "No players yet" } }
+                if let Some(you) = you_name { p { class: "text-gray-700 text-sm", "Playing as ", strong { class: "font-semibold", "{you}" } } }
+                else if detail.players.is_empty() { p { class: "text-gray-500", "No players yet" } }
                 else {
                     ul { class: "list-disc list-inside text-gray-700 text-sm",
                         {detail.players.iter().map(|p| rsx!{ li { key: "{p.as_str()}", "{p.as_str()}" } })}
