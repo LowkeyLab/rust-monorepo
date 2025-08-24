@@ -25,6 +25,10 @@ pub struct AddPlayerResult {
     pub player_id: String,
 }
 
+/// Future type returned by get_game_model curry function.
+type GameModelFuture<'a> =
+    Box<dyn Future<Output = Result<entities::games::Model, Error>> + Send + 'a>;
+
 /// Returns an async function that, given a database connection, fetches all games in the
 /// provided state and converts them into the core `Game` domain model.
 pub fn get_games(state: GameState) -> impl Fn(&DatabaseConnection) -> Pin<GamesFuture<'_>> {
@@ -48,6 +52,23 @@ pub fn create_game() -> impl Fn(&DatabaseConnection) -> Pin<GameFuture<'_>> {
 /// Returns an async function that fetches a single game by id or errors if not found.
 pub fn get_game(game_id: u32) -> impl Fn(&DatabaseConnection) -> Pin<GameFuture<'_>> {
     move |db: &DatabaseConnection| Box::pin(get_game_inner(db, game_id))
+}
+
+/// Returns an async function that fetches and returns the raw database game model or errors if not found.
+/// This is useful when only database persistence concerns are needed before mapping into a domain Game.
+pub fn get_game_model(game_id: u32) -> impl Fn(&DatabaseConnection) -> Pin<GameModelFuture<'_>> {
+    move |db: &DatabaseConnection| {
+        Box::pin(async move {
+            use entities::games;
+            let Some(game_model) = games::Entity::find_by_id(game_id as i32).one(db).await? else {
+                return Err(Error::Database(sea_orm::DbErr::RecordNotFound(format!(
+                    "game {} not found",
+                    game_id
+                ))));
+            };
+            Ok(game_model)
+        })
+    }
 }
 
 /// Adds a player to the game, identified by game_id. Returns the updated game and the new player ID.
@@ -110,14 +131,8 @@ async fn create_game_inner(db: &DatabaseConnection) -> Result<Game, Error> {
 
 /// Fetch a single game by id, returning a domain `Game` or an error if not found.
 async fn get_game_inner(db: &DatabaseConnection, game_id: u32) -> Result<Game, Error> {
-    use entities::games;
-
-    let Some(game_model) = games::Entity::find_by_id(game_id as i32).one(db).await? else {
-        return Err(Error::Database(sea_orm::DbErr::RecordNotFound(format!(
-            "game {} not found",
-            game_id
-        ))));
-    };
+    // Reuse raw model fetch helper.
+    let game_model = get_game_model(game_id)(db).await?;
 
     let players = get_players_inner(db, game_id).await?; // reuse canonical player fetch
 
@@ -146,12 +161,7 @@ async fn add_player_inner(db: &DatabaseConnection, game_id: u32) -> Result<AddPl
     use entities::{game_players, games};
     use sea_orm::ActiveValue::Set;
 
-    let Some(game_model) = games::Entity::find_by_id(game_id as i32).one(db).await? else {
-        return Err(Error::Database(sea_orm::DbErr::RecordNotFound(format!(
-            "game {} not found",
-            game_id
-        ))));
-    };
+    let game_model = get_game_model(game_id)(db).await?;
 
     // Get existing players through the shared helper.
     let existing_names = get_players_inner(db, game_id).await?;
@@ -192,20 +202,11 @@ async fn get_players_inner(
     db: &DatabaseConnection,
     game_id: u32,
 ) -> Result<Vec<PlayerName>, Error> {
-    use entities::{game_players, games};
+    use entities::game_players;
     use sea_orm::QueryOrder;
 
-    // Ensure game exists; surface not found distinctly.
-    if games::Entity::find_by_id(game_id as i32)
-        .one(db)
-        .await?
-        .is_none()
-    {
-        return Err(Error::Database(sea_orm::DbErr::RecordNotFound(format!(
-            "game {} not found",
-            game_id
-        ))));
-    }
+    // Ensure game exists via shared helper.
+    get_game_model(game_id)(db).await?;
 
     let players = game_players::Entity::find()
         .filter(game_players::Column::GameId.eq(game_id as i32))
