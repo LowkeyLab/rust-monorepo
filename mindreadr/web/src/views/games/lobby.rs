@@ -1,7 +1,8 @@
 use crate::components::{ErrorMessage, Header, LoadingSpinner};
 use crate::state::use_game_player_map;
 use dioxus::prelude::*;
-use futures::channel::mpsc::UnboundedReceiver;
+use futures::channel::mpsc::UnboundedReceiver; // added for typed coroutine channel
+use futures::StreamExt; // for rx.next()
 use mindreadr_core::game::{GameState, PlayerName};
 use serde::{Deserialize, Serialize}; // added for typed coroutine channel
 
@@ -59,29 +60,50 @@ pub fn GameLobby(game_id: u32) -> Element {
     // Poll game state every second (wasm/web only) once initial load completes until finished.
     #[cfg(feature = "web")]
     {
-        use_coroutine(move |_rx: UnboundedReceiver<SyncAction>| async move {
-            loop {
-                gloo_timers::future::TimeoutFuture::new(1000).await;
-                if loading() {
-                    continue;
-                }
-                if let Some(current) = game() {
-                    if matches!(current.state, GameState::Finished) {
-                        break;
-                    }
-                }
-                match get_game(game_id).await {
-                    Ok(updated) => {
-                        // Update only if changed to avoid unnecessary rerenders.
-                        if game().as_ref() != Some(&updated) {
-                            game.set(Some(updated));
+        // Coroutine that reacts to SyncAction messages. Signals are Copy; no cloning needed.
+        let sync = use_coroutine(move |mut rx: UnboundedReceiver<SyncAction>| async move {
+            while let Some(action) = rx.next().await {
+                match action {
+                    SyncAction::GetGameState => {
+                        if loading() {
+                            continue;
                         }
-                    }
-                    Err(_e) => {
-                        // Silent: transient network errors will be retried next tick.
+                        if let Some(current) = game() {
+                            if matches!(current.state, GameState::Finished) {
+                                break;
+                            }
+                        }
+                        match get_game(game_id).await {
+                            Ok(updated) => {
+                                if game().as_ref() != Some(&updated) {
+                                    game.set(Some(updated));
+                                }
+                            }
+                            Err(_e) => {
+                                // Silent failure; retry on next tick.
+                            }
+                        }
                     }
                 }
             }
+        });
+
+        // Periodic sender effect: dispatch GetGameState every 1s until game finished.
+        use_effect(move || {
+            spawn(async move {
+                loop {
+                    gloo_timers::future::TimeoutFuture::new(1000).await;
+                    if loading() {
+                        continue;
+                    }
+                    if let Some(current) = game() {
+                        if matches!(current.state, GameState::Finished) {
+                            break;
+                        }
+                    }
+                    sync.send(SyncAction::GetGameState);
+                }
+            });
         });
     }
 
