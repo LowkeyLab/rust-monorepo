@@ -1,7 +1,7 @@
 use crate::components::{ErrorMessage, Header, LoadingSpinner};
 use dioxus::prelude::*;
 use gloo_storage::{LocalStorage, Storage};
-use mindreadr_core::PlayerId;
+use mindreadr_core::game::PlayerId;
 use mindreadr_core::{Game, GameState};
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "server")]
