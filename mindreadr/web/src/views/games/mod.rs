@@ -40,8 +40,20 @@ pub fn Games() -> Element {
     });
 
     let handle_create_game = move |_| {
-        // TODO: Implement actual game creation logic
-        println!("Creating new game for user: {:?}", user_name());
+        let name = user_name().unwrap_or_else(|| "New Game".to_string());
+        let mut games_signal = games;
+        let mut error_signal = error;
+        spawn(async move {
+            match create_game(name).await {
+                Ok(new_game) => {
+                    // Prepend the newly created game to the list
+                    games_signal.write().insert(0, new_game);
+                }
+                Err(e) => {
+                    error_signal.set(Some(format!("Failed to create game: {}", e)));
+                }
+            }
+        });
     };
 
     rsx! {
@@ -65,6 +77,7 @@ pub fn Games() -> Element {
     }
 }
 
+/// Lightweight summary of a game used for UI rendering.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct GameSummary {
     pub id: u32,
@@ -90,4 +103,13 @@ async fn get_games() -> Result<Vec<GameSummary>, ServerFnError> {
     let db = get_db_pool().await;
     let games = backend::get_games(GameState::WaitingForPlayers)(db).await?;
     Ok(games.into_iter().map(Game::into).collect())
+}
+
+/// Server function that creates a new game with the provided name and returns a summary.
+#[server]
+async fn create_game(name: String) -> Result<GameSummary, ServerFnError> {
+    use crate::server::get_db_pool;
+    let db = get_db_pool().await;
+    let game = backend::create_game(name)(db).await?;
+    Ok(game.into())
 }

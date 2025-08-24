@@ -2,7 +2,7 @@
 use crate::server::entities;
 use anyhow::Result;
 use mindreadr_core::{Game, GameState, PlayerName};
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use std::future::Future;
 use std::pin::Pin;
 
@@ -15,6 +15,7 @@ pub enum Error {
 }
 
 type GamesFuture<'a> = Box<dyn Future<Output = Result<Vec<Game>, Error>> + Send + 'a>;
+type GameFuture<'a> = Box<dyn Future<Output = Result<Game, Error>> + Send + 'a>;
 
 /// Returns an async function that, given a database connection, fetches all games in the
 /// provided state and converts them into the core `Game` domain model.
@@ -31,6 +32,12 @@ pub fn get_games(state: GameState) -> impl Fn(&DatabaseConnection) -> Pin<GamesF
 
         Box::pin(get_games_with_state(db, entity_state))
     }
+}
+
+/// Returns an async function that, given a database connection, creates a new game in the
+/// database with the supplied `name` and returns the core `Game` domain model.
+pub fn create_game(name: String) -> impl Fn(&DatabaseConnection) -> Pin<GameFuture<'_>> {
+    move |db: &DatabaseConnection| Box::pin(create_game_inner(db, name.clone()))
 }
 
 async fn get_games_with_state(
@@ -65,4 +72,27 @@ async fn get_games_with_state(
         });
     }
     Ok(games)
+}
+
+async fn create_game_inner(db: &DatabaseConnection, name: String) -> Result<Game, Error> {
+    let new_model = entities::games::ActiveModel {
+        players: Set(serde_json::json!([])),
+        name: Set(if name.trim().is_empty() {
+            "New Game".to_string()
+        } else {
+            name
+        }),
+        state: Set(entities::sea_orm_active_enums::GameState::WaitingForPlayers),
+        ..Default::default()
+    }
+    .insert(db)
+    .await?;
+
+    Ok(Game {
+        id: new_model.id as u32,
+        players: vec![],
+        rounds: vec![],
+        current_round: None,
+        state: GameState::WaitingForPlayers,
+    })
 }
