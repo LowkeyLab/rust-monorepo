@@ -9,11 +9,11 @@ use std::pin::Pin;
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("Database error: {0}")]
-    DatabaseError(#[from] sea_orm::DbErr),
+    Database(#[from] sea_orm::DbErr),
     #[error("Invalid players JSON: {0}")]
-    PlayersJsonError(#[from] serde_json::Error),
+    PlayersJson(#[from] serde_json::Error),
     #[error("Game domain error: {0}")]
-    DomainGameError(#[from] DomainGameError),
+    Domain(#[from] DomainGameError),
 }
 
 type GamesFuture<'a> = Box<dyn Future<Output = Result<Vec<Game>, Error>> + Send + 'a>;
@@ -115,9 +115,10 @@ async fn add_player_inner(db: &DatabaseConnection, game_id: u32) -> Result<AddPl
         .one(db)
         .await?
     else {
-        return Err(Error::DatabaseError(sea_orm::DbErr::RecordNotFound(
-            format!("game {} not found", game_id),
-        )));
+        return Err(Error::Database(sea_orm::DbErr::RecordNotFound(format!(
+            "game {} not found",
+            game_id
+        ))));
     };
 
     // Build domain game from DB state
