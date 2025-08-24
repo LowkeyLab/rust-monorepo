@@ -1,4 +1,5 @@
 use super::*;
+use crate::Route;
 
 /// Header section for the games page with title and description
 #[component]
@@ -98,13 +99,13 @@ pub fn GameCard(game: GameSummary) -> Element {
 
                 div { class: "pt-4",
                     if matches!(game.state, GameState::WaitingForPlayers) && game.player_count < 2 {
-                        button {
-                            class: "w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors",
+                        Link { to: Route::GameLobby { game_id: game.id },
+                            class: "w-full inline-block text-center bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors",
                             "Join Game"
                         }
                     } else if matches!(game.state, GameState::InProgress) {
-                        button {
-                            class: "w-full bg-green-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-green-700 transition-colors",
+                        Link { to: Route::GameLobby { game_id: game.id },
+                            class: "w-full inline-block text-center bg-green-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-green-700 transition-colors",
                             "Watch Game"
                         }
                     } else {

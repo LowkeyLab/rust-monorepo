@@ -5,7 +5,7 @@ use mindreadr_core::PlayerName;
 use mindreadr_core::{Game, GameState};
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "server")]
-mod backend;
+pub mod backend; // made public
 mod components;
 
 #[component]

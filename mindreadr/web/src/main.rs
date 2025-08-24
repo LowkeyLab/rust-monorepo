@@ -7,15 +7,18 @@ mod server;
 mod state;
 mod views;
 
-use views::{Games, Home, NotFound};
+use views::{GameLobby, Games, Home, NotFound};
 
+/// Application route definitions used by the Dioxus router.
 #[derive(Debug, Clone, Routable, PartialEq)]
 #[rustfmt::skip]
-enum Route {
+pub enum Route { // made public
     #[route("/")]
     Home {},
     #[route("/games")]
     Games {},
+    #[route("/games/:game_id")]
+    GameLobby { game_id: u32 },
     #[route("/:..route")]
     NotFound { route: Vec<String> },
 }

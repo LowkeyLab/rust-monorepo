@@ -6,6 +6,7 @@ use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, Qu
 use std::future::Future;
 use std::pin::Pin;
 
+/// Error type covering database, deserialization, and domain errors when working with games.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("Database error: {0}")]
@@ -43,13 +44,17 @@ pub fn get_games(state: GameState) -> impl Fn(&DatabaseConnection) -> Pin<GamesF
     }
 }
 
-/// Returns an async function that, given a database connection, creates a new game in the
-/// database with the supplied `name` and returns the core `Game` domain model.
+/// Returns an async function that creates a new empty game and returns the core `Game` model.
 pub fn create_game() -> impl Fn(&DatabaseConnection) -> Pin<GameFuture<'_>> {
     move |db: &DatabaseConnection| Box::pin(create_game_inner(db))
 }
 
-/// Returns an async function that adds a player to the given game id, returning the updated Game.
+/// Returns an async function that fetches a single game by id or errors if not found.
+pub fn get_game(game_id: u32) -> impl Fn(&DatabaseConnection) -> Pin<GameFuture<'_>> {
+    move |db: &DatabaseConnection| Box::pin(get_game_inner(db, game_id))
+}
+
+/// Returns an async function that adds a player to the specified game id.
 pub fn add_player(game_id: u32) -> impl Fn(&DatabaseConnection) -> Pin<PlayerAddedFuture<'_>> {
     move |db: &DatabaseConnection| Box::pin(add_player_inner(db, game_id))
 }
@@ -104,6 +109,37 @@ async fn create_game_inner(db: &DatabaseConnection) -> Result<Game, Error> {
         rounds: vec![],
         current_round: None,
         state: GameState::WaitingForPlayers,
+    })
+}
+
+/// Fetch a single game by id, returning a domain `Game` or an error if not found.
+async fn get_game_inner(db: &DatabaseConnection, game_id: u32) -> Result<Game, Error> {
+    let Some(model) = entities::games::Entity::find_by_id(game_id as i32)
+        .one(db)
+        .await?
+    else {
+        return Err(Error::Database(sea_orm::DbErr::RecordNotFound(format!(
+            "game {} not found",
+            game_id
+        ))));
+    };
+
+    let game_state = match model.state {
+        entities::sea_orm_active_enums::GameState::WaitingForPlayers => {
+            GameState::WaitingForPlayers
+        }
+        entities::sea_orm_active_enums::GameState::InProgress => GameState::InProgress,
+        entities::sea_orm_active_enums::GameState::Finished => GameState::Finished,
+    };
+    let raw_players: Vec<String> = serde_json::from_value(model.players)?;
+    let player_ids: Vec<PlayerName> = raw_players.into_iter().collect();
+
+    Ok(Game {
+        id: model.id as u32,
+        state: game_state,
+        players: player_ids,
+        rounds: vec![],
+        current_round: None,
     })
 }
 
