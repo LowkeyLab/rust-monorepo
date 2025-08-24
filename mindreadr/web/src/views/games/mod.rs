@@ -10,18 +10,24 @@ mod lobby; // new
 pub use lobby::GameLobby; // re-export
 
 #[component]
+/// Games page listing waiting games and showing in-progress game count.
 pub fn Games() -> Element {
     let mut games = use_signal(Vec::<GameSummary>::new);
     let mut loading = use_signal(|| true);
     let mut error = use_signal(|| None::<String>);
+    let mut in_progress_count = use_signal(|| 0usize);
     let nav = use_navigator();
 
-    // Initial load: fetch games list
+    // Initial load: fetch games list and in-progress count
     use_effect(move || {
         spawn(async move {
-            // Load games
+            // Load waiting games
             match get_games().await {
                 Ok(live_games) => {
+                    in_progress_count.set(match get_in_progress_game_count().await {
+                        Ok(count) => count,
+                        Err(_) => 0, // Silently ignore count errors for now; primary list already loaded
+                    });
                     games.set(live_games);
                     loading.set(false);
                 }
@@ -57,7 +63,7 @@ pub fn Games() -> Element {
 
         main { class: "min-h-screen bg-gray-50 py-8",
             div { class: "max-w-6xl mx-auto px-6",
-                components::GamesHeader {}
+                components::GamesHeader { in_progress_count: in_progress_count() }
 
                 if loading() {
                     LoadingSpinner { message: "Loading games...".to_string() }
@@ -93,12 +99,22 @@ impl From<Game> for GameSummary {
     }
 }
 
+/// Server function that returns all games currently waiting for players.
 #[server]
 async fn get_games() -> Result<Vec<GameSummary>, ServerFnError> {
     use crate::server::get_db_pool;
     let db = get_db_pool().await;
     let games = backend::get_games(GameState::WaitingForPlayers)(db).await?;
     Ok(games.into_iter().map(Game::into).collect())
+}
+
+/// Server function that returns the number of games currently in progress.
+#[server]
+async fn get_in_progress_game_count() -> Result<usize, ServerFnError> {
+    use crate::server::get_db_pool;
+    let db = get_db_pool().await;
+    let games = backend::get_games(GameState::InProgress)(db).await?;
+    Ok(games.len())
 }
 
 /// Server function that creates a new empty game (no players) and returns a summary.

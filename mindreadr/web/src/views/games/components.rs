@@ -1,15 +1,16 @@
 use super::*;
 use crate::Route;
 
-/// Header section for the games page with title and description
+/// Header section for the games page with title, description, and in-progress count.
 #[component]
-pub fn GamesHeader() -> Element {
+pub fn GamesHeader(in_progress_count: usize) -> Element {
     rsx! {
         div { class: "text-center mb-8",
-            h1 { class: "text-4xl font-bold text-gray-900 mb-4", "Live Games" }
-            p { class: "text-lg text-gray-600",
+            h1 { class: "text-4xl font-bold text-gray-900 mb-2", "Live Games" }
+            p { class: "text-lg text-gray-600 mb-2",
                 "Join an existing game or create a new one to start playing!"
             }
+            div { class: "text-sm text-gray-500", "Games in progress right now: {in_progress_count}" }
         }
     }
 }
