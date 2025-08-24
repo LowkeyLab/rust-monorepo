@@ -46,7 +46,24 @@ pub fn get_games(state: GameState) -> impl Fn(&DatabaseConnection) -> Pin<GamesF
 
 /// Returns an async function that creates a new empty game and returns the core `Game` model.
 pub fn create_game() -> impl Fn(&DatabaseConnection) -> Pin<GameFuture<'_>> {
-    move |db: &DatabaseConnection| Box::pin(create_game_inner(db))
+    move |db: &DatabaseConnection| {
+        Box::pin(async move {
+            let new_model = entities::games::ActiveModel {
+                state: Set(entities::sea_orm_active_enums::GameState::WaitingForPlayers),
+                ..Default::default()
+            }
+            .insert(db)
+            .await?;
+
+            Ok(Game {
+                id: new_model.id as u32,
+                players: vec![],
+                rounds: vec![],
+                current_round: None,
+                state: GameState::WaitingForPlayers,
+            })
+        })
+    }
 }
 
 /// Returns an async function that fetches a single game by id or errors if not found.
@@ -109,24 +126,6 @@ async fn get_games_with_state(
         });
     }
     Ok(games_out)
-}
-
-async fn create_game_inner(db: &DatabaseConnection) -> Result<Game, Error> {
-    let new_model = entities::games::ActiveModel {
-        name: Set("New Game".to_string()),
-        state: Set(entities::sea_orm_active_enums::GameState::WaitingForPlayers),
-        ..Default::default()
-    }
-    .insert(db)
-    .await?;
-
-    Ok(Game {
-        id: new_model.id as u32,
-        players: vec![],
-        rounds: vec![],
-        current_round: None,
-        state: GameState::WaitingForPlayers,
-    })
 }
 
 /// Fetch a single game by id, returning a domain `Game` or an error if not found.
