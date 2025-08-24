@@ -13,18 +13,10 @@ pub fn Games() -> Element {
     let mut games = use_signal(Vec::<GameSummary>::new);
     let mut loading = use_signal(|| true);
     let mut error = use_signal(|| None::<String>);
-    let mut user_name = use_signal(|| None::<String>);
 
     // Load username from storage on component mount
     use_effect(move || {
         spawn(async move {
-            // Load username from storage
-            if let Ok(stored_name) = LocalStorage::get::<String>("user_name") {
-                if !stored_name.trim().is_empty() {
-                    user_name.set(Some(stored_name));
-                }
-            }
-
             // Load games
             match get_games().await {
                 Ok(live_games) => {
@@ -40,23 +32,35 @@ pub fn Games() -> Element {
     });
 
     let handle_create_game = move |_| {
-        let player_name = user_name().unwrap_or_else(|| "".to_string());
         let mut games_signal = games;
         let mut error_signal = error;
-        let mut user_name_signal = user_name;
         spawn(async move {
-            match create_game(player_name).await {
-                Ok(resp) => {
-                    // Save (sanitized) player name if not already stored
-                    if user_name_signal().is_none() {
-                        LocalStorage::set("user_name", resp.player_name.clone()).ok();
-                        user_name_signal.set(Some(resp.player_name.clone()));
-                    }
-                    // Prepend the newly created game to the list
-                    games_signal.write().insert(0, resp.game);
-                }
+            // 1. Create empty game
+            let created = match create_game().await {
+                Ok(g) => g,
                 Err(e) => {
                     error_signal.set(Some(format!("Failed to create game: {}", e)));
+                    return;
+                }
+            };
+            let created_id = created.id;
+            // Insert placeholder (empty) game at top immediately for responsiveness
+            {
+                let mut list = games_signal.write();
+                list.insert(0, created.clone());
+            }
+            // 2. Join game to get assigned player id and updated state
+            match join_game(created_id).await {
+                Ok(resp) => {
+                    set_game_player_cookie(resp.game.id, &resp.player_name);
+                    let mut list = games_signal.write();
+                    if let Some(pos) = list.iter().position(|g| g.id == resp.game.id) {
+                        list.remove(pos);
+                    }
+                    list.insert(0, resp.game);
+                }
+                Err(e) => {
+                    error_signal.set(Some(format!("Failed to join game {}: {}", created_id, e)));
                 }
             }
         });
@@ -111,28 +115,41 @@ async fn get_games() -> Result<Vec<GameSummary>, ServerFnError> {
     Ok(games.into_iter().map(Game::into).collect())
 }
 
-/// Server function that creates a new game with the provided name and returns a summary.
+/// Server function that creates a new empty game (no players) and returns a summary.
 #[server]
-async fn create_game(player_name: String) -> Result<CreateGameResponse, ServerFnError> {
+async fn create_game() -> Result<GameSummary, ServerFnError> {
     use crate::server::get_db_pool;
     let db = get_db_pool().await;
-    let game = backend::create_game(player_name)(db).await?;
-    let player_name = game
-        .players
-        .first()
-        .cloned()
-        .unwrap_or_else(|| "Player1".to_string());
-    Ok(CreateGameResponse {
-        game: game.into(),
-        player_name,
+    let game = backend::create_game()(db).await?;
+    Ok(game.into())
+}
+
+/// Server function that adds a player to the specified game and returns the updated game and assigned player name.
+#[server]
+async fn join_game(game_id: u32) -> Result<JoinGameResponse, ServerFnError> {
+    use crate::server::get_db_pool;
+    let db = get_db_pool().await;
+    let result = backend::add_player(game_id)(db).await?;
+    Ok(JoinGameResponse {
+        game: result.game.into(),
+        player_name: result.player_id,
     })
 }
 
-/// Response payload for the create_game server function.
+/// Response payload when joining a game (adding a player).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct CreateGameResponse {
-    /// Newly created game summary.
+pub struct JoinGameResponse {
+    /// Updated game after adding the player.
     pub game: GameSummary,
-    /// The (possibly sanitized) player name that was added as the first player.
+    /// Player name assigned by core game logic (e.g., "Player1", "Player2").
     pub player_name: String,
+}
+
+fn set_game_player_cookie(game_id: u32, player_name: &str) {
+    use wasm_bindgen::JsCast;
+    if let Some(win) = web_sys::window() {
+        if let Some(doc) = win.document() {
+            let _ = doc.set_cookie(&format!("game_player_{}={}; path=/", game_id, player_name));
+        }
+    }
 }
