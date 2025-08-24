@@ -2,6 +2,7 @@
 
 pub mod prelude;
 
+pub mod game_players;
 pub mod games;
 pub mod round_guesses;
 pub mod rounds;

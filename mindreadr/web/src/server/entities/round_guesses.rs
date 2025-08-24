@@ -10,12 +10,20 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub round_number: i32,
     #[sea_orm(primary_key, auto_increment = false)]
-    pub player_id: i32,
+    pub player_name: String,
     pub guess: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
+    #[sea_orm(
+        belongs_to = "super::game_players::Entity",
+        from = "(Column::GameId, Column::PlayerName)",
+        to = "(super::game_players::Column::GameId, super::game_players::Column::Name)",
+        on_update = "NoAction",
+        on_delete = "Cascade"
+    )]
+    GamePlayers,
     #[sea_orm(
         belongs_to = "super::games::Entity",
         from = "Column::GameId",
@@ -26,9 +34,18 @@ pub enum Relation {
     Games,
 }
 
+impl Related<super::game_players::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::GamePlayers.def()
+    }
+}
+
 impl Related<super::games::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::Games.def()
+        super::game_players::Relation::Games.def()
+    }
+    fn via() -> Option<RelationDef> {
+        Some(super::game_players::Relation::RoundGuesses.def().rev())
     }
 }
 
