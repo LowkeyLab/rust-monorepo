@@ -54,9 +54,11 @@ pub fn get_game(game_id: u32) -> impl Fn(&DatabaseConnection) -> Pin<GameFuture<
     move |db: &DatabaseConnection| Box::pin(get_game_inner(db, game_id))
 }
 
-/// Returns an async function that adds a player to the specified game id.
-pub fn add_player(game_id: u32) -> impl Fn(&DatabaseConnection) -> Pin<PlayerAddedFuture<'_>> {
-    move |db: &DatabaseConnection| Box::pin(add_player_inner(db, game_id))
+/// Returns an async function (curried) that, when supplied a database connection, fetches the game
+/// with the provided id or returns an error if it does not exist. This mirrors the currying style
+/// used by other helper constructors.
+pub fn get_games_with_id(game_id: u32) -> impl Fn(&DatabaseConnection) -> Pin<GameFuture<'_>> {
+    move |db: &DatabaseConnection| Box::pin(get_game_inner(db, game_id))
 }
 
 async fn get_games_with_state(
