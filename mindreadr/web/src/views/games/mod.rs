@@ -1,9 +1,9 @@
 use crate::components::{ErrorMessage, Header, LoadingSpinner};
-use crate::state::use_game_player_map;
+use crate::Route;
 use dioxus::prelude::*;
 use mindreadr_core::PlayerName;
 use mindreadr_core::{Game, GameState};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize}; // new for navigation
 #[cfg(feature = "server")]
 pub mod backend; // made public
 mod components;
@@ -15,6 +15,7 @@ pub fn Games() -> Element {
     let mut games = use_signal(Vec::<GameSummary>::new);
     let mut loading = use_signal(|| true);
     let mut error = use_signal(|| None::<String>);
+    let nav = use_navigator();
 
     // Initial load: fetch games list
     use_effect(move || {
@@ -34,38 +35,19 @@ pub fn Games() -> Element {
     });
 
     let handle_create_game = move |_| {
+        let nav = nav.clone();
         spawn(async move {
-            let game_player_map = use_game_player_map();
-            // 1. Create empty game
-            let created = match create_game().await {
-                Ok(g) => g,
+            match create_game().await {
+                Ok(created) => {
+                    // Optimistically insert into list (optional UI improvement)
+                    games.write().insert(0, created.clone());
+                    // Navigate to lobby where auto-join will occur
+                    nav.push(Route::GameLobby {
+                        game_id: created.id,
+                    });
+                }
                 Err(e) => {
                     error.set(Some(format!("Failed to create game: {}", e)));
-                    return;
-                }
-            };
-            let created_id = created.id;
-            // Insert placeholder (empty) game at top immediately for responsiveness
-            {
-                let mut list = games.write();
-                list.insert(0, created.clone());
-            }
-            // 2. Join game to get assigned player id and updated state
-            match join_game(created_id).await {
-                Ok(resp) => {
-                    // Persist mapping (game id -> player name)
-                    let mut map_handle = game_player_map; // Copy handle, make mutable for &mut self method
-                    map_handle.update(|m| {
-                        m.assign(resp.game.id, resp.player_name.clone());
-                    });
-                    let mut list = games.write();
-                    if let Some(pos) = list.iter().position(|g| g.id == resp.game.id) {
-                        list.remove(pos);
-                    }
-                    list.insert(0, resp.game);
-                }
-                Err(e) => {
-                    error.set(Some(format!("Failed to join game {}: {}", created_id, e)));
                 }
             }
         });
@@ -127,25 +109,4 @@ async fn create_game() -> Result<GameSummary, ServerFnError> {
     let db = get_db_pool().await;
     let game = backend::create_game()(db).await?;
     Ok(game.into())
-}
-
-/// Server function that adds a player to the specified game and returns the updated game and assigned player name.
-#[server]
-async fn join_game(game_id: u32) -> Result<JoinGameResponse, ServerFnError> {
-    use crate::server::get_db_pool;
-    let db = get_db_pool().await;
-    let result = backend::add_player(game_id)(db).await?;
-    Ok(JoinGameResponse {
-        game: result.game.into(),
-        player_name: result.player_id,
-    })
-}
-
-/// Response payload when joining a game (adding a player).
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct JoinGameResponse {
-    /// Updated game after adding the player.
-    pub game: GameSummary,
-    /// Player name assigned by core game logic (e.g., "Player1", "Player2").
-    pub player_name: String,
 }
