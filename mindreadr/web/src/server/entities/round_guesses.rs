@@ -3,12 +3,15 @@
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "rounds")]
+#[sea_orm(table_name = "round_guesses")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub game_id: i32,
     #[sea_orm(primary_key, auto_increment = false)]
-    pub number: i32,
+    pub round_number: i32,
+    #[sea_orm(primary_key, auto_increment = false)]
+    pub player_id: i32,
+    pub guess: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

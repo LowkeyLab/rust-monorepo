@@ -44,8 +44,9 @@ enum RoundGuesses {
 }
 
 const FK_ROUNDS_TO_GAMES: &str = "fk-rounds-game_id";
-const ROUNDS_UNIQUE_CONSTRAINT: &str = "idx-rounds-game_id-number";
-const ROUND_GUESSES_UNIQUE_CONSTRAINT: &str = "idx-round_guesses-game_id-round_number-player_id";
+const PK_ROUNDS: &str = "idx-rounds-game_id-number";
+const PK_ROUND_GUESSES: &str = "idx-round_guesses-game_id-round_number-player_id";
+const FK_ROUNDS_GUESSES_TO_GAMES: &str = "fk-round_guesses-game_id";
 
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
@@ -90,7 +91,22 @@ impl MigrationTrait for Migration {
                     .table(Rounds::Table)
                     .if_not_exists()
                     .col(integer(Rounds::GameId))
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name(FK_ROUNDS_TO_GAMES)
+                            .from(Rounds::Table, Rounds::GameId)
+                            .to(Games::Table, Games::Id)
+                            .on_delete(ForeignKeyAction::Cascade)
+                            .on_update(ForeignKeyAction::NoAction),
+                    )
                     .col(integer(Rounds::Number))
+                    .primary_key(
+                        Index::create()
+                            .name(PK_ROUNDS)
+                            .table(Rounds::Table)
+                            .col(Rounds::GameId)
+                            .col(Rounds::Number),
+                    )
                     .to_owned(),
             )
             .await?;
@@ -104,55 +120,22 @@ impl MigrationTrait for Migration {
                     .col(integer(RoundGuesses::RoundNumber))
                     .col(integer(RoundGuesses::PlayerId))
                     .col(string(RoundGuesses::Guess))
-                    .to_owned(),
-            )
-            .await?;
-
-        manager
-            .create_foreign_key(
-                ForeignKey::create()
-                    .name(FK_ROUNDS_TO_GAMES)
-                    .from(Rounds::Table, Rounds::GameId)
-                    .to(Games::Table, Games::Id)
-                    .on_delete(ForeignKeyAction::Cascade)
-                    .on_update(ForeignKeyAction::NoAction)
-                    .to_owned(),
-            )
-            .await?;
-
-        manager
-            .create_index(
-                Index::create()
-                    .name(ROUNDS_UNIQUE_CONSTRAINT)
-                    .table(Rounds::Table)
-                    .col(Rounds::GameId)
-                    .col(Rounds::Number)
-                    .unique()
-                    .to_owned(),
-            )
-            .await?;
-
-        manager
-            .create_index(
-                Index::create()
-                    .name(ROUND_GUESSES_UNIQUE_CONSTRAINT)
-                    .table(RoundGuesses::Table)
-                    .col(RoundGuesses::GameId)
-                    .col(RoundGuesses::RoundNumber)
-                    .col(RoundGuesses::PlayerId)
-                    .unique()
-                    .to_owned(),
-            )
-            .await?;
-
-        manager
-            .create_foreign_key(
-                ForeignKey::create()
-                    .name("fk-round_guesses-game_id")
-                    .from(RoundGuesses::Table, RoundGuesses::GameId)
-                    .to(Games::Table, Games::Id)
-                    .on_delete(ForeignKeyAction::Cascade)
-                    .on_update(ForeignKeyAction::NoAction)
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name(FK_ROUNDS_GUESSES_TO_GAMES)
+                            .from(RoundGuesses::Table, RoundGuesses::GameId)
+                            .to(Games::Table, Games::Id)
+                            .on_delete(ForeignKeyAction::Cascade)
+                            .on_update(ForeignKeyAction::NoAction),
+                    )
+                    .primary_key(
+                        Index::create()
+                            .name(PK_ROUND_GUESSES)
+                            .table(RoundGuesses::Table)
+                            .col(RoundGuesses::GameId)
+                            .col(RoundGuesses::RoundNumber)
+                            .col(RoundGuesses::PlayerId),
+                    )
                     .to_owned(),
             )
             .await
@@ -169,12 +152,15 @@ impl MigrationTrait for Migration {
             .drop_table(Table::drop().table(RoundGuesses::Table).to_owned())
             .await?;
         manager
-            .drop_index(Index::drop().name(ROUNDS_UNIQUE_CONSTRAINT).to_owned())
+            .drop_index(Index::drop().name(PK_ROUNDS).to_owned())
             .await?;
         manager
-            .drop_index(
-                Index::drop()
-                    .name(ROUND_GUESSES_UNIQUE_CONSTRAINT)
+            .drop_index(Index::drop().name(PK_ROUND_GUESSES).to_owned())
+            .await?;
+        manager
+            .drop_foreign_key(
+                ForeignKey::drop()
+                    .name(FK_ROUNDS_GUESSES_TO_GAMES)
                     .to_owned(),
             )
             .await?;

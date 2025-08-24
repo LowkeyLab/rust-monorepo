@@ -3,4 +3,6 @@
 pub mod prelude;
 
 pub mod games;
+pub mod round_guesses;
 pub mod rounds;
+pub mod sea_orm_active_enums;
