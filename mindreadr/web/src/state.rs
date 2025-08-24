@@ -9,48 +9,32 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-const STORAGE_KEY: &str = "mindreadr_state";
+/// Storage key for the per-game player mapping.
+const GAME_PLAYER_MAP_KEY: &str = "game_player_map";
 
-/// Client-side persisted state for the Mindreadr application.
-///
-/// This stores per-game player identifiers assigned by the server / core logic
-/// (e.g. "Player1", "Player2") so the client can remember which player it is
-/// when interacting with an existing game.
+/// Minimal client-side state holding only the mapping from game id to the
+/// locally assigned player name (e.g. "Player1", "Player2").
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
-pub struct MindreadrState {
-    /// Mapping of game id -> player name assigned in that game.
-    pub game_players: HashMap<u32, String>,
+pub struct GamePlayerMap {
+    /// Map of game id -> player name.
+    pub by_game: HashMap<u32, String>,
 }
 
-impl MindreadrState {
-    /// Loads the state from LocalStorage, returning an empty default if none present
-    /// or if deserialization fails.
-    pub fn load() -> Self {
-        LocalStorage::get::<MindreadrState>(STORAGE_KEY).unwrap_or_default()
+impl GamePlayerMap {
+    /// Assigns (or overwrites) the player name for a game.
+    pub fn assign(&mut self, game_id: u32, player_name: String) {
+        self.by_game.insert(game_id, player_name);
     }
 
-    /// Persists the current state snapshot into LocalStorage.
-    pub fn save(&self) {
-        let _ = LocalStorage::set(STORAGE_KEY, self);
-    }
-
-    /// Inserts / updates the player name for a game and immediately persists the change.
-    pub fn set_player_for_game(&mut self, game_id: u32, player_name: String) {
-        self.game_players.insert(game_id, player_name);
-        self.save();
-    }
-
-    /// Gets the stored player name for a given game id, if any.
-    pub fn player_for_game(&self, game_id: u32) -> Option<&str> {
-        self.game_players.get(&game_id).map(|s| s.as_str())
+    /// Returns the stored player name for a game, if any.
+    pub fn get(&self, game_id: u32) -> Option<&str> {
+        self.by_game.get(&game_id).map(|s| s.as_str())
     }
 }
 
-/// Convenience hook for accessing the global MindreadrState persisted in LocalStorage.
-///
-/// Returns a UsePersistent<MindreadrState> handle with helper update semantics.
-pub fn use_mindreadr_state() -> UsePersistent<MindreadrState> {
-    use_persistent("mindreadr_state", MindreadrState::default)
+/// Hook returning a persistent GamePlayerMap stored in LocalStorage.
+pub fn use_game_player_map() -> UsePersistent<GamePlayerMap> {
+    use_persistent(GAME_PLAYER_MAP_KEY, GamePlayerMap::default)
 }
 
 /// A persistent storage hook that can be used to store data across application reloads.

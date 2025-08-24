@@ -1,5 +1,5 @@
 use crate::components::{ErrorMessage, Header, LoadingSpinner};
-use crate::state::use_mindreadr_state;
+use crate::state::use_game_player_map;
 use dioxus::prelude::*;
 use mindreadr_core::PlayerName;
 use mindreadr_core::{Game, GameState};
@@ -13,7 +13,6 @@ pub fn Games() -> Element {
     let mut games = use_signal(Vec::<GameSummary>::new);
     let mut loading = use_signal(|| true);
     let mut error = use_signal(|| None::<String>);
-    let client_state = use_mindreadr_state();
 
     // Initial load: fetch games list
     use_effect(move || {
@@ -33,39 +32,38 @@ pub fn Games() -> Element {
     });
 
     let handle_create_game = move |_| {
-        let mut games_signal = games;
-        let mut error_signal = error;
         spawn(async move {
+            let game_player_map = use_game_player_map();
             // 1. Create empty game
             let created = match create_game().await {
                 Ok(g) => g,
                 Err(e) => {
-                    error_signal.set(Some(format!("Failed to create game: {}", e)));
+                    error.set(Some(format!("Failed to create game: {}", e)));
                     return;
                 }
             };
             let created_id = created.id;
             // Insert placeholder (empty) game at top immediately for responsiveness
             {
-                let mut list = games_signal.write();
+                let mut list = games.write();
                 list.insert(0, created.clone());
             }
             // 2. Join game to get assigned player id and updated state
             match join_game(created_id).await {
                 Ok(resp) => {
-                    // Persist mapping in client state
-                    client_state.update(|st| {
-                        st.game_players
-                            .insert(resp.game.id, resp.player_name.clone());
+                    // Persist mapping (game id -> player name)
+                    let mut map_handle = game_player_map; // Copy handle, make mutable for &mut self method
+                    map_handle.update(|m| {
+                        m.assign(resp.game.id, resp.player_name.clone());
                     });
-                    let mut list = games_signal.write();
+                    let mut list = games.write();
                     if let Some(pos) = list.iter().position(|g| g.id == resp.game.id) {
                         list.remove(pos);
                     }
                     list.insert(0, resp.game);
                 }
                 Err(e) => {
-                    error_signal.set(Some(format!("Failed to join game {}: {}", created_id, e)));
+                    error.set(Some(format!("Failed to join game {}: {}", created_id, e)));
                 }
             }
         });
