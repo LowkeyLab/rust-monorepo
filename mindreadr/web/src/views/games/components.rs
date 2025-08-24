@@ -1,16 +1,45 @@
 use super::*;
 use crate::Route;
 
-/// Header section for the games page with title, description, and in-progress count.
+/// Header section for the games page with title and description.
 #[component]
-pub fn GamesHeader(in_progress_count: usize) -> Element {
+pub fn GamesHeader() -> Element {
     rsx! {
         div { class: "text-center mb-8",
             h1 { class: "text-4xl font-bold text-gray-900 mb-2", "Live Games" }
             p { class: "text-lg text-gray-600 mb-2",
                 "Join an existing game or create a new one to start playing!"
             }
-            div { class: "text-sm text-gray-500", "Games in progress right now: {in_progress_count}" }
+            InProgressGameCount {}
+        }
+    }
+}
+
+/// Displays the number of games currently in progress, fetching asynchronously.
+#[component]
+pub fn InProgressGameCount() -> Element {
+    let mut count = use_signal(|| Option::<usize>::None);
+    let mut error = use_signal(|| Option::<String>::None);
+
+    // Fetch once on mount
+    use_effect(move || {
+        spawn(async move {
+            match get_in_progress_game_count().await {
+                Ok(c) => count.set(Some(c)),
+                Err(e) => error.set(Some(format!("{}", e))),
+            }
+        });
+    });
+
+    rsx! {
+        div {
+            if let Some(err) = error() {
+                span { class: "text-red-500", "{err}" }
+            } else if let Some(c) = count() {
+                span { class: "text-gray-500", "Games in progress right now: {c}" }
+            } else {
+                 span { class: "text-gray-400 animate-pulse", "Loading in-progress games…" }
+            }
         }
     }
 }

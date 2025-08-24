@@ -15,16 +15,14 @@ pub fn Games() -> Element {
     let mut games = use_signal(Vec::<GameSummary>::new);
     let mut loading = use_signal(|| true);
     let mut error = use_signal(|| None::<String>);
-    let mut in_progress_count = use_signal(|| 0usize);
     let nav = use_navigator();
 
-    // Initial load: fetch games list and in-progress count
+    // Initial load: fetch games list
     use_effect(move || {
         spawn(async move {
             // Load waiting games
             match get_games().await {
                 Ok(live_games) => {
-                    in_progress_count.set(get_in_progress_game_count().await.unwrap_or(0));
                     games.set(live_games);
                     loading.set(false);
                 }
@@ -60,7 +58,7 @@ pub fn Games() -> Element {
 
         main { class: "min-h-screen bg-gray-50 py-8",
             div { class: "max-w-6xl mx-auto px-6",
-                components::GamesHeader { in_progress_count: in_progress_count() }
+                components::GamesHeader {}
 
                 if loading() {
                     LoadingSpinner { message: "Loading games...".to_string() }
