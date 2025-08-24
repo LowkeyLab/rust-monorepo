@@ -36,7 +36,7 @@ pub fn InProgressGameCount() -> Element {
             if let Some(err) = error() {
                 span { class: "text-red-500", "{err}" }
             } else if let Some(c) = count() {
-                span { class: "text-gray-500", "Games in progress right now: {c}" }
+                span { class: "text-gray-500", "Games in progress: {c}" }
             } else {
                  span { class: "text-gray-400 animate-pulse", "Loading in-progress games…" }
             }
