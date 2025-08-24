@@ -1,6 +1,6 @@
 use crate::components::{ErrorMessage, Header, LoadingSpinner};
+use crate::state::use_mindreadr_state;
 use dioxus::prelude::*;
-use gloo_storage::{LocalStorage, Storage};
 use mindreadr_core::PlayerName;
 use mindreadr_core::{Game, GameState};
 use serde::{Deserialize, Serialize};
@@ -13,8 +13,9 @@ pub fn Games() -> Element {
     let mut games = use_signal(Vec::<GameSummary>::new);
     let mut loading = use_signal(|| true);
     let mut error = use_signal(|| None::<String>);
+    let client_state = use_mindreadr_state();
 
-    // Load username from storage on component mount
+    // Initial load: fetch games list
     use_effect(move || {
         spawn(async move {
             // Load games
@@ -52,7 +53,11 @@ pub fn Games() -> Element {
             // 2. Join game to get assigned player id and updated state
             match join_game(created_id).await {
                 Ok(resp) => {
-                    set_game_player_cookie(resp.game.id, &resp.player_name);
+                    // Persist mapping in client state
+                    client_state.update(|st| {
+                        st.game_players
+                            .insert(resp.game.id, resp.player_name.clone());
+                    });
                     let mut list = games_signal.write();
                     if let Some(pos) = list.iter().position(|g| g.id == resp.game.id) {
                         list.remove(pos);
@@ -143,13 +148,4 @@ pub struct JoinGameResponse {
     pub game: GameSummary,
     /// Player name assigned by core game logic (e.g., "Player1", "Player2").
     pub player_name: String,
-}
-
-fn set_game_player_cookie(game_id: u32, player_name: &str) {
-    use wasm_bindgen::JsCast;
-    if let Some(win) = web_sys::window() {
-        if let Some(doc) = win.document() {
-            let _ = doc.set_cookie(&format!("game_player_{}={}; path=/", game_id, player_name));
-        }
-    }
 }

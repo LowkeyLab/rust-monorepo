@@ -4,6 +4,7 @@ use tracing::Level;
 mod components;
 #[cfg(feature = "server")]
 mod server;
+mod state;
 mod views;
 
 use views::{Games, Home, NotFound};
