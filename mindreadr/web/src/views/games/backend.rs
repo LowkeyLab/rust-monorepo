@@ -1,7 +1,6 @@
 //! Backend helpers for fetching games from the database and mapping them into core domain models.
 use crate::server::entities;
 use crate::views::games::PlayerName;
-use anyhow::Result;
 use mindreadr_core::game::{Game, GameError as DomainGameError, GameState};
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use std::future::Future;
@@ -12,8 +11,6 @@ use std::pin::Pin;
 pub enum Error {
     #[error("Database error: {0}")]
     Database(#[from] sea_orm::DbErr),
-    #[error("Invalid stored JSON: {0}")]
-    DataDeserialization(#[from] serde_json::Error),
     #[error("Game domain error: {0}")]
     Domain(#[from] DomainGameError),
 }
@@ -32,7 +29,6 @@ pub struct AddPlayerResult {
 /// provided state and converts them into the core `Game` domain model.
 pub fn get_games(state: GameState) -> impl Fn(&DatabaseConnection) -> Pin<GamesFuture<'_>> {
     move |db: &DatabaseConnection| {
-        // Map core state to DB active enum
         let entity_state = match state {
             GameState::WaitingForPlayers => {
                 entities::sea_orm_active_enums::GameState::WaitingForPlayers
@@ -40,7 +36,6 @@ pub fn get_games(state: GameState) -> impl Fn(&DatabaseConnection) -> Pin<GamesF
             GameState::InProgress => entities::sea_orm_active_enums::GameState::InProgress,
             GameState::Finished => entities::sea_orm_active_enums::GameState::Finished,
         };
-
         Box::pin(get_games_with_state(db, entity_state))
     }
 }
@@ -55,36 +50,40 @@ pub fn get_game(game_id: u32) -> impl Fn(&DatabaseConnection) -> Pin<GameFuture<
     move |db: &DatabaseConnection| Box::pin(get_game_inner(db, game_id))
 }
 
+/// Adds a player to the game, identified by game_id. Returns the updated game and the new player ID.
+pub fn add_player(game_id: u32) -> impl Fn(&DatabaseConnection) -> Pin<PlayerAddedFuture<'_>> {
+    move |db: &DatabaseConnection| Box::pin(add_player_inner(db, game_id))
+}
+
 async fn get_games_with_state(
     db: &DatabaseConnection,
     entity_state: entities::sea_orm_active_enums::GameState,
 ) -> Result<Vec<Game>, Error> {
-    let games_with_state = entities::games::Entity::find()
-        .filter(entities::games::Column::State.eq(entity_state))
+    use entities::{game_players, games};
+
+    // Fetch games with their players in a single query using relation preloading.
+    let rows: Vec<(games::Model, Vec<game_players::Model>)> = games::Entity::find()
+        .filter(games::Column::State.eq(entity_state))
+        .find_with_related(game_players::Entity)
         .all(db)
         .await?;
 
-    let mut games = Vec::new();
-    for game in games_with_state {
-        let game_state = game.state.into();
-        // Expect players stored as a JSON array of strings
-        let raw_players: Vec<String> = serde_json::from_value(game.players)?;
-        let player_ids: Vec<PlayerName> = raw_players.into_iter().collect();
-
-        games.push(Game {
-            id: game.id as u32,
-            state: game_state,
-            players: player_ids,
+    let mut games_out = Vec::with_capacity(rows.len());
+    for (game_model, player_models) in rows {
+        let players: Vec<PlayerName> = player_models.into_iter().map(|p| p.name).collect();
+        games_out.push(Game {
+            id: game_model.id as u32,
+            state: game_model.state.into(),
+            players,
             rounds: vec![],
             current_round: None,
         });
     }
-    Ok(games)
+    Ok(games_out)
 }
 
 async fn create_game_inner(db: &DatabaseConnection) -> Result<Game, Error> {
     let new_model = entities::games::ActiveModel {
-        players: Set(serde_json::json!([])),
         name: Set("New Game".to_string()),
         state: Set(entities::sea_orm_active_enums::GameState::WaitingForPlayers),
         ..Default::default()
@@ -103,24 +102,28 @@ async fn create_game_inner(db: &DatabaseConnection) -> Result<Game, Error> {
 
 /// Fetch a single game by id, returning a domain `Game` or an error if not found.
 async fn get_game_inner(db: &DatabaseConnection, game_id: u32) -> Result<Game, Error> {
-    let Some(model) = entities::games::Entity::find_by_id(game_id as i32)
-        .one(db)
-        .await?
-    else {
+    use entities::{game_players, games};
+
+    // Load game and its players.
+    let rows: Vec<(games::Model, Vec<game_players::Model>)> = games::Entity::find()
+        .filter(games::Column::Id.eq(game_id as i32))
+        .find_with_related(game_players::Entity)
+        .all(db)
+        .await?;
+
+    let Some((game_model, player_models)) = rows.into_iter().next() else {
         return Err(Error::Database(sea_orm::DbErr::RecordNotFound(format!(
             "game {} not found",
             game_id
         ))));
     };
 
-    let game_state = model.state.into();
-    let raw_players: Vec<String> = serde_json::from_value(model.players)?;
-    let player_ids: Vec<PlayerName> = raw_players.into_iter().collect();
+    let players: Vec<PlayerName> = player_models.into_iter().map(|p| p.name).collect();
 
     Ok(Game {
-        id: model.id as u32,
-        state: game_state,
-        players: player_ids,
+        id: game_model.id as u32,
+        state: game_model.state.into(),
+        players,
         rounds: vec![],
         current_round: None,
     })
@@ -138,60 +141,51 @@ impl From<entities::sea_orm_active_enums::GameState> for GameState {
     }
 }
 
-async fn get_game_model(
-    game_id: u32,
-    db: &DatabaseConnection,
-) -> Result<Option<entities::games::Model>, Error> {
-    let model = entities::games::Entity::find_by_id(game_id as i32)
-        .one(db)
-        .await?;
-    Ok(model)
-}
-
-/// Adds a player to the game, identified by game_id. Returns the updated game and the new player ID.
-pub fn add_player(game_id: u32) -> impl Fn(&DatabaseConnection) -> Pin<PlayerAddedFuture<'_>> {
-    move |db: &DatabaseConnection| Box::pin(add_player_inner(db, game_id))
-}
-
 async fn add_player_inner(db: &DatabaseConnection, game_id: u32) -> Result<AddPlayerResult, Error> {
-    use sea_orm::ActiveModelTrait;
+    use entities::{game_players, games};
     use sea_orm::ActiveValue::Set;
 
-    // Fetch existing model
-    let Some(model) = get_game_model(game_id, db).await? else {
+    let Some(game_model) = games::Entity::find_by_id(game_id as i32).one(db).await? else {
         return Err(Error::Database(sea_orm::DbErr::RecordNotFound(format!(
             "game {} not found",
             game_id
         ))));
     };
 
-    // Build domain game from DB state
-    let existing_players: Vec<String> = serde_json::from_value(model.players.clone())?;
-    let mut domain_game = Game::new(model.id as u32);
-    domain_game.players = existing_players.clone();
-    domain_game.state = match model.state {
-        entities::sea_orm_active_enums::GameState::WaitingForPlayers => {
-            GameState::WaitingForPlayers
-        }
-        entities::sea_orm_active_enums::GameState::InProgress => GameState::InProgress,
-        entities::sea_orm_active_enums::GameState::Finished => GameState::Finished,
-    };
+    let existing_player_models = game_players::Entity::find()
+        .filter(game_players::Column::GameId.eq(game_model.id))
+        .all(db)
+        .await?;
+    let existing_names: Vec<String> = existing_player_models
+        .iter()
+        .map(|p| p.name.clone())
+        .collect();
 
-    // Use core logic to add player (assigns Player1/Player2 and potentially starts game)
-    let new_player_id = domain_game.add_player()?; // use core logic for naming
+    let mut domain_game = Game::new(game_model.id as u32);
+    domain_game.players = existing_names;
+    let db_entity_state = game_model.state.clone();
+    domain_game.state = db_entity_state.into();
 
-    // Persist updated players and state
-    let mut active: entities::games::ActiveModel = model.into();
-    active.players = Set(serde_json::json!(domain_game.players));
-    let new_entity_state = match domain_game.state {
-        GameState::WaitingForPlayers => {
-            entities::sea_orm_active_enums::GameState::WaitingForPlayers
-        }
-        GameState::InProgress => entities::sea_orm_active_enums::GameState::InProgress,
-        GameState::Finished => entities::sea_orm_active_enums::GameState::Finished,
+    let new_player_id = domain_game.add_player()?;
+
+    let player_active = game_players::ActiveModel {
+        game_id: Set(game_model.id),
+        name: Set(new_player_id.clone()),
     };
-    active.state = Set(new_entity_state);
-    active.update(db).await?;
+    player_active.insert(db).await?;
+
+    let current_state: GameState = game_model.state.clone().into();
+    if domain_game.state != current_state {
+        let mut active: games::ActiveModel = game_model.into();
+        active.state = Set(match domain_game.state {
+            GameState::WaitingForPlayers => {
+                entities::sea_orm_active_enums::GameState::WaitingForPlayers
+            }
+            GameState::InProgress => entities::sea_orm_active_enums::GameState::InProgress,
+            GameState::Finished => entities::sea_orm_active_enums::GameState::Finished,
+        });
+        active.update(db).await?;
+    }
 
     Ok(AddPlayerResult {
         game: domain_game,
