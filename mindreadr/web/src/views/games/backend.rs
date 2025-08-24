@@ -1,5 +1,6 @@
 //! Backend helpers for fetching games from the database and mapping them into core domain models.
 use crate::server::entities;
+use crate::server::entities::prelude::GamePlayers;
 use crate::views::games::PlayerName;
 use mindreadr_core::game::{Game, GameError as DomainGameError, GameState};
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
@@ -15,9 +16,9 @@ pub enum Error {
     Domain(#[from] DomainGameError),
 }
 
-type GamesFuture<'a> = Box<dyn Future<Output = Result<Vec<Game>, Error>> + Send + 'a>;
-type GameFuture<'a> = Box<dyn Future<Output = Result<Game, Error>> + Send + 'a>;
-type PlayerAddedFuture<'a> = Box<dyn Future<Output = Result<AddPlayerResult, Error>> + Send + 'a>;
+type GamesFuture<'a> = Box<dyn Future<Output=Result<Vec<Game>, Error>> + Send + 'a>;
+type GameFuture<'a> = Box<dyn Future<Output=Result<Game, Error>> + Send + 'a>;
+type PlayerAddedFuture<'a> = Box<dyn Future<Output=Result<AddPlayerResult, Error>> + Send + 'a>;
 /// Result of adding a player: updated game plus the newly assigned player id.
 #[derive(Debug, Clone)]
 pub struct AddPlayerResult {
@@ -27,7 +28,7 @@ pub struct AddPlayerResult {
 
 /// Future type returned by get_game_model curry function.
 type GameModelFuture<'a> =
-    Box<dyn Future<Output = Result<entities::games::Model, Error>> + Send + 'a>;
+Box<dyn Future<Output=Result<entities::games::Model, Error>> + Send + 'a>;
 
 /// Returns an async function that, given a database connection, fetches all games in the
 /// provided state and converts them into the core `Game` domain model.
@@ -52,8 +53,8 @@ pub fn create_game() -> impl Fn(&DatabaseConnection) -> Pin<GameFuture<'_>> {
                 state: Set(entities::sea_orm_active_enums::GameState::WaitingForPlayers),
                 ..Default::default()
             }
-            .insert(db)
-            .await?;
+                .insert(db)
+                .await?;
 
             Ok(Game {
                 id: new_model.id as u32,
@@ -90,16 +91,34 @@ pub fn get_game_model(game_id: u32) -> impl Fn(&DatabaseConnection) -> Pin<GameM
 
 /// Adds a player to the game, identified by game_id. Returns the updated game and the new player ID.
 pub fn add_player(game_id: u32) -> impl Fn(&DatabaseConnection) -> Pin<PlayerAddedFuture<'_>> {
-    move |db: &DatabaseConnection| Box::pin(add_player_inner(db, game_id))
-}
+    move |db: &DatabaseConnection| {
+        use entities::{game_players, games};
+        use sea_orm::ActiveValue::Set;
+        Box::pin(async move {
+            let game_model = get_game_model(game_id)(db).await?;
 
-/// Future type returned by get_players curry function.
-type PlayersFuture<'a> = Box<dyn Future<Output = Result<Vec<PlayerName>, Error>> + Send + 'a>;
+            let mut game_domain = Game {
+                id: game_model.id as u32,
+                state: game_model.state.into(),
+                players: vec![],
+                rounds: vec![],
+                current_round: None,
+            };
 
-/// Returns an async function that, given a database connection, fetches the list of player
-/// names for the specified game. Errors with RecordNotFound if the game does not exist.
-pub fn get_players(game_id: u32) -> impl Fn(&DatabaseConnection) -> Pin<PlayersFuture<'_>> {
-    move |db: &DatabaseConnection| Box::pin(get_players_inner(db, game_id))
+            let Ok(player_id) = game_domain.add_player()?;
+
+            let new_player = game_players::ActiveModel {
+                game_id: Set(game_id as i32),
+                name: Set(player_id.clone()),
+            };
+            new_player.insert(db).await?;
+
+            Ok(AddPlayerResult {
+                game: game_domain,
+                player_id,
+            })
+        }
+    }
 }
 
 async fn get_games_with_state(
@@ -169,47 +188,6 @@ impl From<entities::sea_orm_active_enums::GameState> for GameState {
             entities::sea_orm_active_enums::GameState::Finished => GameState::Finished,
         }
     }
-}
-
-async fn add_player_inner(db: &DatabaseConnection, game_id: u32) -> Result<AddPlayerResult, Error> {
-    use entities::{game_players, games};
-    use sea_orm::ActiveValue::Set;
-
-    let game_model = get_game_model(game_id)(db).await?;
-
-    // Get existing players through the shared helper.
-    let existing_names = get_players_inner(db, game_id).await?;
-
-    let mut domain_game = Game::new(game_model.id as u32);
-    domain_game.players = existing_names;
-    let db_entity_state = game_model.state.clone();
-    domain_game.state = db_entity_state.into();
-
-    let new_player_id = domain_game.add_player()?;
-
-    let player_active = game_players::ActiveModel {
-        game_id: Set(game_model.id),
-        name: Set(new_player_id.clone()),
-    };
-    player_active.insert(db).await?;
-
-    let current_state: GameState = game_model.state.clone().into();
-    if domain_game.state != current_state {
-        let mut active: games::ActiveModel = game_model.into();
-        active.state = Set(match domain_game.state {
-            GameState::WaitingForPlayers => {
-                entities::sea_orm_active_enums::GameState::WaitingForPlayers
-            }
-            GameState::InProgress => entities::sea_orm_active_enums::GameState::InProgress,
-            GameState::Finished => entities::sea_orm_active_enums::GameState::Finished,
-        });
-        active.update(db).await?;
-    }
-
-    Ok(AddPlayerResult {
-        game: domain_game,
-        player_id: new_player_id,
-    })
 }
 
 async fn get_players_inner(
