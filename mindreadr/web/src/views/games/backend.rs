@@ -72,14 +72,7 @@ async fn get_games_with_state(
 
     let mut games = Vec::new();
     for game in games_with_state {
-        let game_state = match game.state {
-            entities::sea_orm_active_enums::GameState::WaitingForPlayers => {
-                GameState::WaitingForPlayers
-            }
-            entities::sea_orm_active_enums::GameState::InProgress => GameState::InProgress,
-            entities::sea_orm_active_enums::GameState::Finished => GameState::Finished,
-        };
-
+        let game_state = game.state.into();
         // Expect players stored as a JSON array of strings
         let raw_players: Vec<String> = serde_json::from_value(game.players)?;
         let player_ids: Vec<PlayerName> = raw_players.into_iter().collect();
@@ -126,13 +119,7 @@ async fn get_game_inner(db: &DatabaseConnection, game_id: u32) -> Result<Game, E
         ))));
     };
 
-    let game_state = match model.state {
-        entities::sea_orm_active_enums::GameState::WaitingForPlayers => {
-            GameState::WaitingForPlayers
-        }
-        entities::sea_orm_active_enums::GameState::InProgress => GameState::InProgress,
-        entities::sea_orm_active_enums::GameState::Finished => GameState::Finished,
-    };
+    let game_state = model.state.into();
     let raw_players: Vec<String> = serde_json::from_value(model.players)?;
     let player_ids: Vec<PlayerName> = raw_players.into_iter().collect();
 
@@ -145,14 +132,40 @@ async fn get_game_inner(db: &DatabaseConnection, game_id: u32) -> Result<Game, E
     })
 }
 
+impl From<entities::sea_orm_active_enums::GameState> for GameState {
+    fn from(state: entities::sea_orm_active_enums::GameState) -> Self {
+        match state {
+            entities::sea_orm_active_enums::GameState::WaitingForPlayers => {
+                GameState::WaitingForPlayers
+            }
+            entities::sea_orm_active_enums::GameState::InProgress => GameState::InProgress,
+            entities::sea_orm_active_enums::GameState::Finished => GameState::Finished,
+        }
+    }
+}
+
+async fn get_game_model(
+    game_id: u32,
+    db: &DatabaseConnection,
+) -> Result<Option<entities::games::Model>, Error> {
+    let model = entities::games::Entity::find_by_id(game_id as i32)
+        .one(db)
+        .await?;
+    Ok(model)
+}
+
+pub async fn add_player(
+    game_id: u32,
+) -> impl Fn(&DatabaseConnection) -> Pin<PlayerAddedFuture<'_>> {
+    move |db: &DatabaseConnection| Box::pin(add_player_inner(db, game_id))
+}
+
 async fn add_player_inner(db: &DatabaseConnection, game_id: u32) -> Result<AddPlayerResult, Error> {
-    use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait};
+    use sea_orm::ActiveModelTrait;
+    use sea_orm::ActiveValue::Set;
 
     // Fetch existing model
-    let Some(model) = entities::games::Entity::find_by_id(game_id as i32)
-        .one(db)
-        .await?
-    else {
+    let Some(model) = get_game_model(game_id, db).await? else {
         return Err(Error::Database(sea_orm::DbErr::RecordNotFound(format!(
             "game {} not found",
             game_id

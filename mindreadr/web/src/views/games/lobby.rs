@@ -140,7 +140,8 @@ async fn join_game(game_id: u32) -> Result<JoinGameDto, ServerFnError> {
     // return type updated
     use crate::server::get_db_pool;
     let db = get_db_pool().await;
-    let resp = super::backend::add_player(game_id)(db).await?;
+    let player = super::backend::add_player(game_id);
+    let resp = player(db).await?;
     Ok(JoinGameDto {
         game: GetGameDto {
             id: resp.game.id,
