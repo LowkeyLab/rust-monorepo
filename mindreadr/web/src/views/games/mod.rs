@@ -40,14 +40,20 @@ pub fn Games() -> Element {
     });
 
     let handle_create_game = move |_| {
-        let name = user_name().unwrap_or_else(|| "New Game".to_string());
+        let player_name = user_name().unwrap_or_else(|| "".to_string());
         let mut games_signal = games;
         let mut error_signal = error;
+        let mut user_name_signal = user_name;
         spawn(async move {
-            match create_game(name).await {
-                Ok(new_game) => {
+            match create_game(player_name).await {
+                Ok(resp) => {
+                    // Save (sanitized) player name if not already stored
+                    if user_name_signal().is_none() {
+                        LocalStorage::set("user_name", resp.player_name.clone()).ok();
+                        user_name_signal.set(Some(resp.player_name.clone()));
+                    }
                     // Prepend the newly created game to the list
-                    games_signal.write().insert(0, new_game);
+                    games_signal.write().insert(0, resp.game);
                 }
                 Err(e) => {
                     error_signal.set(Some(format!("Failed to create game: {}", e)));
@@ -107,9 +113,26 @@ async fn get_games() -> Result<Vec<GameSummary>, ServerFnError> {
 
 /// Server function that creates a new game with the provided name and returns a summary.
 #[server]
-async fn create_game(name: String) -> Result<GameSummary, ServerFnError> {
+async fn create_game(player_name: String) -> Result<CreateGameResponse, ServerFnError> {
     use crate::server::get_db_pool;
     let db = get_db_pool().await;
-    let game = backend::create_game(name)(db).await?;
-    Ok(game.into())
+    let game = backend::create_game(player_name)(db).await?;
+    let player_name = game
+        .players
+        .first()
+        .cloned()
+        .unwrap_or_else(|| "Player1".to_string());
+    Ok(CreateGameResponse {
+        game: game.into(),
+        player_name,
+    })
+}
+
+/// Response payload for the create_game server function.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CreateGameResponse {
+    /// Newly created game summary.
+    pub game: GameSummary,
+    /// The (possibly sanitized) player name that was added as the first player.
+    pub player_name: String,
 }

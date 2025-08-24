@@ -74,23 +74,33 @@ async fn get_games_with_state(
     Ok(games)
 }
 
-async fn create_game_inner(db: &DatabaseConnection, name: String) -> Result<Game, Error> {
+async fn create_game_inner(db: &DatabaseConnection, player_name: String) -> Result<Game, Error> {
+    // Sanitize / default player name
+    let player_name = if player_name.trim().is_empty() {
+        "Player1".to_string()
+    } else {
+        player_name
+    };
+
+    // Derive a game name from the player name
+    let game_name = format!("{}'s Game", player_name);
+
     let new_model = entities::games::ActiveModel {
-        players: Set(serde_json::json!([])),
-        name: Set(if name.trim().is_empty() {
-            "New Game".to_string()
-        } else {
-            name
-        }),
+        players: Set(serde_json::json!([player_name])),
+        name: Set(game_name),
         state: Set(entities::sea_orm_active_enums::GameState::WaitingForPlayers),
         ..Default::default()
     }
     .insert(db)
     .await?;
 
+    // Reconstruct players from stored JSON (single player just added)
+    let raw_players: Vec<String> = serde_json::from_value(new_model.players)?;
+    let players: Vec<PlayerName> = raw_players.into_iter().collect();
+
     Ok(Game {
         id: new_model.id as u32,
-        players: vec![],
+        players,
         rounds: vec![],
         current_round: None,
         state: GameState::WaitingForPlayers,
