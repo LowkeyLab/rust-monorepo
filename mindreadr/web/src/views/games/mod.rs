@@ -24,10 +24,7 @@ pub fn Games() -> Element {
             // Load waiting games
             match get_games().await {
                 Ok(live_games) => {
-                    in_progress_count.set(match get_in_progress_game_count().await {
-                        Ok(count) => count,
-                        Err(_) => 0, // Silently ignore count errors for now; primary list already loaded
-                    });
+                    in_progress_count.set(get_in_progress_game_count().await.unwrap_or(0));
                     games.set(live_games);
                     loading.set(false);
                 }
