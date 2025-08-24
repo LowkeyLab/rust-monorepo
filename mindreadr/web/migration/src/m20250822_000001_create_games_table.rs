@@ -10,7 +10,6 @@ pub struct Migration;
 enum Games {
     Table,
     Id,
-    Name,
     State,
     CreatedAt,
     UpdatedAt,
@@ -75,7 +74,6 @@ impl MigrationTrait for Migration {
                     .table(Games::Table)
                     .if_not_exists()
                     .col(pk_auto(Games::Id))
-                    .col(string(Games::Name))
                     .col(enumeration(
                         Games::State,
                         Alias::new("game_state"),
