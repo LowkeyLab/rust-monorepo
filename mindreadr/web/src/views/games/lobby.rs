@@ -13,45 +13,29 @@ pub enum SyncAction {
     GetGameState,
 }
 
-/// Detailed view of a single game lobby. Always attempts to join via backend and displays any join error.
-/// After initial load, a background coroutine polls the server every second for updated game state
-/// until the game reaches the Finished state.
+/// Detailed view of a single game lobby component (client side view). Use GameLobby for behavior docs.
+/// (This comment previously claimed auto-join; behavior now requires explicit user action.)
 #[component]
 pub fn GameLobby(game_id: u32) -> Element {
     let mut loading = use_signal(|| true);
     let mut error = use_signal(|| None::<String>); // fatal load error
     let mut join_error = use_signal(|| None::<String>); // non-fatal join attempt error
     let mut game = use_signal(|| None::<GetGameDto>); // renamed
+    let mut joining = use_signal(|| false); // whether a join request is in-flight
     let player_map = use_game_player_map();
 
-    // On mount: attempt to join first; if join fails, fetch game to display current state.
+    // On mount: only fetch game details; do NOT auto-join.
     use_effect(move || {
-        let player_map = player_map.clone();
         let gid = game_id;
         spawn(async move {
-            match join_game(gid).await {
-                Ok(resp) => {
-                    // Persist player mapping
-                    let mut pm = player_map;
-                    pm.update(|m| m.assign(resp.game.id, resp.player_name.clone()));
-                    game.set(Some(resp.game));
+            match get_game(gid).await {
+                Ok(g) => {
+                    game.set(Some(g));
                     loading.set(false);
                 }
-                Err(join_e) => {
-                    // Record join error, then fetch game state to show user.
-                    join_error.set(Some(format!("Join failed: {join_e}")));
-                    match get_game(gid).await {
-                        Ok(g) => {
-                            game.set(Some(g));
-                            loading.set(false);
-                        }
-                        Err(fetch_e) => {
-                            error.set(Some(format!(
-                                "Failed to load game after join error: {fetch_e}"
-                            )));
-                            loading.set(false);
-                        }
-                    }
+                Err(fetch_e) => {
+                    error.set(Some(format!("Failed to load game: {fetch_e}")));
+                    loading.set(false);
                 }
             }
         });
@@ -65,7 +49,8 @@ pub fn GameLobby(game_id: u32) -> Element {
             while let Some(action) = rx.next().await {
                 match action {
                     SyncAction::GetGameState => {
-                        if loading() {
+                        if loading() || joining() {
+                            // pause polling while joining to avoid race
                             continue;
                         }
                         if let Some(current) = game() {
@@ -93,7 +78,7 @@ pub fn GameLobby(game_id: u32) -> Element {
             spawn(async move {
                 loop {
                     gloo_timers::future::TimeoutFuture::new(1000).await;
-                    if loading() {
+                    if loading() || joining() {
                         continue;
                     }
                     if let Some(current) = game() {
@@ -111,11 +96,49 @@ pub fn GameLobby(game_id: u32) -> Element {
         Header {}
         main { class: "min-h-screen bg-gray-50 py-8",
             div { class: "max-w-3xl mx-auto px-6 space-y-4",
-                if loading() { LoadingSpinner { message: "Joining game...".to_string() } }
+                if loading() { LoadingSpinner { message: "Loading game...".to_string() } }
                 else if let Some(err) = error() { ErrorMessage { message: err } }
                 else if let Some(detail) = game() {
+                    // Show join error (non-fatal) above details
                     if let Some(jerr) = join_error() { ErrorMessage { message: jerr } }
-                    LobbyGameDetails { detail }
+                    LobbyGameDetails { detail: detail.clone() }
+                    // Join button logic
+                    {
+                        let you_joined = player_map.get().get(detail.id).is_some();
+                        let full = detail.player_count >= 2;
+                        let can_join = matches!(detail.state, GameState::WaitingForPlayers) && !you_joined && !full;
+                        if can_join { rsx! {
+                            div { class: "pt-2",
+                                button {
+                                    class: "px-4 py-2 rounded bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed",
+                                    disabled: joining(),
+                                    onclick: move |_| {
+                                        if joining() { return; }
+                                        joining.set(true);
+                                        join_error.set(None);
+                                        let pid_map = player_map.clone();
+                                        let gid = game_id;
+                                        spawn(async move {
+                                            let mut pm = pid_map; // make mutable copy for update
+                                            match join_game(gid).await {
+                                                Ok(resp) => {
+                                                    // persist player mapping
+                                                    pm.update(|m| m.assign(resp.game.id, resp.player_name.clone()));
+                                                    game.set(Some(resp.game));
+                                                    joining.set(false);
+                                                }
+                                                Err(e) => {
+                                                    join_error.set(Some(format!("Join failed: {e}")));
+                                                    joining.set(false);
+                                                }
+                                            }
+                                        });
+                                    },
+                                    if joining() { "Joining..." } else { "Join Game" }
+                                }
+                            }
+                        }} else { rsx!{ div {} } }
+                    }
                 }
             }
         }
