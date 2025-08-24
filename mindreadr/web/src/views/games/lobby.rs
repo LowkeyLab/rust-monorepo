@@ -116,13 +116,13 @@ pub fn GameLobby(game_id: u32) -> Element {
                                         if joining() { return; }
                                         joining.set(true);
                                         join_error.set(None);
-                                        let pid_map = player_map.clone();
                                         let gid = game_id;
+                                        let pid_map = player_map.clone();
                                         spawn(async move {
-                                            let mut pm = pid_map; // make mutable copy for update
                                             match join_game(gid).await {
                                                 Ok(resp) => {
-                                                    // persist player mapping
+                                                    // Persist player mapping then update game state
+                                                    let mut pm = pid_map; // mutable copy
                                                     pm.update(|m| m.assign(resp.game.id, resp.player_name.clone()));
                                                     game.set(Some(resp.game));
                                                     joining.set(false);
@@ -225,9 +225,9 @@ pub struct JoinGameDto {
 }
 
 /// Add the current user (anonymous) as a player to the game.
+/// Returns updated game details and allocated player name.
 #[server]
 async fn join_game(game_id: u32) -> Result<JoinGameDto, ServerFnError> {
-    // return type updated
     use crate::server::get_db_pool;
     let db = get_db_pool().await;
     let player = super::backend::add_player(game_id);
