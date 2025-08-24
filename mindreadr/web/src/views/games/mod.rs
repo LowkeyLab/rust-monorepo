@@ -1,8 +1,7 @@
 use crate::components::{ErrorMessage, Header, LoadingSpinner};
 use crate::Route;
 use dioxus::prelude::*;
-use mindreadr_core::PlayerName;
-use mindreadr_core::{Game, GameState};
+use mindreadr_core::game::{Game, GameState, PlayerName};
 use serde::{Deserialize, Serialize}; // new for navigation
 #[cfg(feature = "server")]
 pub mod backend; // made public

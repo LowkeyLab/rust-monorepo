@@ -1,7 +1,7 @@
 use crate::components::{ErrorMessage, Header, LoadingSpinner};
 use crate::state::use_game_player_map;
 use dioxus::prelude::*;
-use mindreadr_core::{GameState, PlayerName};
+use mindreadr_core::game::{GameState, PlayerName};
 use serde::{Deserialize, Serialize};
 
 /// Detailed view of a single game lobby. Always attempts to join via backend and displays any join error.

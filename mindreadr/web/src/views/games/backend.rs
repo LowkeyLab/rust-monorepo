@@ -1,7 +1,8 @@
 //! Backend helpers for fetching games from the database and mapping them into core domain models.
 use crate::server::entities;
+use crate::views::games::PlayerName;
 use anyhow::Result;
-use mindreadr_core::{Game, GameError as DomainGameError, GameState, PlayerName};
+use mindreadr_core::game::{Game, GameError as DomainGameError, GameState};
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use std::future::Future;
 use std::pin::Pin;
