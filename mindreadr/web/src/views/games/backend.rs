@@ -1,8 +1,7 @@
 //! Backend helpers for fetching games from the database and mapping them into core domain models.
 use crate::server::entities;
 use anyhow::Result;
-use mindreadr_core::game::PlayerId;
-use mindreadr_core::{Game, GameState};
+use mindreadr_core::{Game, GameState, PlayerName};
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use std::future::Future;
 use std::pin::Pin;
@@ -54,8 +53,8 @@ async fn get_games_with_state(
         };
 
         // Expect players stored as a JSON array of strings
-        let raw_players: Vec<String> = serde_json::from_value(game.players.into())?;
-        let player_ids: Vec<PlayerId> = raw_players.into_iter().map(PlayerId::new).collect();
+        let raw_players: Vec<String> = serde_json::from_value(game.players)?;
+        let player_ids: Vec<PlayerName> = raw_players.into_iter().collect();
 
         games.push(Game {
             id: game.id as u32,

@@ -4,32 +4,21 @@ use thiserror::Error;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct PlayerId(String);
+/// Public alias representing a player's name/identifier.
+pub type PlayerName = String;
 
-impl PlayerId {
-    /// Creates a new PlayerId from a string
-    pub fn new(id: String) -> Self {
-        PlayerId(id)
-    }
-
-    /// Gets the inner string value of the PlayerId
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
+/// Represents a single game instance containing players, rounds, and state.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Game {
     pub id: u32,
-    pub players: Vec<PlayerId>,
+    pub players: Vec<PlayerName>,
     pub rounds: Vec<Round>,
     pub current_round: Option<Round>,
     pub state: GameState,
 }
 
+/// All possible states a game can be in during its lifecycle.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum GameState {
@@ -38,10 +27,11 @@ pub enum GameState {
     Finished,
 }
 
+/// A completed or in-progress round storing each player's guess.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Round {
-    pub guesses: HashMap<PlayerId, String>,
+    pub guesses: HashMap<PlayerName, String>,
 }
 
 #[derive(Error, Debug, Clone, PartialEq)]
@@ -78,8 +68,7 @@ impl Game {
         }
 
         let player_id = format!("Player{}", self.players.len() + 1);
-        let player = PlayerId::new(player_id.clone());
-        self.players.push(player);
+        self.players.push(player_id.clone());
 
         // Start the game when we have exactly 2 players
         if self.players.len() == 2 && matches!(self.state, GameState::WaitingForPlayers) {
@@ -117,7 +106,7 @@ impl Game {
     }
 
     /// Submits a guess for a player in the current round
-    pub fn submit_guess(&mut self, player: PlayerId, guess: String) -> Result<(), GameError> {
+    pub fn submit_guess(&mut self, player: PlayerName, guess: String) -> Result<(), GameError> {
         if !matches!(self.state, GameState::InProgress) {
             return Err(GameError::GameNotInProgress);
         }
@@ -161,8 +150,8 @@ impl Game {
         self.players.len()
     }
 
-    /// Gets the guesses for the current round
-    pub fn get_current_round_guesses(&self) -> Result<&HashMap<PlayerId, String>, GameError> {
+    /// Gets the guesses for the active round, if one exists.
+    pub fn get_current_round_guesses(&self) -> Result<&HashMap<PlayerName, String>, GameError> {
         let current_round = self
             .current_round
             .as_ref()
@@ -199,7 +188,7 @@ mod tests {
         assert_eq!(game.player_count(), 1);
         assert_eq!(game.get_state(), &GameState::WaitingForPlayers);
         assert_eq!(player_id, "Player1");
-        assert_eq!(game.players[0], PlayerId::new("Player1".to_string()));
+        assert_eq!(game.players[0], "Player1".to_string());
     }
 
     #[test]
@@ -215,8 +204,8 @@ mod tests {
         assert_eq!(game.player_count(), 2);
         assert_eq!(game.get_state(), &GameState::InProgress);
         assert_eq!(player2_id, "Player2");
-        assert_eq!(game.players[0], PlayerId::new("Player1".to_string()));
-        assert_eq!(game.players[1], PlayerId::new("Player2".to_string()));
+        assert_eq!(game.players[0], "Player1".to_string());
+        assert_eq!(game.players[1], "Player2".to_string());
     }
 
     #[test]
@@ -279,10 +268,9 @@ mod tests {
         game.add_player().unwrap();
         game.start_round();
 
-        let player1 = PlayerId::new("Player1".to_string());
-        let player2 = PlayerId::new("Player2".to_string());
+        let player1 = "Player1".to_string();
+        let player2 = "Player2".to_string();
 
-        // Submit different guesses first
         game.submit_guess(player1.clone(), "apple".to_string())
             .unwrap();
         assert_eq!(game.get_current_round_guesses().unwrap().len(), 1);
@@ -293,11 +281,9 @@ mod tests {
         assert_eq!(game.get_current_round_guesses().unwrap().len(), 2);
         assert_eq!(game.get_state(), &GameState::InProgress);
 
-        // Start a new round and have both players guess the same word
         game.start_round();
         game.submit_guess(player1.clone(), "orange".to_string())
             .unwrap();
-
         game.submit_guess(player2.clone(), "orange".to_string())
             .unwrap();
         assert_eq!(game.get_state(), &GameState::Finished);
@@ -308,9 +294,8 @@ mod tests {
         let mut game = Game::new(1);
 
         game.add_player().unwrap();
-        let player = PlayerId::new("Player1".to_string());
+        let player = "Player1".to_string();
 
-        // Game is not started, so submitting a guess should fail
         let result = game.submit_guess(player, "apple".to_string());
 
         assert_eq!(result, Err(GameError::GameNotInProgress));
@@ -325,8 +310,7 @@ mod tests {
 
         game.start_round();
 
-        let player3 = PlayerId::new("charlie".to_string());
-        // Submitting a guess for a player not in the game should return an error
+        let player3 = "charlie".to_string();
         let result = game.submit_guess(player3, "apple".to_string());
 
         assert_eq!(result, Err(GameError::PlayerNotFound));
@@ -339,8 +323,7 @@ mod tests {
         game.add_player().unwrap();
         game.start_game();
 
-        let player = PlayerId::new("Player1".to_string());
-        // If no round is active, submitting a guess should return an error
+        let player = "Player1".to_string();
         let result = game.submit_guess(player, "apple".to_string());
 
         assert_eq!(result, Err(GameError::NoActiveRound));
@@ -354,8 +337,8 @@ mod tests {
         game.add_player().unwrap();
         game.start_round();
 
-        let player1 = PlayerId::new("Player1".to_string());
-        let player2 = PlayerId::new("Player2".to_string());
+        let player1 = "Player1".to_string();
+        let player2 = "Player2".to_string();
 
         game.submit_guess(player1.clone(), "orange".to_string())
             .unwrap();
