@@ -35,7 +35,6 @@ pub fn Games() -> Element {
     });
 
     let handle_create_game = move |_| {
-        let nav = nav.clone();
         spawn(async move {
             match create_game().await {
                 Ok(created) => {
