@@ -55,22 +55,30 @@ pub fn add_player(game_id: u32) -> impl Fn(&DatabaseConnection) -> Pin<PlayerAdd
     move |db: &DatabaseConnection| Box::pin(add_player_inner(db, game_id))
 }
 
+/// Future type returned by get_players curry function.
+type PlayersFuture<'a> = Box<dyn Future<Output = Result<Vec<PlayerName>, Error>> + Send + 'a>;
+
+/// Returns an async function that, given a database connection, fetches the list of player
+/// names for the specified game. Errors with RecordNotFound if the game does not exist.
+pub fn get_players(game_id: u32) -> impl Fn(&DatabaseConnection) -> Pin<PlayersFuture<'_>> {
+    move |db: &DatabaseConnection| Box::pin(get_players_inner(db, game_id))
+}
+
 async fn get_games_with_state(
     db: &DatabaseConnection,
     entity_state: entities::sea_orm_active_enums::GameState,
 ) -> Result<Vec<Game>, Error> {
-    use entities::{game_players, games};
+    use entities::games;
 
-    // Fetch games with their players in a single query using relation preloading.
-    let rows: Vec<(games::Model, Vec<game_players::Model>)> = games::Entity::find()
+    // Fetch games matching state.
+    let game_models = games::Entity::find()
         .filter(games::Column::State.eq(entity_state))
-        .find_with_related(game_players::Entity)
         .all(db)
         .await?;
 
-    let mut games_out = Vec::with_capacity(rows.len());
-    for (game_model, player_models) in rows {
-        let players: Vec<PlayerName> = player_models.into_iter().map(|p| p.name).collect();
+    let mut games_out = Vec::with_capacity(game_models.len());
+    for game_model in game_models {
+        let players = get_players_inner(db, game_model.id as u32).await?;
         games_out.push(Game {
             id: game_model.id as u32,
             state: game_model.state.into(),
@@ -102,23 +110,16 @@ async fn create_game_inner(db: &DatabaseConnection) -> Result<Game, Error> {
 
 /// Fetch a single game by id, returning a domain `Game` or an error if not found.
 async fn get_game_inner(db: &DatabaseConnection, game_id: u32) -> Result<Game, Error> {
-    use entities::{game_players, games};
+    use entities::games;
 
-    // Load game and its players.
-    let rows: Vec<(games::Model, Vec<game_players::Model>)> = games::Entity::find()
-        .filter(games::Column::Id.eq(game_id as i32))
-        .find_with_related(game_players::Entity)
-        .all(db)
-        .await?;
-
-    let Some((game_model, player_models)) = rows.into_iter().next() else {
+    let Some(game_model) = games::Entity::find_by_id(game_id as i32).one(db).await? else {
         return Err(Error::Database(sea_orm::DbErr::RecordNotFound(format!(
             "game {} not found",
             game_id
         ))));
     };
 
-    let players: Vec<PlayerName> = player_models.into_iter().map(|p| p.name).collect();
+    let players = get_players_inner(db, game_id).await?; // reuse canonical player fetch
 
     Ok(Game {
         id: game_model.id as u32,
@@ -152,14 +153,8 @@ async fn add_player_inner(db: &DatabaseConnection, game_id: u32) -> Result<AddPl
         ))));
     };
 
-    let existing_player_models = game_players::Entity::find()
-        .filter(game_players::Column::GameId.eq(game_model.id))
-        .all(db)
-        .await?;
-    let existing_names: Vec<String> = existing_player_models
-        .iter()
-        .map(|p| p.name.clone())
-        .collect();
+    // Get existing players through the shared helper.
+    let existing_names = get_players_inner(db, game_id).await?;
 
     let mut domain_game = Game::new(game_model.id as u32);
     domain_game.players = existing_names;
@@ -191,4 +186,35 @@ async fn add_player_inner(db: &DatabaseConnection, game_id: u32) -> Result<AddPl
         game: domain_game,
         player_id: new_player_id,
     })
+}
+
+async fn get_players_inner(
+    db: &DatabaseConnection,
+    game_id: u32,
+) -> Result<Vec<PlayerName>, Error> {
+    use entities::{game_players, games};
+    use sea_orm::QueryOrder;
+
+    // Ensure game exists; surface not found distinctly.
+    if games::Entity::find_by_id(game_id as i32)
+        .one(db)
+        .await?
+        .is_none()
+    {
+        return Err(Error::Database(sea_orm::DbErr::RecordNotFound(format!(
+            "game {} not found",
+            game_id
+        ))));
+    }
+
+    let players = game_players::Entity::find()
+        .filter(game_players::Column::GameId.eq(game_id as i32))
+        .order_by_asc(game_players::Column::Name)
+        .all(db)
+        .await?
+        .into_iter()
+        .map(|p| p.name)
+        .collect();
+
+    Ok(players)
 }
