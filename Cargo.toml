@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["grrs", "nicknamer/*", "task-cli", "hot_dog", "mindreadr/core", "mindreadr/web/migration", "mindreadr/web/entities", "mindreadr/web"]
+members = ["grrs", "nicknamer/*", "task-cli", "hot_dog", "mindreadr/core", "mindreadr/web/migration", "mindreadr/web"]
 
 [profile]
 
