@@ -131,10 +131,25 @@ async fn create_game_inner(db: &DatabaseConnection) -> Result<Game, Error> {
 
 /// Fetch a single game by id, returning a domain `Game` or an error if not found.
 async fn get_game_inner(db: &DatabaseConnection, game_id: u32) -> Result<Game, Error> {
-    // Reuse raw model fetch helper.
-    let game_model = get_game_model(game_id)(db).await?;
+    use entities::{game_players, games};
 
-    let players = get_players_inner(db, game_id).await?; // reuse canonical player fetch
+    // Perform a single query joining the game with its players.
+    let mut results = games::Entity::find()
+        .filter(games::Column::Id.eq(game_id as i32))
+        .find_with_related(game_players::Entity)
+        .all(db)
+        .await?;
+
+    let Some((game_model, player_models)) = results.pop() else {
+        return Err(Error::Database(sea_orm::DbErr::RecordNotFound(format!(
+            "game {} not found",
+            game_id
+        ))));
+    };
+
+    // Map player models into player name list, keeping previous alphabetical ordering behavior.
+    let mut players: Vec<PlayerName> = player_models.into_iter().map(|p| p.name).collect();
+    players.sort();
 
     Ok(Game {
         id: game_model.id as u32,
