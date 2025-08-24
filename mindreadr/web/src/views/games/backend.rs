@@ -55,13 +55,6 @@ pub fn get_game(game_id: u32) -> impl Fn(&DatabaseConnection) -> Pin<GameFuture<
     move |db: &DatabaseConnection| Box::pin(get_game_inner(db, game_id))
 }
 
-/// Returns an async function (curried) that, when supplied a database connection, fetches the game
-/// with the provided id or returns an error if it does not exist. This mirrors the currying style
-/// used by other helper constructors.
-pub fn get_games_with_id(game_id: u32) -> impl Fn(&DatabaseConnection) -> Pin<GameFuture<'_>> {
-    move |db: &DatabaseConnection| Box::pin(get_game_inner(db, game_id))
-}
-
 async fn get_games_with_state(
     db: &DatabaseConnection,
     entity_state: entities::sea_orm_active_enums::GameState,
@@ -155,9 +148,8 @@ async fn get_game_model(
     Ok(model)
 }
 
-pub async fn add_player(
-    game_id: u32,
-) -> impl Fn(&DatabaseConnection) -> Pin<PlayerAddedFuture<'_>> {
+/// Adds a player to the game, identified by game_id. Returns the updated game and the new player ID.
+pub fn add_player(game_id: u32) -> impl Fn(&DatabaseConnection) -> Pin<PlayerAddedFuture<'_>> {
     move |db: &DatabaseConnection| Box::pin(add_player_inner(db, game_id))
 }
 
