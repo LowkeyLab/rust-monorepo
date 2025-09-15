@@ -11,7 +11,7 @@ config = "0.15.15"
 include_dir = "0.7.4"
 mockall = "0.13.1"
 poise = "0.6.1"
-serde = "1.0.219"
+serde = "1.0.223"
 serde_yml = "0.0.12"
 thiserror = "2.0.16"
 tokio = { version = "1.47.1", features = ["rt-multi-thread"] }
