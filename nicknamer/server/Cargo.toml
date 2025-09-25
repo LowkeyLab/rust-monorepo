@@ -15,7 +15,7 @@ askama = "0.14.0"
 axum = "0.8.4"
 axum-extra = { version = "0.10.1", features = ["cookie"] }
 chrono = "0.4.42"
-config = "0.15.16"
+config = "0.15.17"
 jsonwebtoken = "9.3.1"
 migration = { version = "0.1.0", path = "./migration" }
 sea-orm = { version = "1.1.16", features = [
