@@ -22,7 +22,7 @@ jobs:
         with:
           username: ${{ vars.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
-      - uses: jdx/mise-action@156251fcc627ac4e26cb0f93dd47d1d4979abf24
+      - uses: jdx/mise-action@e3d7b8d67a7958d1207f6ed871e83b1ea780e7b0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: rustup target add wasm32-unknown-unknown
