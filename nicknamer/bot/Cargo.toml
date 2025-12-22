@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0.99"
 async-trait = "0.1.89"
-axum = "0.8.7"
+axum = "0.8.8"
 config = "0.15.19"
 include_dir = "0.7.4"
 mockall = "0.14.0"
