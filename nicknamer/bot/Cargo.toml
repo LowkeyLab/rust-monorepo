@@ -13,7 +13,7 @@ mockall = "0.14.0"
 poise = "0.6.1"
 serde = "1.0.228"
 serde_yml = "0.0.12"
-thiserror = "2.0.17"
+thiserror = "2.0.18"
 tokio = { version = "1.49.0", features = ["rt-multi-thread"] }
 toml = "0.9.11"
 tracing = "0.1.44"
