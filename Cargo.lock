@@ -160,11 +160,11 @@ dependencies = [
 
 [[package]]
 name = "askama"
-version = "0.14.0"
+version = "0.15.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f75363874b771be265f4ffe307ca705ef6f3baa19011c149da8674a87f1b75c4"
+checksum = "10a800c6f7c005e5bcb76ff0b9e61c9e54ad379ce4e83a88ed14ff487a73776d"
 dependencies = [
- "askama_derive",
+ "askama_macros",
  "itoa 1.0.15",
  "percent-encoding",
  "serde",
@@ -173,9 +173,9 @@ dependencies = [
 
 [[package]]
 name = "askama_derive"
-version = "0.14.0"
+version = "0.15.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "129397200fe83088e8a68407a8e2b1f826cf0086b21ccdb866a722c8bcd3a94f"
+checksum = "0cb7657165bac49b5c533850e7cd67c1c60059aefc31088f89aa431c8a90d5d9"
 dependencies = [
  "askama_parser",
  "basic-toml",
@@ -195,14 +195,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "619743e34b5ba4e9703bba34deac3427c72507c7159f5fd030aea8cac0cfe341"
 
 [[package]]
-name = "askama_parser"
-version = "0.14.0"
+name = "askama_macros"
+version = "0.15.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d6ab5630b3d5eaf232620167977f95eb51f3432fc76852328774afbd242d4358"
+checksum = "e55eacd3e54d32483cd10d0a881a0f28a40f3a763704ac9b8693edc39d7321c7"
 dependencies = [
- "memchr",
+ "askama_derive",
+]
+
+[[package]]
+name = "askama_parser"
+version = "0.15.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20c3df8886ab5acdcd76eee93b3e2df1ef734251438b5b942b5fea22c50d2a0f"
+dependencies = [
+ "rustc-hash 2.1.1",
  "serde",
  "serde_derive",
+ "unicode-ident",
  "winnow 0.7.13",
 ]
 
