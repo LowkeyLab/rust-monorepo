@@ -13,7 +13,7 @@ testcontainers-modules = { version = "0.13.0", features = ["postgres"] }
 anyhow = "1.0.102"
 askama = "0.14.0"
 axum = "0.8.9"
-axum-extra = { version = "0.12.5", features = ["cookie"] }
+axum-extra = { version = "0.12.6", features = ["cookie"] }
 chrono = "0.4.44"
 config = "0.15.22"
 jsonwebtoken = "9.3.1"
